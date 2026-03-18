@@ -1,0 +1,87 @@
+import { STORAGE_KEYS } from '../configs/constants.js';
+
+class SaveManager {
+  /**
+   * Save current game state to localStorage.
+   * @param {{ grid: number[][], score: number, moves: number, mode: string }} state
+   */
+  saveGame(state) {
+    localStorage.setItem(STORAGE_KEYS.SAVE, JSON.stringify(state));
+  }
+
+  /**
+   * Load saved game state.
+   * @returns {{ grid: number[][], score: number, moves: number, mode: string } | null}
+   */
+  loadGame() {
+    const raw = localStorage.getItem(STORAGE_KEYS.SAVE);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  /** Clear current saved game. */
+  clearGame() {
+    localStorage.removeItem(STORAGE_KEYS.SAVE);
+  }
+
+  /** @returns {boolean} */
+  hasSave() {
+    return localStorage.getItem(STORAGE_KEYS.SAVE) !== null;
+  }
+
+  /**
+   * Add a score to rankings for a given mode.
+   * @param {string} mode - 'classic' | 'battle' | 'free'
+   * @param {number} score
+   */
+  addRanking(mode, score) {
+    const rankings = this.#loadRankings();
+    if (!rankings[mode]) rankings[mode] = [];
+    rankings[mode].push({ score, date: Date.now() });
+    rankings[mode].sort((a, b) => b.score - a.score);
+    rankings[mode] = rankings[mode].slice(0, 10);
+    localStorage.setItem(STORAGE_KEYS.RANKINGS, JSON.stringify(rankings));
+  }
+
+  /**
+   * Get top 10 scores for a mode.
+   * @param {string} mode
+   * @returns {{ score: number, date: number }[]}
+   */
+  getRankings(mode) {
+    const rankings = this.#loadRankings();
+    return rankings[mode] ?? [];
+  }
+
+  /** Reset all rankings. */
+  resetRankings() {
+    localStorage.removeItem(STORAGE_KEYS.RANKINGS);
+  }
+
+  /**
+   * Get best score for a mode.
+   * @param {string} mode
+   * @returns {number}
+   */
+  getBestScore(mode) {
+    const list = this.getRankings(mode);
+    return list.length > 0 ? list[0].score : 0;
+  }
+
+  /** @returns {Record<string, { score: number, date: number }[]>} */
+  #loadRankings() {
+    const raw = localStorage.getItem(STORAGE_KEYS.RANKINGS);
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return {};
+    }
+  }
+}
+
+export const saveManager = new SaveManager();
