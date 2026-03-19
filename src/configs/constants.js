@@ -8,13 +8,6 @@ export const SCENE_KEYS = {
 
 /** Grid dimensions */
 export const GRID_SIZE = 4;
-export const TILE_SIZE = 74;
-export const GRID_GAP = 8;
-export const GRID_PADDING = 10;
-
-/** Game dimensions (vertical mobile) */
-export const GAME_WIDTH = 390;
-export const GAME_HEIGHT = 844;
 
 /** Tile spawn values and probabilities */
 export const SPAWN_VALUES = [2, 4];

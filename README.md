@@ -15,6 +15,10 @@ npm run build      # Production build
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full project structure, tech stack, design decisions, and conventions.
 
+## Layout System
+
+See [docs/LAYOUT.md](docs/LAYOUT.md) for the full documentation on responsive layout, safe zone, CSS custom properties, and how to position elements in new scenes.
+
 ## Current Status
 
 ### Implemented

@@ -1,4 +1,4 @@
-import { GAME_WIDTH, GAME_HEIGHT } from '../configs/constants.js';
+import { layout } from '../managers/layout-manager.js';
 import { i18n } from '../managers/i18n-manager.js';
 
 /**
@@ -40,8 +40,8 @@ export class MenuModal {
       </div>
     `;
 
-    this.#domElement = scene.add.dom(GAME_WIDTH / 2, GAME_HEIGHT / 2).createFromHTML(html);
-    this.#domElement.setOrigin(0.5);
+    this.#domElement = scene.add.dom(0, 0).createFromHTML(html);
+    this.#domElement.setOrigin(0, 0);
     this.#domElement.setDepth(100);
 
     const overlay = this.#domElement.node.querySelector('#fm-menu-overlay');

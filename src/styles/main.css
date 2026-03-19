@@ -1,5 +1,13 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* --- Safe-area-inset bridge: CSS env() → custom properties (read by LayoutManager) --- */
+:root {
+  --sai-top:    env(safe-area-inset-top, 0px);
+  --sai-bottom: env(safe-area-inset-bottom, 0px);
+  --sai-left:   env(safe-area-inset-left, 0px);
+  --sai-right:  env(safe-area-inset-right, 0px);
+}
+
 html, body {
   width: 100%;
   height: 100%;
@@ -13,19 +21,16 @@ html, body {
   position: relative;
 }
 
-/* ============================================================
-   DOM OVERLAY — grid & tiles rendered as CSS DOM elements
-   injected via Phaser DOM elements
-============================================================ */
+/* --- DOM overlay: grid & tiles as CSS DOM elements --- */
 
 /* Grid container */
 .fm-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  padding: 10px;
+  gap: var(--fm-grid-gap, 8px);
+  padding: var(--fm-grid-padding, 10px);
   border-radius: 20px;
-  width: 340px;
+  width: var(--fm-grid-width, 340px);
   background: rgba(255,255,255,0.14);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
@@ -35,26 +40,24 @@ html, body {
 
 /* Cell placeholder (empty slot) */
 .fm-cell {
-  width: 74px;
-  height: 74px;
+  width: var(--fm-tile-size, 74px);
+  height: var(--fm-tile-size, 74px);
   border-radius: 14px;
   background: rgba(255,255,255,0.08);
   border: 2px solid rgba(255,255,255,0.15);
 }
 
-/* ============================================================
-   TILE — base
-============================================================ */
+/* --- Tile base --- */
 .fm-tile {
   position: absolute;
-  width: 74px;
-  height: 74px;
+  width: var(--fm-tile-size, 74px);
+  height: var(--fm-tile-size, 74px);
   border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 900;
-  font-size: 1.45rem;
+  font-size: var(--fm-tile-font, 23px);
   font-family: 'Comic Sans MS', cursive, sans-serif;
   user-select: none;
   overflow: hidden;
@@ -73,9 +76,7 @@ html, body {
   letter-spacing: -0.5px;
 }
 
-/* ============================================================
-   Spawn animation
-============================================================ */
+/* --- Spawn animation --- */
 @keyframes fm-spawn {
   0%   { transform: scale(0); opacity: 0; }
   60%  { transform: scale(1.12); opacity: 1; }
@@ -86,9 +87,7 @@ html, body {
   animation: fm-spawn 100ms ease-out forwards;
 }
 
-/* ============================================================
-   Merge animation (pop)
-============================================================ */
+/* --- Merge animation (pop) --- */
 @keyframes fm-merge {
   0%   { transform: scale(1); }
   40%  { transform: scale(1.25); }
@@ -100,9 +99,7 @@ html, body {
   z-index: 3;
 }
 
-/* ============================================================
-   KEYFRAMES (from preview)
-============================================================ */
+/* --- Keyframes --- */
 @keyframes gradientShift {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
@@ -129,9 +126,7 @@ html, body {
   100% { box-shadow: 0 6px 22px rgba(200,160,80,0.25), 0 0 0 3.5px rgba(255,170,210,0.95); }
 }
 
-/* ============================================================
-   TILE VALUES — flat colors (2–64)
-============================================================ */
+/* --- Tile values: flat colors (2–64) --- */
 .fm-t2   { background: #fff2ff; color: #d44db8; border-color: #d44db8; }
 .fm-t4   { background: #ffe5fd; color: #c02ea8; border-color: #c02ea8; }
 .fm-t8   { background: #ffd6f5; color: #aa0f96; border-color: #aa0f96; }
@@ -139,74 +134,59 @@ html, body {
 .fm-t32  { background: #edd2ff; color: #6600cc; border-color: #6600cc; }
 .fm-t64  { background: #dcc2ff; color: #4400e0; border-color: #4400e0; }
 
-/* ============================================================
-   TILE VALUES — static gradient (128–256)
-============================================================ */
-.fm-t128 { background: linear-gradient(135deg, #c8b8ff, #a898ff); color: #1a00cc; border-color: #1a00cc; font-size: 1.25rem; }
-.fm-t256 { background: linear-gradient(135deg, #b0ceff, #8ab2ff); color: #0030ee; border-color: #0030ee; font-size: 1.1rem; }
+/* --- Tile values: static gradient (128–256) --- */
+.fm-t128 { background: linear-gradient(135deg, #c8b8ff, #a898ff); color: #1a00cc; border-color: #1a00cc; font-size: calc(var(--fm-tile-font, 23px) * 0.86); }
+.fm-t256 { background: linear-gradient(135deg, #b0ceff, #8ab2ff); color: #0030ee; border-color: #0030ee; font-size: calc(var(--fm-tile-font, 23px) * 0.76); }
 
-/* ============================================================
-   TILE VALUES — animated gradient (512)
-============================================================ */
+/* --- Tile values: animated gradient (512) --- */
 .fm-t512 {
   background-image: linear-gradient(135deg, #a0eedc, #6cd8c0, #a0eedc);
   background-size: 300% 300%;
   color: #006699;
   border-color: #006699;
-  font-size: 1.0rem;
+  font-size: calc(var(--fm-tile-font, 23px) * 0.69);
   animation: gradientShift 3.8s ease infinite;
 }
 
-/* ============================================================
-   TILE VALUES — animated gradient + border (1024)
-============================================================ */
+/* --- Tile values: animated gradient + border (1024) --- */
 .fm-t1024 {
   background-image: linear-gradient(135deg, #aaffe0, #72e8a8, #aaffe0);
   background-size: 300% 300%;
   color: #00aa44;
   border-color: #00aa44;
-  font-size: 0.9rem;
+  font-size: calc(var(--fm-tile-font, 23px) * 0.62);
   animation:
     gradientShift 3.2s ease infinite,
     outerGlow1024 3.0s linear infinite;
 }
 
-/* ============================================================
-   TILE VALUES — rainbow animated (2048)
-============================================================ */
+/* --- Tile values: rainbow animated (2048) --- */
 .fm-t2048 {
   background-image: linear-gradient(135deg, #fff580, #ffd0ea, #bce8ff, #c8ffda, #fff580);
   background-size: 400% 400%;
   color: #cc8800;
   border-color: #cc8800;
   border-width: 2.5px;
-  font-size: 0.85rem;
+  font-size: calc(var(--fm-tile-font, 23px) * 0.59);
   animation:
     gradientShift 2.4s ease infinite,
     outerGlow2048 2.0s linear infinite;
 }
 
-/* ============================================================
-   SUPER HIGH VALUES (beyond 2048, rare in classic)
-============================================================ */
+/* --- Tile values: super high (beyond 2048) --- */
 .fm-t4096 {
   background-image: linear-gradient(135deg, #ff8888, #ff5555, #ff8888);
   background-size: 300% 300%;
   color: #fff;
   border-color: #cc0000;
-  font-size: 0.85rem;
+  font-size: calc(var(--fm-tile-font, 23px) * 0.59);
   animation: gradientShift 2.0s ease infinite, outerGlow2048 1.5s linear infinite;
 }
 
-/* ============================================================
-   HUD overlay
-============================================================ */
+/* --- HUD overlay --- */
 .fm-hud {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  padding: 12px 16px;
+  width: var(--fm-safe-width, 360px);
+  padding: 12px 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -264,9 +244,7 @@ html, body {
   background: rgba(255,255,255,0.25);
 }
 
-/* ============================================================
-   TITLE SCENE
-============================================================ */
+/* --- Title scene --- */
 .fm-title-screen {
   width: 100%;
   height: 100%;
@@ -306,12 +284,13 @@ html, body {
   margin-top: 40px;
 }
 
-/* ============================================================
-   MODAL BASE
-============================================================ */
+/* --- Modal base --- */
 .fm-modal-overlay {
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
   background: rgba(0,0,0,0.55);
   display: flex;
   align-items: center;
@@ -372,9 +351,7 @@ html, body {
   background: rgba(180,100,255,0.5);
 }
 
-/* ============================================================
-   GAME OVER overlay
-============================================================ */
+/* --- Game over overlay --- */
 .fm-gameover {
   text-align: center;
 }

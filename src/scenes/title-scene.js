@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
-import { SCENE_KEYS, GAME_WIDTH, GAME_HEIGHT } from '../configs/constants.js';
+import { SCENE_KEYS } from '../configs/constants.js';
 import { i18n } from '../managers/i18n-manager.js';
+import { layout } from '../managers/layout-manager.js';
 import { MenuModal } from '../components/menu-modal.js';
+import { addBackground } from '../utils/background.js';
 
 export class TitleScene extends Phaser.Scene {
   /** @type {Phaser.GameObjects.DOMElement | null} */
@@ -15,6 +17,9 @@ export class TitleScene extends Phaser.Scene {
   }
 
   create() {
+    addBackground(this);
+    layout.drawDebugSafeZone(this);
+
     const html = `
       <div class="fm-title-screen">
         <div class="fm-title-logo">${i18n.t('title.name')}</div>
@@ -23,7 +28,7 @@ export class TitleScene extends Phaser.Scene {
       </div>
     `;
 
-    this.#domElement = this.add.dom(GAME_WIDTH / 2, GAME_HEIGHT / 2).createFromHTML(html);
+    this.#domElement = this.add.dom(layout.safe.cx, layout.safe.cy).createFromHTML(html);
     this.#domElement.setOrigin(0.5);
 
     // Any key or tap → open menu

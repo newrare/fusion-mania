@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { SCENE_KEYS, GAME_WIDTH, GAME_HEIGHT } from '../configs/constants.js';
+import { SCENE_KEYS } from '../configs/constants.js';
+import { layout } from '../managers/layout-manager.js';
 
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -8,10 +9,11 @@ export class PreloadScene extends Phaser.Scene {
 
   preload() {
     // Progress bar
-    const barW = GAME_WIDTH * 0.6;
+    const { width, height } = layout;
+    const barW = width * 0.6;
     const barH = 8;
-    const barX = (GAME_WIDTH - barW) / 2;
-    const barY = GAME_HEIGHT / 2;
+    const barX = (width - barW) / 2;
+    const barY = height / 2;
 
     const bg = this.add.rectangle(barX + barW / 2, barY, barW, barH, 0x333333).setOrigin(0.5);
     const fill = this.add.rectangle(barX, barY, 0, barH, 0xb464ff).setOrigin(0, 0.5);
@@ -20,8 +22,12 @@ export class PreloadScene extends Phaser.Scene {
       fill.width = barW * value;
     });
 
-    // Load assets here when they exist
-    // this.load.image('background', 'assets/images/background_one_rock.png');
+    // Background layers
+    this.load.image('bg-sky',     'assets/images/background_one_sky.png');
+    this.load.image('bg-rock',    'assets/images/background_one_rock.png');
+    this.load.image('bg-ground',  'assets/images/background_one_ground.png');
+    this.load.image('bg-cloud02', 'assets/images/background_one_cloud_02.png');
+    this.load.image('bg-cloud01', 'assets/images/background_one_cloud_01.png');
   }
 
   create() {

@@ -1,20 +1,17 @@
 import Phaser from 'phaser';
 import {
   SCENE_KEYS,
-  GAME_WIDTH,
-  GAME_HEIGHT,
   GRID_SIZE,
-  TILE_SIZE,
-  GRID_GAP,
-  GRID_PADDING,
   ANIM,
   SWIPE_THRESHOLD,
 } from '../configs/constants.js';
 import { Grid } from '../entities/grid.js';
 import { i18n } from '../managers/i18n-manager.js';
+import { layout } from '../managers/layout-manager.js';
 import { saveManager } from '../managers/save-manager.js';
 import { MenuModal } from '../components/menu-modal.js';
 import { GameOverModal } from '../components/game-over-modal.js';
+import { addBackground } from '../utils/background.js';
 
 /**
  * Main gameplay scene — 2048 grid rendered with CSS DOM elements.
@@ -73,6 +70,8 @@ export class GridScene extends Phaser.Scene {
   }
 
   create() {
+    addBackground(this);
+    layout.drawDebugSafeZone(this);
     this.#createHUD();
     this.#createGridContainer();
     this.#startNewGame();
@@ -99,7 +98,7 @@ export class GridScene extends Phaser.Scene {
       </div>
     `;
 
-    this.#hudDom = this.add.dom(GAME_WIDTH / 2, 0).createFromHTML(html);
+    this.#hudDom = this.add.dom(layout.safe.cx, layout.safe.top).createFromHTML(html);
     this.#hudDom.setOrigin(0.5, 0);
     this.#hudEl = this.#hudDom.node;
 
@@ -112,7 +111,6 @@ export class GridScene extends Phaser.Scene {
 
   // ─── GRID CONTAINER ──────────────────────────────
   #createGridContainer() {
-    // Create the grid with empty cells
     let cellsHtml = '';
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
@@ -122,8 +120,7 @@ export class GridScene extends Phaser.Scene {
 
     const html = `<div class="fm-grid" id="fm-grid">${cellsHtml}</div>`;
 
-    const gridY = GAME_HEIGHT * 0.45;
-    this.#gridDom = this.add.dom(GAME_WIDTH / 2, gridY).createFromHTML(html);
+    this.#gridDom = this.add.dom(layout.grid.x, layout.grid.y).createFromHTML(html);
     this.#gridDom.setOrigin(0.5);
     this.#gridEl = this.#gridDom.node.querySelector('#fm-grid');
   }
@@ -264,8 +261,9 @@ export class GridScene extends Phaser.Scene {
    * @returns {{ x: number, y: number }}
    */
   #cellPosition(row, col) {
-    const x = GRID_PADDING + col * (TILE_SIZE + GRID_GAP);
-    const y = GRID_PADDING + row * (TILE_SIZE + GRID_GAP);
+    const { tileSize, gap, padding } = layout.grid;
+    const x = padding + col * (tileSize + gap);
+    const y = padding + row * (tileSize + gap);
     return { x, y };
   }
 
