@@ -14,6 +14,7 @@
     "phaser": "^3.80.1"
   },
   "devDependencies": {
+    "happy-dom": "^20.8.4",
     "vite": "^6.3.5",
     "vitest": "^3.2.1"
   }

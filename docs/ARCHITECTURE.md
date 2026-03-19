@@ -26,6 +26,7 @@ fusionMania/
 │
 ├── docs/                      # Project documentation
 │   ├── ARCHITECTURE.md        # ← You are here
+│   ├── ANIMATION.md           # Animation system, interruption model, testing guide
 │   ├── TRANSLATE.md           # Localization guide
 │   └── preview-game.html      # Visual reference for tile styles
 │
@@ -66,6 +67,7 @@ fusionMania/
 │   │
 │   ├── managers/              # Cross-cutting singletons
 │   │   ├── index.js           # Barrel export
+│   │   ├── animation-manager.js # Tile DOM animations + cancellation system
 │   │   ├── audio-manager.js   # Music & SFX settings (persisted)
 │   │   ├── i18n-manager.js    # Locale switching & translation lookups
 │   │   └── save-manager.js    # Persistent game state + rankings (localStorage)
@@ -83,11 +85,12 @@ fusionMania/
 │   ├── entities/
 │   │   ├── tile.test.js
 │   │   └── grid.test.js
-│   ├── utils/
-│   │   └── math.test.js
-│   └── managers/
-│       ├── save-manager.test.js
-│       └── i18n-manager.test.js
+│   ├── managers/
+│   │   ├── animation-manager.test.js
+│   │   ├── i18n-manager.test.js
+│   │   └── save-manager.test.js
+│   └── utils/
+│       └── math.test.js
 │
 ├── android/                   # (generated) Capacitor Android project
 └── ios/                       # (generated) Capacitor iOS project
@@ -134,6 +137,7 @@ new GameOverModal(this, {
 
 Managers are **singleton-ish** classes for cross-cutting concerns:
 
+- **AnimationManager** — manages all DOM tile animations (slides, merges, spawns, particles). Completely independent of Phaser. See [docs/ANIMATION.md](ANIMATION.md).
 - **AudioManager** — wraps Phaser's sound system with volume control.
 - **I18nManager** — singleton handling locale selection, translation lookups (`i18n.t('key')`), and persistence to `localStorage`. See [docs/TRANSLATE.md](TRANSLATE.md).
 - **StateManager** — observable key-value store for shared game state (score, settings, player data). Supports `on(key, callback)` subscriptions.
@@ -202,5 +206,7 @@ npm run test:watch # Watch mode
 
 Focus testing on:
 - `utils/` — pure functions, easy to test
-- `managers/` — state logic, subscriptions
+- `managers/` — state logic, subscriptions, animation primitives
 - `entities/` — game logic detached from rendering
+
+See [docs/ANIMATION.md](ANIMATION.md) for the full animation system documentation, including layers, interruption model, and testing guide.

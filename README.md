@@ -19,6 +19,10 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full project structure,
 
 See [docs/LAYOUT.md](docs/LAYOUT.md) for the full documentation on responsive layout, safe zone, CSS custom properties, and how to position elements in new scenes.
 
+## Animation System
+
+See [docs/ANIMATION.md](docs/ANIMATION.md) for the animation layers, interruption model (skip in-progress animations on new input), and testing guide.
+
 ## Current Status
 
 ### Implemented
@@ -29,7 +33,8 @@ See [docs/LAYOUT.md](docs/LAYOUT.md) for the full documentation on responsive la
 - **Game Over Modal**: Final score, New Game, Menu
 - **Save System**: Auto-save on menu open, rankings (top 10 per mode)
 - **i18n**: English + French, persisted locale
-- **69 unit tests**: Grid logic, Tile, math utils, SaveManager, I18nManager
+- **Animation system**: Interruptible tile animations (slide, merge bounce, spawn pop, merge particles) via `AnimationController` — independent of Phaser, fully unit-tested
+- **85+ unit tests**: Grid logic, Tile, math utils, SaveManager, I18nManager, AnimationController
 
 ### Not Yet Implemented
 - Battle Mode & Free Mode
