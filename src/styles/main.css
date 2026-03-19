@@ -64,8 +64,10 @@ html, body {
   border: 2px solid transparent;
   box-shadow: 0 5px 16px rgba(140,80,200,0.13);
   z-index: 2;
-  will-change: transform;
-  transition: transform var(--slide-duration, 120ms) ease-in-out;
+  /* Position via left/top — transform stays free for animations */
+  will-change: left, top;
+  transition: left var(--slide-duration, 120ms) ease-in-out,
+              top  var(--slide-duration, 120ms) ease-in-out;
 }
 
 .fm-tile .fm-val {
@@ -76,28 +78,82 @@ html, body {
   letter-spacing: -0.5px;
 }
 
-/* --- Spawn animation --- */
+/* --- Spawn animation (bouncy pop) --- */
 @keyframes fm-spawn {
-  0%   { transform: scale(0); opacity: 0; }
-  60%  { transform: scale(1.12); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
+  0%   { transform: scale(0);    opacity: 0; }
+  50%  { transform: scale(1.20); opacity: 1; }
+  68%  { transform: scale(0.90); }
+  82%  { transform: scale(1.07); }
+  91%  { transform: scale(0.97); }
+  100% { transform: scale(1.00); }
 }
 
 .fm-tile--spawn {
-  animation: fm-spawn 100ms ease-out forwards;
+  animation: fm-spawn 360ms cubic-bezier(0.22,1,0.36,1) forwards;
 }
 
-/* --- Merge animation (pop) --- */
+/* --- Merge animation: bounce the surviving tile with its new value --- */
 @keyframes fm-merge {
-  0%   { transform: scale(1); }
-  40%  { transform: scale(1.25); }
-  100% { transform: scale(1); }
+  0%   { transform: scale(1.00); }
+  30%  { transform: scale(1.22); }
+  55%  { transform: scale(0.90); }
+  75%  { transform: scale(1.07); }
+  90%  { transform: scale(0.97); }
+  100% { transform: scale(1.00); }
 }
 
 .fm-tile--merge {
-  animation: fm-merge 150ms ease-out forwards;
+  animation: fm-merge 300ms ease-out forwards;
   z-index: 3;
 }
+
+/* --- Consumed tile fades out toward the merge target --- */
+@keyframes fm-consumed {
+  0%   { opacity: 1; transform: scale(1.0); }
+  100% { opacity: 0; transform: scale(0.3); }
+}
+
+.fm-tile--consumed {
+  animation: fm-consumed 100ms ease-in forwards;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* --- Merge particle canvas --- */
+.fm-merge-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  mix-blend-mode: screen;
+}
+
+/* --- Imminent fusion: edge glow + subtle pull --- */
+@keyframes fm-fusion-edge-pulse {
+  0%, 100% { opacity: 0.28; }
+  50%       { opacity: 1.0;  }
+}
+@keyframes fm-pull-right { 0%,100%{transform:translateX(0)} 50%{transform:translateX(2px)} }
+@keyframes fm-pull-left  { 0%,100%{transform:translateX(0)} 50%{transform:translateX(-2px)} }
+@keyframes fm-pull-down  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(2px)} }
+@keyframes fm-pull-up    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+
+.fm-fuse-right { animation: fm-pull-right 1.9s ease-in-out infinite; }
+.fm-fuse-left  { animation: fm-pull-left  1.9s ease-in-out infinite; }
+.fm-fuse-down  { animation: fm-pull-down  1.9s ease-in-out infinite; }
+.fm-fuse-up    { animation: fm-pull-up    1.9s ease-in-out infinite; }
+
+.fm-fuse-right::after,
+.fm-fuse-left::after,
+.fm-fuse-down::after,
+.fm-fuse-up::after {
+  content: ''; position: absolute; pointer-events: none; z-index: 3;
+  animation: fm-fusion-edge-pulse 1.8s ease-in-out infinite;
+}
+.fm-fuse-right::after { top:0; right:0;  bottom:0; width:52%;  background: radial-gradient(ellipse at 100% 50%, rgba(255,255,255,0.42) 0%, transparent 78%); border-radius: 0 5px 5px 0; }
+.fm-fuse-left::after  { top:0; left:0;   bottom:0; width:52%;  background: radial-gradient(ellipse at   0% 50%, rgba(255,255,255,0.42) 0%, transparent 78%); border-radius: 5px 0 0 5px; }
+.fm-fuse-down::after  { left:0; right:0; bottom:0; height:52%; background: radial-gradient(ellipse at 50% 100%, rgba(255,255,255,0.42) 0%, transparent 78%); border-radius: 0 0 5px 5px; }
+.fm-fuse-up::after    { left:0; right:0; top:0;    height:52%; background: radial-gradient(ellipse at 50%   0%, rgba(255,255,255,0.42) 0%, transparent 78%); border-radius: 5px 5px 0 0; }
 
 /* --- Keyframes --- */
 @keyframes gradientShift {
@@ -361,4 +417,59 @@ html, body {
   font-weight: 900;
   margin: 10px 0 20px;
   color: #ffd700;
+}
+
+/* --- Options modal theme row --- */
+.fm-option-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+}
+
+.fm-option-label {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.85);
+}
+
+.fm-theme-btn {
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+  cursor: pointer;
+}
+
+.fm-theme-btn:active {
+  background: rgba(255,255,255,0.25);
+}
+
+/* Chroma Burst theme — alternate color palette */
+[data-theme="chroma"] .fm-t2   { background: #facc15; color: #fff; border-color: #a16207; }
+[data-theme="chroma"] .fm-t4   { background: #f97316; color: #fff; border-color: #9a3412; }
+[data-theme="chroma"] .fm-t8   { background: #ef4444; color: #fff; border-color: #991b1b; }
+[data-theme="chroma"] .fm-t16  { background: #a855f7; color: #fff; border-color: #6b21a8; }
+[data-theme="chroma"] .fm-t32  { background: #3b82f6; color: #fff; border-color: #1e40af; }
+[data-theme="chroma"] .fm-t64  { background: #06b6d4; color: #fff; border-color: #0e7490; }
+[data-theme="chroma"] .fm-t128 { background: linear-gradient(135deg, #059669, #34d399); color: #fff; border-color: #065f46; }
+[data-theme="chroma"] .fm-t256 { background: linear-gradient(135deg, #84cc16, #d9f99d); color: #fff; border-color: #4d7c0f; }
+[data-theme="chroma"] .fm-t512 {
+  background-image: linear-gradient(135deg, #f43f5e, #ec4899, #f43f5e);
+  color: #fff; border-color: #9f1239;
+}
+[data-theme="chroma"] .fm-t1024 {
+  background-image: linear-gradient(135deg, #fbbf24, #f97316, #fbbf24);
+  color: #fff; border-color: #92400e;
+}
+[data-theme="chroma"] .fm-t2048 {
+  background-image: linear-gradient(135deg, #f59e0b, #ef4444, #a855f7, #3b82f6, #10b981, #f59e0b);
+  color: #fff; border-color: #fff;
+}
+[data-theme="chroma"] .fm-t4096 {
+  background-image: linear-gradient(135deg, #ff6b6b, #ee5a24, #ff6b6b);
+  color: #fff; border-color: #ee5a24;
 }

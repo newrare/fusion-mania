@@ -117,6 +117,7 @@ export class Grid {
           // Merge
           const fromRow = tile.row;
           const fromCol = tile.col;
+          const consumedId = tile.id;
           this.cells[tile.row][tile.col] = null;
           this.cells[mergeTile.row][mergeTile.col] = null;
 
@@ -125,7 +126,7 @@ export class Grid {
           this.cells[mergeTile.row][mergeTile.col] = mergeTile;
           this.score += mergeTile.value;
 
-          merges.push({ tile: mergeTile, fromRow, fromCol });
+          merges.push({ tile: mergeTile, fromRow, fromCol, consumedId });
           moved = true;
         } else if (targetRow !== tile.row || targetCol !== tile.col) {
           // Slide

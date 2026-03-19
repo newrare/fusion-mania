@@ -1,5 +1,6 @@
 import { layout } from '../managers/layout-manager.js';
 import { i18n } from '../managers/i18n-manager.js';
+import { OptionsModal } from './options-modal.js';
 
 /**
  * Menu modal component — overlay with game mode buttons.
@@ -10,6 +11,9 @@ export class MenuModal {
 
   /** @type {Phaser.Scene} */
   #scene;
+
+  /** @type {OptionsModal | null} */
+  #optionsModal = null;
 
   /**
    * @param {Phaser.Scene} scene
@@ -25,6 +29,7 @@ export class MenuModal {
     }
 
     buttonsHtml += `<button class="fm-btn" data-action="classic">${i18n.t('menu.classic')}</button>`;
+    buttonsHtml += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;
     buttonsHtml += `<button class="fm-btn" data-action="close">${i18n.t('menu.close')}</button>`;
 
     if (options.onQuit) {
@@ -58,6 +63,9 @@ export class MenuModal {
         case 'classic':
           options.onClassic?.();
           break;
+        case 'options':
+          this.#openOptions();
+          break;
         case 'close':
           options.onClose?.();
           break;
@@ -68,7 +76,19 @@ export class MenuModal {
     });
   }
 
+  #openOptions() {
+    if (this.#optionsModal) return;
+    this.#optionsModal = new OptionsModal(this.#scene, {
+      onClose: () => {
+        this.#optionsModal?.destroy();
+        this.#optionsModal = null;
+      },
+    });
+  }
+
   destroy() {
+    this.#optionsModal?.destroy();
+    this.#optionsModal = null;
     this.#domElement?.destroy();
     this.#domElement = null;
   }

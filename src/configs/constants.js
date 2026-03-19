@@ -16,8 +16,9 @@ export const SPAWN_WEIGHTS = [0.9, 0.1];
 /** Animation durations (ms) */
 export const ANIM = {
   SLIDE_DURATION: 120,
-  MERGE_DURATION: 150,
-  SPAWN_DURATION: 100,
+  MERGE_DURATION: 300,
+  SPAWN_DURATION: 200,
+  MERGE_PARTICLES_DURATION: 80,
 };
 
 /** Swipe detection */
@@ -29,6 +30,7 @@ export const STORAGE_KEYS = {
   SAVE: 'fusionmania_save',
   RANKINGS: 'fusionmania_rankings',
   OPTIONS: 'fusionmania_options',
+  THEME: 'fusionmania_theme',
 };
 
 /** Tile color palette (matching preview-game.html) */

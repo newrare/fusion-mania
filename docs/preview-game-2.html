@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FusionMania — Preview #3 · Candy Float × Frosted Glass</title>
+<title>FusionMania — Preview #2 · Chroma Burst</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -61,16 +61,15 @@ h1 {
   overflow: hidden;
   max-width: 420px;
   margin: 0 auto;
-  box-shadow: 0 12px 40px rgba(140,80,220,0.18);
+  box-shadow: 0 12px 40px rgba(244,114,182,0.22);
   min-height: 380px;
 }
 
-/* Légère couche pour que la grille reste lisible */
 .scene::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(255,255,255,0.08);
+  background: rgba(0,0,0,0.12);
   pointer-events: none;
   border-radius: 28px;
 }
@@ -83,10 +82,10 @@ h1 {
   padding: 10px;
   border-radius: 20px;
   width: 340px;
-  background: rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.22);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
-  border: 1px solid rgba(255,255,255,0.35);
+  border: 1px solid rgba(255,255,255,0.18);
 }
 
 /* --- Tile — base styles --- */
@@ -104,7 +103,8 @@ h1 {
   user-select: none;
   overflow: hidden;
   border: 2px solid transparent;
-  box-shadow: 0 5px 16px rgba(140,80,200,0.13);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  text-shadow: 0 1px 6px rgba(0,0,0,0.70);
   animation: none;
 }
 
@@ -117,8 +117,8 @@ h1 {
 }
 
 .tile.empty {
-  background: rgba(255,255,255,0.08) !important;
-  border-color: rgba(255,255,255,0.15) !important;
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(255,255,255,0.10) !important;
   box-shadow: none !important;
   animation: none !important;
 }
@@ -136,77 +136,65 @@ h1 {
   100% { background-position: 0% 50%; }
 }
 
-@keyframes rainbowBorderPastel {
-  0%   { border-color: rgba(255,176,220,0.75); }
-  14%  { border-color: rgba(255,210,176,0.75); }
-  28%  { border-color: rgba(255,250,160,0.75); }
-  42%  { border-color: rgba(160,255,210,0.75); }
-  57%  { border-color: rgba(160,210,255,0.75); }
-  71%  { border-color: rgba(210,160,255,0.75); }
-  85%  { border-color: rgba(255,160,220,0.75); }
-  100% { border-color: rgba(255,176,220,0.75); }
-}
-
 @keyframes outerGlow1024 {
-  0%   { box-shadow: 0 5px 16px rgba(140,80,200,0.15), 0 0 0 2.5px rgba(255,170,210,0.9); }
-  16%  { box-shadow: 0 5px 16px rgba(140,80,200,0.15), 0 0 0 2.5px rgba(255,215,150,0.9); }
-  33%  { box-shadow: 0 5px 16px rgba(140,80,200,0.15), 0 0 0 2.5px rgba(240,255,140,0.9); }
-  50%  { box-shadow: 0 5px 16px rgba(140,80,200,0.15), 0 0 0 2.5px rgba(140,255,200,0.9); }
-  66%  { box-shadow: 0 5px 16px rgba(140,80,200,0.15), 0 0 0 2.5px rgba(140,200,255,0.9); }
-  83%  { box-shadow: 0 5px 16px rgba(140,80,200,0.15), 0 0 0 2.5px rgba(200,140,255,0.9); }
-  100% { box-shadow: 0 5px 16px rgba(140,80,200,0.15), 0 0 0 2.5px rgba(255,170,210,0.9); }
+  0%   { box-shadow: 0 5px 18px rgba(251,191,36,0.30), 0 0 0 2.5px rgba(255,213,0,0.92); }
+  33%  { box-shadow: 0 5px 18px rgba(249,115,22,0.30), 0 0 0 2.5px rgba(255,140,0,0.92); }
+  66%  { box-shadow: 0 5px 18px rgba(251,191,36,0.30), 0 0 0 2.5px rgba(255,213,0,0.92); }
+  100% { box-shadow: 0 5px 18px rgba(249,115,22,0.30), 0 0 0 2.5px rgba(255,140,0,0.92); }
 }
 
 @keyframes outerGlow2048 {
-  0%   { box-shadow: 0 6px 22px rgba(200,160,80,0.25), 0 0 0 3.5px rgba(255,170,210,0.95); }
-  16%  { box-shadow: 0 6px 22px rgba(200,160,80,0.25), 0 0 0 3.5px rgba(255,215,150,0.95); }
-  33%  { box-shadow: 0 6px 22px rgba(200,160,80,0.25), 0 0 0 3.5px rgba(240,255,140,0.95); }
-  50%  { box-shadow: 0 6px 22px rgba(200,160,80,0.25), 0 0 0 3.5px rgba(140,255,200,0.95); }
-  66%  { box-shadow: 0 6px 22px rgba(200,160,80,0.25), 0 0 0 3.5px rgba(140,200,255,0.95); }
-  83%  { box-shadow: 0 6px 22px rgba(200,160,80,0.25), 0 0 0 3.5px rgba(200,140,255,0.95); }
-  100% { box-shadow: 0 6px 22px rgba(200,160,80,0.25), 0 0 0 3.5px rgba(255,170,210,0.95); }
+  0%   { box-shadow: 0 6px 24px rgba(245,158,11,0.40), 0 0 0 3.5px rgba(255,210,0,0.95); }
+  16%  { box-shadow: 0 6px 24px rgba(239,68,68,0.40), 0 0 0 3.5px rgba(255,80,80,0.95); }
+  33%  { box-shadow: 0 6px 24px rgba(168,85,247,0.40), 0 0 0 3.5px rgba(185,110,255,0.95); }
+  50%  { box-shadow: 0 6px 24px rgba(59,130,246,0.40), 0 0 0 3.5px rgba(110,170,255,0.95); }
+  66%  { box-shadow: 0 6px 24px rgba(16,185,129,0.40), 0 0 0 3.5px rgba(50,225,160,0.95); }
+  83%  { box-shadow: 0 6px 24px rgba(6,182,212,0.40), 0 0 0 3.5px rgba(50,225,240,0.95); }
+  100% { box-shadow: 0 6px 24px rgba(245,158,11,0.40), 0 0 0 3.5px rgba(255,210,0,0.95); }
 }
 
-/* --- Tiles 2–64: flat translucent color --- */
-.t2  { background: #fff2ff; color: #d44db8; border-color: #d44db8; }
-.t4  { background: #ffe5fd; color: #c02ea8; border-color: #c02ea8; }
-.t8  { background: #ffd6f5; color: #aa0f96; border-color: #aa0f96; }
-.t16 { background: #ffcaff; color: #8800b8; border-color: #8800b8; }
-.t32 { background: #edd2ff; color: #6600cc; border-color: #6600cc; }
-.t64 { background: #dcc2ff; color: #4400e0; border-color: #4400e0; }
+/* --- Tiles 2–8: warm spectrum (yellow → orange → red) --- */
+.t2  { background: #facc15; color: #fff; border-color: #a16207; }
+.t4  { background: #f97316; color: #fff;    border-color: #9a3412; }
+.t8  { background: #ef4444; color: #fff;    border-color: #991b1b; }
 
-/* --- Tiles 128–256: static gradient --- */
-.t128 { background: linear-gradient(135deg, #c8b8ff, #a898ff); color: #1a00cc; border-color: #1a00cc; font-size: 1.25rem; }
-.t256 { background: linear-gradient(135deg, #b0ceff, #8ab2ff); color: #0030ee; border-color: #0030ee; font-size: 1.1rem; }
+/* --- Tiles 16–64: cold break (purple → blue → cyan) --- */
+.t16 { background: #a855f7; color: #fff; border-color: #6b21a8; }
+.t32 { background: #3b82f6; color: #fff; border-color: #1e40af; }
+.t64 { background: #06b6d4; color: #fff; border-color: #0e7490; }
 
-/* --- Tile 512: animated gradient --- */
+/* --- Tiles 128–256: green gradient (emerald → lime) --- */
+.t128 { background: linear-gradient(135deg, #059669, #34d399); color: #fff;    border-color: #065f46; font-size: 1.25rem; }
+.t256 { background: linear-gradient(135deg, #84cc16, #d9f99d); color: #fff; border-color: #4d7c0f; font-size: 1.1rem;  }
+
+/* --- Tile 512: crimson-rose → rose animated --- */
 .t512 {
-  background-image: linear-gradient(135deg, #a0eedc, #6cd8c0, #a0eedc);
+  background-image: linear-gradient(135deg, #f43f5e, #ec4899, #f43f5e);
   background-size: 300% 300%;
-  color: #006699;
-  border-color: #006699;
+  color: #fff;
+  border-color: #9f1239;
   font-size: 1.0rem;
   animation: gradientShift 3.8s ease 0s infinite;
 }
 
-/* --- Tile 1024: animated gradient + animated border --- */
+/* --- Tile 1024: gold → amber animated + pulsing border --- */
 .t1024 {
-  background-image: linear-gradient(135deg, #aaffe0, #72e8a8, #aaffe0);
+  background-image: linear-gradient(135deg, #fbbf24, #f97316, #fbbf24);
   background-size: 300% 300%;
-  color: #00aa44;
-  border-color: #00aa44;
+  color: #fff;
+  border-color: #92400e;
   font-size: 0.9rem;
   animation:
     gradientShift 3.2s ease  0s infinite,
     outerGlow1024 3.0s linear 0s infinite;
 }
 
-/* --- Tile 2048: animated rainbow gradient + animated border --- */
+/* --- Tile 2048: animated rainbow + rainbow border --- */
 .t2048 {
-  background-image: linear-gradient(135deg, #fff580, #ffd0ea, #bce8ff, #c8ffda, #fff580);
+  background-image: linear-gradient(135deg, #f59e0b, #ef4444, #a855f7, #3b82f6, #10b981, #f59e0b);
   background-size: 400% 400%;
-  color: #cc8800;
-  border-color: #cc8800;
+  color: #fff;
+  border-color: #fff;
   border-width: 2.5px;
   font-size: 0.85rem;
   animation:
@@ -227,8 +215,8 @@ h1 {
   background-position: center;
   border-radius: 24px;
   padding: 18px;
-  border: 1px solid rgba(255,255,255,0.3);
-  box-shadow: 0 6px 32px rgba(80,40,140,0.25);
+  border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: 0 6px 32px rgba(0,0,0,0.55);
   position: relative;
   overflow: hidden;
 }
@@ -237,7 +225,7 @@ h1 {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(12,6,22,0.42);
+  background: rgba(6,4,18,0.52);
   pointer-events: none;
   z-index: 0;
   border-radius: inherit;
@@ -257,7 +245,7 @@ h1 {
   color: #fff;
   font-weight: 700;
   letter-spacing: 0.5px;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
 }
 
 .showcase-item .tile {
@@ -276,30 +264,30 @@ h1 {
   font-size: 0.58rem;
   padding: 1px 5px;
   border-radius: 20px;
-  background: rgba(180,130,255,0.18);
-  color: #9966cc;
+  background: rgba(255,255,255,0.14);
+  color: #cbd5e1;
   white-space: nowrap;
 }
-.badge.anim   { background: rgba(100,200,255,0.25); color: #66ddff; }
-.badge.border { background: rgba(255,180,100,0.25); color: #ffcc44; }
+.badge.anim   { background: rgba(100,200,255,0.25); color: #7dd3fc; }
+.badge.border { background: rgba(255,180,100,0.25); color: #fcd34d; }
 
 .showcase-divider {
   width: 100%;
   text-align: center;
-  color: rgba(255,255,255,0.55);
+  color: rgba(255,255,255,0.45);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 2.5px;
   text-transform: uppercase;
   padding: 14px 0 4px;
-  border-top: 1px solid rgba(255,255,255,0.15);
+  border-top: 1px solid rgba(255,255,255,0.12);
   position: relative;
   z-index: 1;
 }
 
 /* --- Special states --- */
 
-/* --- Ghost: semi-transparent tile (30% opacity) --- */
+/* --- GHOST --- */
 .tile.state-ghost {
   opacity: 0.30;
 }
@@ -542,7 +530,7 @@ h1 {
   border-radius: 28px;
   max-width: 540px;
   margin: 0 auto;
-  box-shadow: 0 12px 40px rgba(140,80,220,0.22);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.55);
   position: relative;
   overflow: hidden;
 }
@@ -550,7 +538,7 @@ h1 {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(8,4,18,0.52);
+  background: rgba(4,2,14,0.58);
   pointer-events: none;
   z-index: 0;
   border-radius: inherit;
@@ -566,7 +554,7 @@ h1 {
 }
 .fusion-demo-label {
   font-size: 0.66rem;
-  color: rgba(220,200,255,0.78);
+  color: rgba(220,220,255,0.78);
   font-weight: 700;
   letter-spacing: 1.8px;
   text-transform: uppercase;
@@ -667,14 +655,14 @@ h1 {
   background-position: center;
   border-radius: 28px;
   overflow: hidden;
-  box-shadow: 0 12px 40px rgba(80,40,140,0.28);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.60);
   position: relative;
 }
 .matrix-section::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(8,4,20,0.56);
+  background: rgba(4,2,16,0.62);
   pointer-events: none;
   z-index: 0;
   border-radius: inherit;
@@ -693,7 +681,6 @@ h1 {
   margin: 0 auto;
 }
 
-/* En-tête colonne (états) */
 .matrix-table th {
   font-size: 0.62rem;
   color: rgba(220,200,255,0.75);
@@ -706,7 +693,6 @@ h1 {
   white-space: nowrap;
 }
 
-/* En-tête ligne (valeurs) */
 .matrix-table td.row-label {
   font-size: 0.65rem;
   color: rgba(200,180,255,0.7);
@@ -747,8 +733,8 @@ h1 {
   background-position: center;
   border-radius: 24px;
   padding: 22px 18px;
-  border: 1px solid rgba(255,255,255,0.3);
-  box-shadow: 0 6px 32px rgba(80,40,140,0.25);
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: 0 6px 32px rgba(0,0,0,0.50);
   position: relative;
   overflow: hidden;
 }
@@ -756,7 +742,7 @@ h1 {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(12,6,22,0.42);
+  background: rgba(6,4,18,0.52);
   pointer-events: none;
   z-index: 0;
   border-radius: inherit;
@@ -795,8 +781,8 @@ h1 {
   background-position: center;
   border-radius: 24px;
   padding: 32px 24px;
-  border: 1px solid rgba(255,255,255,0.3);
-  box-shadow: 0 6px 32px rgba(80,40,140,0.25);
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: 0 6px 32px rgba(0,0,0,0.50);
   position: relative;
   overflow: hidden;
 }
@@ -804,7 +790,7 @@ h1 {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(12,6,22,0.42);
+  background: rgba(6,4,18,0.52);
   pointer-events: none;
   z-index: 0;
   border-radius: inherit;
@@ -833,11 +819,11 @@ h1 {
 .merge-demo-pair .tile { position: absolute; top: 0; width: 74px; height: 74px; }
 .mdp-left  { left: 0;   will-change: transform; }
 .mdp-right { right: 0;  will-change: transform; }
-.mdp-result { left: 88px; opacity: 0; transform: scale(0.027); will-change: transform, opacity; z-index: 5; }
+.mdp-result { left: 44px; opacity: 0; transform: scale(0.027); will-change: transform, opacity; z-index: 5; }
 .mdp-flash {
   position: absolute;
   top: 0;
-  left: 88px;
+  left: 44px;
   width: 74px;
   height: 74px;
   border-radius: 14px;
@@ -846,11 +832,10 @@ h1 {
   pointer-events: none;
   z-index: 6;
 }
-.mdp-canvas {
-  position: absolute; inset: 0;
-  pointer-events: none;
-  z-index: 4;
-  mix-blend-mode: screen;
+@keyframes mdpBurst {
+  0%   { opacity: 0.92; transform: scale(1.0);  border-radius: 14px; }
+  70%  { opacity: 0.30; transform: scale(1.60); border-radius: 50%; }
+  100% { opacity: 0;    transform: scale(2.10); border-radius: 50%; }
 }
 @keyframes mdpResultSpawn {
   0%   { transform: scale(0.027); opacity: 1; }
@@ -865,23 +850,32 @@ h1 {
 </head>
 <body>
 
-<h1>✿ Candy Float × Frosted Glass ✿</h1>
-<p class="subtitle">Lévitement doux · Verre givré · Dégradés animés · Border arc-en-ciel</p>
+<h1>✦ Chroma Burst ✦</h1>
+<p class="subtitle">Feu · Froid · Nature · Épique — contraste maximal entre chaque valeur</p>
 
+<!-- ============================================================
+     SECTION 1 — Grille sur fond de jeu
+============================================================ -->
 <div class="section">
   <div class="section-title">Grille sur fond de jeu 🏔️</div>
-  <div class="section-desc">Effect glass avec background_one_rock.png</div>
+  <div class="section-desc">Palette Chroma Burst avec background_one_rock.png</div>
   <div class="scene">
     <div class="grid" id="grid-scene"></div>
   </div>
 </div>
 
+<!-- ============================================================
+     SECTION 2 — Showcase toutes les tuiles
+============================================================ -->
 <div class="section">
   <div class="section-title">Showcase · toutes les valeurs 🎨</div>
   <div class="section-desc">Vue individuelle — 2 → 2048</div>
   <div class="showcase-wrap" id="showcase"></div>
 </div>
 
+<!-- ============================================================
+     SECTION 3 — Fusion imminente
+============================================================ -->
 <div class="section">
   <div class="section-title">Fusion imminente ⚡✨</div>
   <div class="section-desc">Faisceau · particules attirées · aspiration — les tuiles vont fusionner</div>
@@ -889,8 +883,8 @@ h1 {
 
     <div class="fusion-demo">
       <div class="fusion-pair fusion-pair--h"
-          data-color1="#9944ff"
-          data-color2="#ff55ee">
+           data-color1="#22d3ee"
+           data-color2="#0ea5e9">
         <div class="tile t64"><span class="val">64</span></div>
         <div class="tile t64"><span class="val">64</span></div>
       </div>
@@ -899,8 +893,8 @@ h1 {
 
     <div class="fusion-demo">
       <div class="fusion-pair fusion-pair--v"
-          data-color1="#cc44ff"
-          data-color2="#44ccff">
+           data-color1="#3b82f6"
+           data-color2="#6366f1">
         <div class="tile t32"><span class="val">32</span></div>
         <div class="tile t32"><span class="val">32</span></div>
       </div>
@@ -910,18 +904,21 @@ h1 {
   </div>
 </div>
 
+<!-- SECTION 4 — Apparition d'une tuile -->
 <div class="section">
   <div class="section-title">Apparition d'une tuile ✨</div>
   <div class="section-desc">2px → taille réelle avec rebond élastique — une tuile naît au centre de sa case</div>
   <div class="spawn-showcase" id="spawn-showcase"></div>
 </div>
 
+<!-- SECTION 5 — Fusion de deux tuiles -->
 <div class="section">
   <div class="section-title">Fusion de deux tuiles 💥</div>
   <div class="section-desc">Glissement · impact lumineux · tuile résultat avec rebond</div>
   <div class="merge-showcase" id="merge-showcase"></div>
 </div>
 
+<!-- SECTION 6 — Matrice tous états × toutes valeurs -->
 <div class="section">
   <div class="section-title">Matrice · États spéciaux × Valeurs 🧩</div>
   <div class="section-desc">Toutes les valeurs dans chaque état spécial</div>
@@ -933,8 +930,15 @@ h1 {
 </div>
 
 <script>
-
-const GRID_PRESET = [64, 64, 16, 128, 8, 128, 16, 8, 32, 32, null, null, 4, 4, 2, 2];
+// ============================================================
+// DONNÉES
+// ============================================================
+const GRID_PRESET = [
+  64,   64,   16,  128,
+   8,  128,   16,    8,
+  32,   32,  null,   null,
+   4,    4,    2,    2,
+];
 
 const ALL_VALUES = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048];
 
@@ -957,9 +961,11 @@ function buildTile(value) {
   return `<div class="tile t${value}"><span class="val">${value}</span></div>`;
 }
 
-
 document.getElementById('grid-scene').innerHTML = GRID_PRESET.map(buildTile).join('');
 
+// ============================================================
+// SHOWCASE — valeurs normales
+// ============================================================
 const showcase = document.getElementById('showcase');
 ALL_VALUES.forEach(val => {
   const badges = EFFECT_BADGES[val].map(b =>
@@ -1114,6 +1120,9 @@ createWindTile('t32',  'state-wind-up',    'Vent ↑', '💨 haut');
 createWindTile('t512', 'state-wind-down',  'Vent ↓', '💨 bas');
 
 
+// ============================================================
+// MATRICE — tous états × toutes valeurs
+// ============================================================
 const MATRIX_STATES = [
   { id: 'disabled', label: '🔒 Désactivée' },
   { id: 'ghost',    label: '👻 Ghost' },
@@ -1181,10 +1190,8 @@ function buildMatrixTile(value, stateId) {
 
 const table = document.getElementById('matrix-table');
 
-
 const thead = document.createElement('thead');
 const headerRow = document.createElement('tr');
-
 const cornerTh = document.createElement('th');
 headerRow.appendChild(cornerTh);
 MATRIX_STATES.forEach(s => {
@@ -1215,6 +1222,10 @@ ALL_VALUES.forEach(val => {
 });
 table.appendChild(tbody);
 
+
+// ============================================================
+// FUSION PAIRS — particules d'attraction + faisceau lumineux
+// ============================================================
 function hexToRgb(hex) {
   const r = parseInt(hex.slice(1,3), 16);
   const g = parseInt(hex.slice(3,5), 16);
@@ -1224,8 +1235,8 @@ function hexToRgb(hex) {
 
 function initFusionPair(pair) {
   const isV    = pair.classList.contains('fusion-pair--v');
-  const rgb1   = hexToRgb(pair.dataset.color1 || '#9944ff');
-  const rgb2   = hexToRgb(pair.dataset.color2 || '#ff55ee');
+  const rgb1   = hexToRgb(pair.dataset.color1 || '#06b6d4');
+  const rgb2   = hexToRgb(pair.dataset.color2 || '#0ea5e9');
 
   const W = pair.offsetWidth;
   const H = pair.offsetHeight;
@@ -1421,6 +1432,9 @@ requestAnimationFrame(() => requestAnimationFrame(() => {
   initGridFusion(document.getElementById('grid-scene'), pairsScene);
 }));
 
+// ============================================================
+// LÉVITATION DE PAIRE — grilles
+// ============================================================
 const BASE_ANIM_LEV = {
   512:  'gradientShift 3.8s ease 0s infinite',
   1024: 'gradientShift 3.2s ease 0s infinite, outerGlow1024 3.0s linear 0s infinite',
@@ -1487,10 +1501,22 @@ function applyLevitation(gridEl, cols) {
   return fusingPairs;
 }
 
+// ============================================================
+// CANVAS FUSION SUR GRILLE
+// ============================================================
+// Couleurs des particules canvas — synchronisées avec la palette Chroma Burst
 const TILE_RGB = {
-  2:'212,77,184', 4:'192,46,168', 8:'170,15,150', 16:'136,0,184',
-  32:'102,0,204', 64:'68,0,224', 128:'26,0,204', 256:'0,48,238',
-  512:'0,102,153', 1024:'0,170,68', 2048:'204,136,0',
+  2:   '250,204,21',  // jaune #facc15
+  4:   '249,115,22',  // orange #f97316
+  8:   '239,68,68',   // rouge #ef4444
+  16:  '168,85,247',  // violet #a855f7
+  32:  '59,130,246',  // bleu #3b82f6
+  64:  '6,182,212',   // cyan #06b6d4
+  128: '5,150,105',   // emeraude #059669
+  256: '132,204,22',  // lime #84cc16
+  512: '236,72,153',  // rose #ec4899
+  1024:'251,191,36',  // or #fbbf24
+  2048:'255,200,0',   // or vif
 };
 
 function initGridFusion(gridEl, fusingPairs) {
@@ -1509,7 +1535,7 @@ function initGridFusion(gridEl, fusingPairs) {
       cx1: a.offsetLeft + a.offsetWidth  / 2, cy1: a.offsetTop  + a.offsetHeight / 2,
       cx2: b.offsetLeft + b.offsetWidth  / 2, cy2: b.offsetTop  + b.offsetHeight / 2,
       tw: a.offsetWidth, th: a.offsetHeight,
-      dir, rgb: TILE_RGB[val] || '180,100,255', particles: [],
+      dir, rgb: TILE_RGB[val] || '59,130,246', particles: [],
     };
   });
 
@@ -1609,8 +1635,9 @@ function initGridFusion(gridEl, fusingPairs) {
 
 const pairsScene = applyLevitation(document.getElementById('grid-scene'), 4);
 
-
+// ============================================================
 // SPAWN SHOWCASE
+// ============================================================
 (function initSpawnShowcase() {
   const container = document.getElementById('spawn-showcase');
   const STAGGER = 160;
@@ -1637,14 +1664,9 @@ const pairsScene = applyLevitation(document.getElementById('grid-scene'), 4);
   });
 })();
 
-
+// ============================================================
 // MERGE SHOWCASE
-// Pair geometry (must be above the IIFE — const is not hoisted)
-const _PAIR_W = 162, _PAIR_H = 74, _TW = 74;
-const _RCX    = _PAIR_W - _TW / 2;       // 125 — right tile centre X
-const _DX     = _PAIR_W - _TW;           // 88  — left tile travel distance
-const _COLL_RATIO = Math.sqrt(14 / 88);  // ≈ 0.40 — first-contact fraction
-
+// ============================================================
 const MERGE_PAIRS = [
   { v: 2,   result: 4    },
   { v: 8,   result: 16   },
@@ -1671,124 +1693,68 @@ const MERGE_PAIRS = [
     const resultEl = document.createElement('div');
     resultEl.className = `tile t${result} mdp-result`;
     resultEl.innerHTML = `<span class="val">${result}</span>`;
-    const cvs = document.createElement('canvas');
-    cvs.className = 'mdp-canvas';
-    cvs.width  = 162;
-    cvs.height = 74;
     pair.appendChild(leftEl);
     pair.appendChild(rightEl);
     pair.appendChild(flashEl);
     pair.appendChild(resultEl);
-    pair.appendChild(cvs);
     const lbl = document.createElement('div');
     lbl.className = 'merge-demo-label';
     lbl.textContent = `${v} ✶ ${v} → ${result}`;
     demo.appendChild(pair);
     demo.appendChild(lbl);
     container.appendChild(demo);
-    startMergeCycle(leftEl, rightEl, flashEl, resultEl, cvs, idx * 420);
+    startMergeCycle(leftEl, rightEl, flashEl, resultEl, idx * 420);
   });
 })();
 
-function startMergeCycle(leftEl, rightEl, flashEl, resultEl, cvs, initialDelay) {
-  const SLIDE_MS    = 400;
-  const DISSOLVE_MS = 80;
-  const SPAWN_MS    = 360;
-  const HOLD_MS     = 620;
-  const RESET_FADE  = 200;
-  const COLL_MS     = Math.round(SLIDE_MS * _COLL_RATIO); // ≈160ms
-
-  const ctx = cvs.getContext('2d');
-  const particles = [];
-
-  (function draw() {
-    ctx.clearRect(0, 0, _PAIR_W, _PAIR_H);
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p    = particles[i];
-      const dx   = _RCX - p.x;
-      const dy   = _PAIR_H / 2 - p.y;
-      const dist = Math.hypot(dx, dy) + 0.001;
-      const f    = Math.min(0.24, 5.0 / (dist + 3));
-      p.vx += (dx / dist) * f;
-      p.vy += (dy / dist) * f;
-      p.vx *= 0.93; p.vy *= 0.93;
-      p.x  += p.vx;  p.y  += p.vy;
-      p.life -= p.decay;
-      if (p.life <= 0 || dist < 4) { particles.splice(i, 1); continue; }
-      const a = Math.min(p.life, 1);
-      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.5);
-      g.addColorStop(0, `rgba(${p.rgb},${a})`);
-      g.addColorStop(1, `rgba(${p.rgb},0)`);
-      ctx.beginPath(); ctx.fillStyle = g;
-      ctx.arc(p.x, p.y, p.r * 2.5, 0, Math.PI * 2); ctx.fill();
-    }
-    requestAnimationFrame(draw);
-  })();
-
-  function burst(rgb, count) {
-    for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const spd   = 0.4 + Math.random() * 2.5;
-      particles.push({
-        x: _RCX + (Math.random() - 0.5) * _TW * 0.8,
-        y: _PAIR_H / 2 + (Math.random() - 0.5) * _TW * 0.8,
-        vx: Math.cos(angle) * spd * (Math.random() < 0.5 ? 0.3 : 1),
-        vy: Math.sin(angle) * spd * (Math.random() < 0.5 ? 0.3 : 1),
-        r: 1.2 + Math.random() * 2.5,
-        life:  0.7 + Math.random() * 0.3,
-        decay: 0.008 + Math.random() * 0.014,
-        rgb,
-      });
-    }
-  }
-
+function startMergeCycle(leftEl, rightEl, flashEl, resultEl, initialDelay) {
+  const SLIDE_MS = 580;
+  const BURST_MS = 340;
+  const HOLD_MS  = 1100;
+  const RESET_MS = 280;
   function step1() {
-    leftEl.style.transition = `transform ${SLIDE_MS}ms ease-in`;
-    leftEl.style.transform  = `translateX(${_DX}px)`;
-    setTimeout(step2, COLL_MS);
+    leftEl.style.opacity = '1';
+    rightEl.style.opacity = '1';
+    leftEl.style.transition  = `transform ${SLIDE_MS}ms ease-in`;
+    rightEl.style.transition = `transform ${SLIDE_MS}ms ease-in`;
+    leftEl.style.transform  = 'translateX(44px)';
+    rightEl.style.transform = 'translateX(-44px)';
+    setTimeout(step2, SLIDE_MS);
   }
-
   function step2() {
-    leftEl.style.transition  = `opacity ${DISSOLVE_MS}ms ease, transform ${DISSOLVE_MS}ms ease`;
-    leftEl.style.opacity     = '0';
-    leftEl.style.transform   = `translateX(${_DX}px) scale(0.08)`;
-    rightEl.style.transition = `opacity ${DISSOLVE_MS}ms ease, transform ${DISSOLVE_MS}ms ease`;
-    rightEl.style.opacity    = '0';
-    rightEl.style.transform  = 'scale(0.08)';
-    burst('250,204,21', 22);
-    burst('249,115,22', 18);
-    setTimeout(step3, DISSOLVE_MS);
-  }
-
-  function step3() {
-    resultEl.style.opacity   = '1';
+    leftEl.style.opacity = '0';
+    rightEl.style.opacity = '0';
+    flashEl.style.animation = 'none';
+    void flashEl.offsetWidth;
+    flashEl.style.animation = `mdpBurst ${BURST_MS}ms ease-out forwards`;
+    resultEl.style.opacity = '1';
     resultEl.style.transform = 'scale(0.027)';
     resultEl.style.animation = 'none';
     void resultEl.offsetWidth;
-    resultEl.style.animation = `mdpResultSpawn ${SPAWN_MS}ms cubic-bezier(0.22,1,0.36,1) forwards`;
-    setTimeout(reset, HOLD_MS);
+    resultEl.style.animation = 'mdpResultSpawn 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards';
+    setTimeout(step3, HOLD_MS);
   }
-
-  function reset() {
+  function step3() {
     resultEl.style.animation = 'none';
-    resultEl.style.opacity   = '0';
+    resultEl.style.opacity = '0';
     resultEl.style.transform = 'scale(0.027)';
-    leftEl.style.transition  = 'none';
+    flashEl.style.animation = 'none';
+    flashEl.style.opacity = '0';
+    leftEl.style.transition = 'none';
     rightEl.style.transition = 'none';
-    leftEl.style.transform   = '';
-    rightEl.style.transform  = '';
-    leftEl.style.opacity     = '0';
-    rightEl.style.opacity    = '0';
+    leftEl.style.transform = 'translateX(0)';
+    rightEl.style.transform = 'translateX(0)';
+    leftEl.style.opacity = '0';
+    rightEl.style.opacity = '0';
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      leftEl.style.transition  = `opacity ${RESET_FADE}ms ease`;
-      rightEl.style.transition = `opacity ${RESET_FADE}ms ease`;
-      leftEl.style.opacity  = '1';
+      leftEl.style.transition  = `opacity ${RESET_MS}ms ease`;
+      rightEl.style.transition = `opacity ${RESET_MS}ms ease`;
+      leftEl.style.opacity = '1';
       rightEl.style.opacity = '1';
-      setTimeout(() => { leftEl.style.transition = ''; rightEl.style.transition = ''; step1(); }, RESET_FADE + 80);
+      setTimeout(() => { leftEl.style.transition = ''; rightEl.style.transition = ''; step1(); }, RESET_MS + 80);
     }));
   }
-
-  setTimeout(step1, initialDelay + 350);
+  setTimeout(step1, initialDelay + 400);
 }
 
 </script>

@@ -9,6 +9,7 @@ import { Grid } from '../entities/grid.js';
 import { i18n } from '../managers/i18n-manager.js';
 import { layout } from '../managers/layout-manager.js';
 import { saveManager } from '../managers/save-manager.js';
+import { themeManager } from '../managers/theme-manager.js';
 import { MenuModal } from '../components/menu-modal.js';
 import { GameOverModal } from '../components/game-over-modal.js';
 import { addBackground } from '../utils/background.js';
@@ -49,6 +50,18 @@ export class GridScene extends Phaser.Scene {
 
   /** @type {GameOverModal | null} */
   #gameOverModal = null;
+
+  /** @type {HTMLCanvasElement | null} Canvas for merge particles */
+  #mergeCanvas = null;
+
+  /** @type {CanvasRenderingContext2D | null} */
+  #mergeCtx = null;
+
+  /** @type {Array<{x:number,y:number,vx:number,vy:number,tx:number,ty:number,r:number,life:number,decay:number,rgb:string}>} */
+  #mergeParticles = [];
+
+  /** @type {number | null} */
+  #mergeRaf = null;
 
   /** Swipe tracking */
   #pointerStartX = 0;
@@ -118,11 +131,19 @@ export class GridScene extends Phaser.Scene {
       }
     }
 
-    const html = `<div class="fm-grid" id="fm-grid">${cellsHtml}</div>`;
+    const html = `<div class="fm-grid" id="fm-grid">${cellsHtml}<canvas class="fm-merge-canvas" id="fm-merge-canvas"></canvas></div>`;
 
     this.#gridDom = this.add.dom(layout.grid.x, layout.grid.y).createFromHTML(html);
     this.#gridDom.setOrigin(0.5);
     this.#gridEl = this.#gridDom.node.querySelector('#fm-grid');
+
+    this.#mergeCanvas = /** @type {HTMLCanvasElement} */ (this.#gridDom.node.querySelector('#fm-merge-canvas'));
+    if (this.#mergeCanvas && this.#gridEl) {
+      this.#mergeCanvas.width = this.#gridEl.offsetWidth;
+      this.#mergeCanvas.height = this.#gridEl.offsetHeight;
+      this.#mergeCtx = this.#mergeCanvas.getContext('2d');
+    }
+    this.#startMergeParticleLoop();
   }
 
   // ─── GAME FLOW ───────────────────────────────────
@@ -131,6 +152,7 @@ export class GridScene extends Phaser.Scene {
     this.#grid.startClassic();
     this.#renderAllTiles();
     this.#updateHUD();
+    this.#updateFusionIndicators();
   }
 
   // ─── INPUT ───────────────────────────────────────
@@ -214,10 +236,14 @@ export class GridScene extends Phaser.Scene {
     if (this.#animating) return;
     this.#animating = true;
 
+    // Clear imminent-fusion indicators before move
+    this.#clearFusionIndicators();
+
     const result = this.#grid.move(direction);
 
     if (!result.moved) {
       this.#animating = false;
+      this.#updateFusionIndicators();
       return;
     }
 
@@ -227,7 +253,11 @@ export class GridScene extends Phaser.Scene {
     // Wait for slide animation
     await this.#wait(ANIM.SLIDE_DURATION);
 
-    // Process merges: update classes, play merge anim
+    // Process merges: spawn particles, update classes, play merge anim
+    if (result.merges.length > 0) {
+      this.#spawnMergeParticles(result.merges);
+      await this.#wait(ANIM.MERGE_PARTICLES_DURATION);
+    }
     this.#processMerges(result.merges);
 
     // Wait for merge animation
@@ -244,6 +274,7 @@ export class GridScene extends Phaser.Scene {
     await this.#wait(ANIM.SPAWN_DURATION);
 
     this.#updateHUD();
+    this.#updateFusionIndicators();
     this.#animating = false;
 
     // Check game over
@@ -281,7 +312,9 @@ export class GridScene extends Phaser.Scene {
     el.dataset.tileId = tile.id;
 
     const { x, y } = this.#cellPosition(tile.row, tile.col);
-    el.style.transform = `translate(${x}px, ${y}px)`;
+    // Use left/top for positioning — transform stays free for animations
+    el.style.left = `${x}px`;
+    el.style.top  = `${y}px`;
     el.style.setProperty('--slide-duration', `${ANIM.SLIDE_DURATION}ms`);
 
     if (animate) {
@@ -304,51 +337,69 @@ export class GridScene extends Phaser.Scene {
   }
 
   /**
-   * Update positions of moved tiles.
-   * @param {{ movements: { tile: import('../entities/tile.js').Tile, fromRow: number, fromCol: number }[], merges: { tile: import('../entities/tile.js').Tile, fromRow: number, fromCol: number }[] }} result
+   * Update positions of moved/merged tiles (all use left/top transition).
+   * @param {{ movements: { tile: import('../entities/tile.js').Tile, fromRow: number, fromCol: number }[], merges: { tile: import('../entities/tile.js').Tile, fromRow: number, fromCol: number, consumedId: string }[] }} result
    */
   #updateTilePositions(result) {
-    // Move slid tiles
+    // Slide regular movements
     for (const { tile } of result.movements) {
       const el = this.#tileElements.get(tile.id);
       if (!el) continue;
       const { x, y } = this.#cellPosition(tile.row, tile.col);
-      el.style.transform = `translate(${x}px, ${y}px)`;
+      el.style.left = `${x}px`;
+      el.style.top  = `${y}px`;
     }
 
-    // Move merged tiles toward merge target
-    for (const { tile, fromRow, fromCol } of result.merges) {
-      // The "tile" here is the surviving tile after merge — we need to move
-      // the consumed tile's element toward it. But since grid.move() already
-      // removed the consumed tile, we need the surviving element.
-      const el = this.#tileElements.get(tile.id);
-      if (!el) continue;
+    // Slide both the survivor AND the consumed tile toward the merge target
+    for (const { tile, consumedId } of result.merges) {
       const { x, y } = this.#cellPosition(tile.row, tile.col);
-      el.style.transform = `translate(${x}px, ${y}px)`;
+
+      // Move the surviving tile (may already be at target, transition is instant)
+      const survivorEl = this.#tileElements.get(tile.id);
+      if (survivorEl) {
+        survivorEl.style.left = `${x}px`;
+        survivorEl.style.top  = `${y}px`;
+      }
+
+      // Slide the consumed tile to the merge target so it visually collides
+      const consumedEl = this.#tileElements.get(consumedId);
+      if (consumedEl) {
+        consumedEl.style.left = `${x}px`;
+        consumedEl.style.top  = `${y}px`;
+      }
     }
   }
 
   /**
-   * After slide animation: update merge tile values and play merge animation.
-   * @param {{ tile: import('../entities/tile.js').Tile, fromRow: number, fromCol: number }[]} merges
+   * After slide: fade out consumed tiles, update survivor classes, play merge bounce.
+   * @param {{ tile: import('../entities/tile.js').Tile, fromRow: number, fromCol: number, consumedId: string }[]} merges
    */
   #processMerges(merges) {
-    for (const { tile } of merges) {
+    const activeTileIds = new Set(this.#grid.getAllTiles().map((t) => t.id));
+
+    for (const { tile, consumedId } of merges) {
+      // Play fade-out on the consumed tile, remove it when done
+      const consumedEl = this.#tileElements.get(consumedId);
+      if (consumedEl) {
+        consumedEl.classList.add('fm-tile--consumed');
+        consumedEl.addEventListener('animationend', () => {
+          consumedEl.remove();
+        }, { once: true });
+        this.#tileElements.delete(consumedId);
+      }
+
+      // Update surviving tile value + play bounce
       const el = this.#tileElements.get(tile.id);
       if (!el) continue;
-
-      // Update value and classes
       el.className = `fm-tile fm-t${tile.value} fm-tile--merge`;
       const valEl = el.querySelector('.fm-val');
       if (valEl) valEl.textContent = String(tile.value);
-
       el.addEventListener('animationend', () => {
         el.classList.remove('fm-tile--merge');
       }, { once: true });
     }
 
-    // Remove consumed tiles (tiles that no longer exist in the grid)
-    const activeTileIds = new Set(this.#grid.getAllTiles().map((t) => t.id));
+    // Remove any other orphaned tile elements (safety net)
     for (const [id, el] of this.#tileElements) {
       if (!activeTileIds.has(id)) {
         el.remove();
@@ -445,7 +496,128 @@ export class GridScene extends Phaser.Scene {
     return new Promise((resolve) => this.time.delayedCall(ms, resolve));
   }
 
+  // ─── IMMINENT FUSION DETECTION ────────────────────
+
+  /** CSS classes for imminent-fusion glow/pull */
+  static #FUSE_CLASSES = ['fm-fuse-right', 'fm-fuse-left', 'fm-fuse-down', 'fm-fuse-up'];
+
+  /**
+   * Scan the grid for adjacent same-value tiles and add visual indicators.
+   */
+  #updateFusionIndicators() {
+    this.#clearFusionIndicators();
+
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const tile = this.#grid.cells[r][c];
+        if (!tile) continue;
+
+        // Check right neighbor
+        if (c + 1 < GRID_SIZE) {
+          const right = this.#grid.cells[r][c + 1];
+          if (right && right.value === tile.value) {
+            this.#tileElements.get(tile.id)?.classList.add('fm-fuse-right');
+            this.#tileElements.get(right.id)?.classList.add('fm-fuse-left');
+          }
+        }
+        // Check bottom neighbor
+        if (r + 1 < GRID_SIZE) {
+          const bottom = this.#grid.cells[r + 1][c];
+          if (bottom && bottom.value === tile.value) {
+            this.#tileElements.get(tile.id)?.classList.add('fm-fuse-down');
+            this.#tileElements.get(bottom.id)?.classList.add('fm-fuse-up');
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Remove all imminent-fusion classes from tile elements.
+   */
+  #clearFusionIndicators() {
+    for (const el of this.#tileElements.values()) {
+      el.classList.remove(...GridScene.#FUSE_CLASSES);
+    }
+  }
+
+  // ─── MERGE PARTICLES ────────────────────────────
+
+  /** Continuously draw merge particles on the canvas overlay */
+  #startMergeParticleLoop() {
+    const draw = () => {
+      this.#mergeRaf = requestAnimationFrame(draw);
+      const ctx = this.#mergeCtx;
+      const cvs = this.#mergeCanvas;
+      if (!ctx || !cvs) return;
+
+      ctx.clearRect(0, 0, cvs.width, cvs.height);
+      const particles = this.#mergeParticles;
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        const dx = p.tx - p.x;
+        const dy = p.ty - p.y;
+        const dist = Math.hypot(dx, dy) + 0.001;
+        const force = Math.min(0.24, 5.0 / (dist + 3));
+        p.vx += (dx / dist) * force;
+        p.vy += (dy / dist) * force;
+        p.vx *= 0.93;
+        p.vy *= 0.93;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= p.decay;
+        if (p.life <= 0 || dist < 4) {
+          particles.splice(i, 1);
+          continue;
+        }
+        const a = Math.min(p.life, 1);
+        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.5);
+        g.addColorStop(0, `rgba(${p.rgb},${a})`);
+        g.addColorStop(1, `rgba(${p.rgb},0)`);
+        ctx.beginPath();
+        ctx.fillStyle = g;
+        ctx.arc(p.x, p.y, p.r * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+    this.#mergeRaf = requestAnimationFrame(draw);
+  }
+
+  /**
+   * Burst particles at the position of each merge target.
+   * @param {{ tile: import('../entities/tile.js').Tile, fromRow: number, fromCol: number }[]} merges
+   */
+  #spawnMergeParticles(merges) {
+    const { tileSize, gap, padding } = layout.grid;
+    for (const { tile } of merges) {
+      const cx = padding + tile.col * (tileSize + gap) + tileSize / 2;
+      const cy = padding + tile.row * (tileSize + gap) + tileSize / 2;
+      const count = 28;
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const spd = 0.4 + Math.random() * 2.5;
+        this.#mergeParticles.push({
+          x: cx + (Math.random() - 0.5) * tileSize * 0.8,
+          y: cy + (Math.random() - 0.5) * tileSize * 0.8,
+          vx: Math.cos(angle) * spd * (Math.random() < 0.5 ? 0.3 : 1),
+          vy: Math.sin(angle) * spd * (Math.random() < 0.5 ? 0.3 : 1),
+          tx: cx,
+          ty: cy,
+          r: 1.2 + Math.random() * 2.5,
+          life: 0.7 + Math.random() * 0.3,
+          decay: 0.008 + Math.random() * 0.014,
+          rgb: i < count / 2 ? '250,204,21' : '200,160,255',
+        });
+      }
+    }
+  }
+
   shutdown() {
+    if (this.#mergeRaf) {
+      cancelAnimationFrame(this.#mergeRaf);
+      this.#mergeRaf = null;
+    }
+    this.#mergeParticles.length = 0;
     this.#destroyMenuModal();
     this.#gameOverModal?.destroy();
     this.#clearAllTileElements();
