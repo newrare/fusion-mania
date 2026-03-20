@@ -30,6 +30,8 @@ export const en = {
   'game.score': 'Score',
   'game.moves': 'Moves',
   'game.best': 'Best',
+  'game.fusions': 'Fusions',
+  'game.combo': 'Combo',
   'gameover.title': 'Game Over',
   'gameover.score': 'Final Score',
   'gameover.new_game': 'New Game',

@@ -173,6 +173,35 @@ export class Grid {
   }
 
   /**
+   * Check if any move in any direction could produce a merge.
+   * Collapses empty cells per row/column and checks for consecutive same values.
+   * @returns {boolean}
+   */
+  hasPossibleMerge() {
+    for (let r = 0; r < GRID_SIZE; r++) {
+      /** @type {number[]} */
+      const rowVals = [];
+      for (let c = 0; c < GRID_SIZE; c++) {
+        if (this.cells[r][c]) rowVals.push(this.cells[r][c].value);
+      }
+      for (let i = 0; i < rowVals.length - 1; i++) {
+        if (rowVals[i] === rowVals[i + 1]) return true;
+      }
+    }
+    for (let c = 0; c < GRID_SIZE; c++) {
+      /** @type {number[]} */
+      const colVals = [];
+      for (let r = 0; r < GRID_SIZE; r++) {
+        if (this.cells[r][c]) colVals.push(this.cells[r][c].value);
+      }
+      for (let i = 0; i < colVals.length - 1; i++) {
+        if (colVals[i] === colVals[i + 1]) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Check if the player reached 2048.
    * @returns {boolean}
    */

@@ -53,3 +53,18 @@ export const DEFAULT_OPTIONS = {
   music: true,
   sound: true,
 };
+
+/**
+ * Combo hit label colors — pale red at level 1, escalating to vivid red.
+ * Index 0 = first hit (x1), wraps around after the last entry.
+ */
+export const COMBO_COLORS = [
+  '#ff9999', // x1 - pale rose
+  '#ff7777', // x2
+  '#ff5555', // x3
+  '#ff3333', // x4
+  '#ff1111', // x5
+  '#ee0000', // x6
+  '#cc0000', // x7
+  '#aa0000', // x8+ - deep blood red
+];

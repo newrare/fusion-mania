@@ -237,6 +237,24 @@ export class AnimationManager {
   }
 
   /**
+   * Remove all imminent-fusion indicator classes from every tile element.
+   */
+  clearFusionIndicators() {
+    for (const el of this.#tileElements.values()) {
+      el.classList.remove('fm-fuse-right', 'fm-fuse-left', 'fm-fuse-down', 'fm-fuse-up');
+    }
+  }
+
+  /**
+   * Add a fusion indicator class to a specific tile element.
+   * @param {string} tileId
+   * @param {string} className
+   */
+  addFusionClass(tileId, className) {
+    this.#tileElements.get(tileId)?.classList.add(className);
+  }
+
+  /**
    * Remove all tile DOM elements and clear the tracking map.
    */
   clearAllTileElements() {

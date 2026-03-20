@@ -4,6 +4,7 @@ import {
   GRID_SIZE,
   ANIM,
   SWIPE_THRESHOLD,
+  COMBO_COLORS,
 } from '../configs/constants.js';
 import { Grid } from '../entities/grid.js';
 import { i18n } from '../managers/i18n-manager.js';
@@ -62,6 +63,30 @@ export class GridScene extends Phaser.Scene {
   #pointerStartX = 0;
   #pointerStartY = 0;
 
+  /** @type {number} Total tile fusions this game */
+  #fusions = 0;
+
+  /** @type {number} Current combo streak level */
+  #combo = 0;
+
+  /** @type {number} Max combo level reached in current streak */
+  #comboMax = 0;
+
+  /** @type {number} Score before the current combo started */
+  #comboScoreStart = 0;
+
+  /** @type {HTMLElement | null} Combo display element */
+  #comboEl = null;
+
+  /** @type {HTMLElement | null} Score bonus float popup */
+  #scoreBonusEl = null;
+
+  /** @type {Phaser.Time.TimerEvent | null} Timer that ends the combo on inactivity */
+  #comboTimer = null;
+
+  /** @type {boolean} True while the hurt/break animation is playing */
+  #comboBreaking = false;
+
   constructor() {
     super({ key: SCENE_KEYS.GRID });
     this.#grid = new Grid();
@@ -75,6 +100,14 @@ export class GridScene extends Phaser.Scene {
     this.#gameOver = false;
     this.#animating = false;
     this.#tileElements.clear();
+    this.#fusions = 0;
+    this.#combo = 0;
+    this.#comboMax = 0;
+    this.#comboScoreStart = 0;
+    this.#comboEl = null;
+    this.#scoreBonusEl = null;
+    this.#comboTimer = null;
+    this.#comboBreaking = false;
   }
 
   create() {
@@ -90,19 +123,29 @@ export class GridScene extends Phaser.Scene {
   #createHUD() {
     const html = `
       <div class="fm-hud">
-        <div class="fm-score-box">
-          <span class="fm-score-label">${i18n.t('game.score')}</span>
-          <span class="fm-score-value" id="fm-score">0</span>
+        <div class="fm-hud-row">
+          <div class="fm-score-box">
+            <span class="fm-score-label">${i18n.t('game.moves')}</span>
+            <span class="fm-score-value" id="fm-moves">0</span>
+          </div>
+          <div class="fm-score-box">
+            <span class="fm-score-label">${i18n.t('game.fusions')}</span>
+            <span class="fm-score-value" id="fm-fusions">0</span>
+          </div>
+          <div class="fm-score-wrap">
+            <div class="fm-score-box">
+              <span class="fm-score-label">${i18n.t('game.score')}</span>
+              <span class="fm-score-value" id="fm-score">0</span>
+            </div>
+            <div class="fm-combo-display" id="fm-combo-display" style="display:none"></div>
+            <div class="fm-score-bonus" id="fm-score-bonus"></div>
+          </div>
+          <div class="fm-score-box">
+            <span class="fm-score-label">${i18n.t('game.best')}</span>
+            <span class="fm-score-value" id="fm-best">${saveManager.getBestScore(this.#mode)}</span>
+          </div>
+          <div class="fm-menu-btn" id="fm-menu-btn">☰</div>
         </div>
-        <div class="fm-score-box">
-          <span class="fm-score-label">${i18n.t('game.best')}</span>
-          <span class="fm-score-value" id="fm-best">${saveManager.getBestScore(this.#mode)}</span>
-        </div>
-        <div class="fm-score-box">
-          <span class="fm-score-label">${i18n.t('game.moves')}</span>
-          <span class="fm-score-value" id="fm-moves">0</span>
-        </div>
-        <div class="fm-menu-btn" id="fm-menu-btn">☰</div>
       </div>
     `;
 
@@ -115,6 +158,9 @@ export class GridScene extends Phaser.Scene {
       e.stopPropagation();
       this.#openMenu();
     });
+
+    this.#comboEl = this.#hudEl.querySelector('#fm-combo-display');
+    this.#scoreBonusEl = this.#hudEl.querySelector('#fm-score-bonus');
   }
 
   // ─── GRID CONTAINER ──────────────────────────────
@@ -143,6 +189,19 @@ export class GridScene extends Phaser.Scene {
 
   // ─── GAME FLOW ───────────────────────────────────
   #startNewGame() {
+    this.#fusions = 0;
+    this.#combo = 0;
+    this.#comboMax = 0;
+    this.#comboScoreStart = 0;
+    this.#cancelComboTimer();
+    if (this.#comboEl) {
+      this.#comboEl.style.removeProperty('animation');
+      this.#comboEl.style.display = 'none';
+      this.#comboEl.classList.remove('fm-combo-hurt');
+    }
+    if (this.#scoreBonusEl) {
+      this.#scoreBonusEl.classList.remove('fm-bonus-active');
+    }
     this.#animator.clearAllTileElements();
     this.#grid.startClassic();
     this.#renderAllTiles();
@@ -236,6 +295,9 @@ export class GridScene extends Phaser.Scene {
   async #executeMove(direction) {
     this.#clearFusionIndicators();
 
+    const hasMergePossible = this.#grid.hasPossibleMerge();
+    const scoreBefore = this.#grid.score;
+
     // Interrupt any running animation: snap DOM to current grid state instantly
     if (this.#animating) {
       this.#animator.snapToFinalState(
@@ -257,6 +319,28 @@ export class GridScene extends Phaser.Scene {
       this.#updateFusionIndicators();
       return;
     }
+
+    // Update fusions counter and combo
+    if (result.merges.length > 0) {
+      this.#fusions += result.merges.length;
+      // If a hurt/break animation is playing, finalize that combo immediately
+      // so its bonus is applied before the new streak starts from 1.
+      if (this.#comboBreaking) {
+        this.#endCombo();
+      }
+      if (this.#combo === 0) {
+        this.#comboScoreStart = scoreBefore;
+      }
+      this.#combo++;
+      if (this.#combo > this.#comboMax) {
+        this.#comboMax = this.#combo;
+      }
+      this.#updateComboDisplay(true);
+    } else if (hasMergePossible) {
+      // A fusion was possible but the move produced no merges → manual combo break
+      this.#breakComboWithHurt();
+    }
+    // else: no merges possible anywhere → combo paused, no change
 
     // Spawn the new tile in the grid data NOW (before animations) so that
     // if this sequence is interrupted, snapToFinalState will render it correctly.
@@ -341,12 +425,120 @@ export class GridScene extends Phaser.Scene {
     const scoreEl = this.#hudEl?.querySelector('#fm-score');
     const movesEl = this.#hudEl?.querySelector('#fm-moves');
     const bestEl = this.#hudEl?.querySelector('#fm-best');
+    const fusionsEl = this.#hudEl?.querySelector('#fm-fusions');
     if (scoreEl) scoreEl.textContent = String(this.#grid.score);
     if (movesEl) movesEl.textContent = String(this.#grid.moves);
     if (bestEl) {
       const best = Math.max(saveManager.getBestScore(this.#mode), this.#grid.score);
       bestEl.textContent = String(best);
     }
+    if (fusionsEl) fusionsEl.textContent = String(this.#fusions);
+  }
+
+  // ─── COMBO ───────────────────────────────────────
+
+  /**
+   * Update the combo display element.
+   * @param {boolean} animate Whether to trigger the bump animation.
+   */
+  #updateComboDisplay(animate) {
+    if (!this.#comboEl) return;
+    // Cancel any pending timer and reset all animation state cleanly
+    this.#cancelComboTimer();
+    this.#comboEl.classList.remove('fm-combo-hurt');
+    this.#comboEl.style.removeProperty('animation');
+    void this.#comboEl.offsetWidth; // reflow to restart animations
+    const color = COMBO_COLORS[(this.#combo - 1) % COMBO_COLORS.length];
+    this.#comboEl.style.display = 'block';
+    this.#comboEl.style.color = color;
+    this.#comboEl.style.textShadow =
+      `-1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 8px ${color}`;
+    this.#comboEl.style.borderColor = color;
+    this.#comboEl.innerHTML =
+      `<span class="fm-hit-number">${this.#combo}</span><span class="fm-hit-label">HIT</span>`;
+    // Both animations target different properties (transform vs opacity) — no conflict
+    const fade = 'fm-combo-fade 3s linear forwards';
+    if (animate && this.#combo >= 3) {
+      this.#comboEl.style.animation = `fm-combo-shake 0.5s ease-in-out both, ${fade}`;
+    } else if (animate) {
+      this.#comboEl.style.animation = `fm-combo-pop 0.45s ease-out both, ${fade}`;
+    } else {
+      this.#comboEl.style.animation = fade;
+    }
+    this.#comboTimer = this.time.delayedCall(3000, () => {
+      this.#endCombo();
+    });
+  }
+
+  /**
+   * End the current combo, apply score bonus if comboMax >= 2, and hide the display.
+   */
+  #endCombo() {
+    this.#cancelComboTimer();
+    this.#comboBreaking = false;
+    if (this.#combo <= 0) return;
+    if (this.#comboMax >= 2) {
+      const scoreGained = this.#grid.score - this.#comboScoreStart;
+      if (scoreGained > 0) {
+        const bonus = scoreGained * (this.#comboMax - 1);
+        this.#grid.score += bonus;
+        this.#showScoreBonus(bonus);
+        this.#updateHUD();
+      }
+    }
+    this.#combo = 0;
+    this.#comboMax = 0;
+    this.#comboScoreStart = 0;
+    if (this.#comboEl) {
+      this.#comboEl.style.removeProperty('animation');
+      this.#comboEl.style.display = 'none';
+      this.#comboEl.classList.remove('fm-combo-hurt');
+    }
+  }
+
+  /**
+   * Break the combo with a visual hurt blink then end it.
+   * Called when the player voluntarily skipped a possible merge.
+   */
+  #breakComboWithHurt() {
+    if (this.#combo <= 0) return;
+    this.#cancelComboTimer();
+    this.#comboBreaking = true;
+    if (this.#comboEl) {
+      this.#comboEl.classList.remove('fm-combo-hurt');
+      this.#comboEl.style.removeProperty('animation');
+      void this.#comboEl.offsetWidth;
+      this.#comboEl.classList.add('fm-combo-hurt');
+    }
+    // End combo after the hurt animation completes (0.6 s)
+    this.#comboTimer = this.time.delayedCall(600, () => {
+      this.#endCombo();
+    });
+  }
+
+  /**
+   * Cancel the pending inactivity combo timer, if any.
+   */
+  #cancelComboTimer() {
+    if (this.#comboTimer) {
+      this.#comboTimer.remove(false);
+      this.#comboTimer = null;
+    }
+  }
+
+  /**
+   * Flash a floating "+N" bonus label over the score box.
+   * @param {number} amount
+   */
+  #showScoreBonus(amount) {
+    if (!this.#scoreBonusEl || amount <= 0) return;
+    const color = '#ffdd00';
+    this.#scoreBonusEl.textContent = `+${amount}`;
+    this.#scoreBonusEl.style.color = color;
+    this.#scoreBonusEl.style.textShadow = `0 0 10px ${color}, 0 2px 6px rgba(0,0,0,0.6)`;
+    this.#scoreBonusEl.classList.remove('fm-bonus-active');
+    void this.#scoreBonusEl.offsetWidth;
+    this.#scoreBonusEl.classList.add('fm-bonus-active');
   }
 
   // ─── MODALS ──────────────────────────────────────
@@ -384,6 +576,7 @@ export class GridScene extends Phaser.Scene {
   }
 
   #onGameOver() {
+    this.#endCombo();
     this.#gameOver = true;
     saveManager.addRanking(this.#mode, this.#grid.score);
     saveManager.clearGame();
@@ -414,34 +607,27 @@ export class GridScene extends Phaser.Scene {
 
   // ─── IMMINENT FUSION DETECTION ────────────────────
 
-  /** CSS classes for imminent-fusion glow/pull */
-  static #FUSE_CLASSES = ['fm-fuse-right', 'fm-fuse-left', 'fm-fuse-down', 'fm-fuse-up'];
-
   /**
    * Scan the grid for adjacent same-value tiles and add visual indicators.
    */
   #updateFusionIndicators() {
-    this.#clearFusionIndicators();
-
+    this.#animator.clearFusionIndicators();
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
         const tile = this.#grid.cells[r][c];
         if (!tile) continue;
-
-        // Check right neighbor
         if (c + 1 < GRID_SIZE) {
           const right = this.#grid.cells[r][c + 1];
           if (right && right.value === tile.value) {
-            this.#tileElements.get(tile.id)?.classList.add('fm-fuse-right');
-            this.#tileElements.get(right.id)?.classList.add('fm-fuse-left');
+            this.#animator.addFusionClass(tile.id, 'fm-fuse-right');
+            this.#animator.addFusionClass(right.id, 'fm-fuse-left');
           }
         }
-        // Check bottom neighbor
         if (r + 1 < GRID_SIZE) {
           const bottom = this.#grid.cells[r + 1][c];
           if (bottom && bottom.value === tile.value) {
-            this.#tileElements.get(tile.id)?.classList.add('fm-fuse-down');
-            this.#tileElements.get(bottom.id)?.classList.add('fm-fuse-up');
+            this.#animator.addFusionClass(tile.id, 'fm-fuse-down');
+            this.#animator.addFusionClass(bottom.id, 'fm-fuse-up');
           }
         }
       }
@@ -452,12 +638,11 @@ export class GridScene extends Phaser.Scene {
    * Remove all imminent-fusion classes from tile elements.
    */
   #clearFusionIndicators() {
-    for (const el of this.#tileElements.values()) {
-      el.classList.remove(...GridScene.#FUSE_CLASSES);
-    }
+    this.#animator.clearFusionIndicators();
   }
 
   shutdown() {
+    this.#cancelComboTimer();
     this.#animator?.stopParticleLoop();
     this.#animator?.clearAllTileElements();
     this.#destroyMenuModal();
