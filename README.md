@@ -5,10 +5,10 @@ A unique twist on the classic 2048 puzzle game with magical powers! Each tile ha
 ## Quick Start
 
 ```bash
-npm install        # Install dependencies
-npm run dev        # Start dev server (http://localhost:3000)
-npm test           # Run tests
-npm run build      # Production build
+npm install    # Install dependencies
+npm run dev    # Start dev server (http://localhost:3000)
+npm test       # Run tests
+npm run build  # Production build
 ```
 
 ## Architecture
