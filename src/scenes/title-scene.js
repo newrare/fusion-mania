@@ -49,6 +49,10 @@ export class TitleScene extends Phaser.Scene {
         this.#destroyModal();
         this.scene.start(SCENE_KEYS.GRID, { mode: 'classic' });
       },
+      onFree: () => {
+        this.#destroyModal();
+        this.scene.start(SCENE_KEYS.GRID, { mode: 'free' });
+      },
       onClose: () => {
         this.#destroyModal();
         // Re-bind input

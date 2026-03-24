@@ -276,4 +276,74 @@ describe('Grid', () => {
       expect(grid.getAllTiles().length).toBe(3);
     });
   });
+
+  describe('simulateMove', () => {
+    it('does not mutate the real grid', () => {
+      grid.cells[0][3] = new Tile(2, 0, 3);
+      const id = grid.cells[0][3].id;
+      grid.simulateMove('left');
+      // Original tile should still be at [0][3]
+      expect(grid.cells[0][3]).not.toBeNull();
+      expect(grid.cells[0][3].id).toBe(id);
+      expect(grid.cells[0][0]).toBeNull();
+    });
+
+    it('reports moved=true when tiles slide', () => {
+      grid.cells[0][3] = new Tile(2, 0, 3);
+      const result = grid.simulateMove('left');
+      expect(result.moved).toBe(true);
+    });
+
+    it('reports moved=false when nothing can slide', () => {
+      grid.cells[0][0] = new Tile(2, 0, 0);
+      const result = grid.simulateMove('left');
+      expect(result.moved).toBe(false);
+    });
+
+    it('detects merges', () => {
+      const t1 = new Tile(2, 0, 0);
+      const t2 = new Tile(2, 0, 1);
+      grid.cells[0][0] = t1;
+      grid.cells[0][1] = t2;
+      const result = grid.simulateMove('left');
+      expect(result.merges.length).toBe(1);
+      expect(result.merges[0].value).toBe(4);
+    });
+
+    it('provides final positions for all tiles', () => {
+      const t = new Tile(2, 0, 3);
+      grid.cells[0][3] = t;
+      const result = grid.simulateMove('left');
+      const pos = result.positions.get(t.id);
+      expect(pos).toEqual({ row: 0, col: 0 });
+    });
+
+    it('respects frozenIds — frozen tiles do not move', () => {
+      const frozen = new Tile(2, 0, 3);
+      grid.cells[0][3] = frozen;
+      const result = grid.simulateMove('left', { frozenIds: new Set([frozen.id]) });
+      const pos = result.positions.get(frozen.id);
+      expect(pos).toEqual({ row: 0, col: 3 });
+      expect(result.moved).toBe(false);
+    });
+
+    it('respects windBlock — blocks the entire direction', () => {
+      grid.cells[0][3] = new Tile(2, 0, 3);
+      const result = grid.simulateMove('left', { windBlock: 'left' });
+      expect(result.moved).toBe(false);
+      expect(result.merges).toEqual([]);
+    });
+
+    it('frozen tiles block other tiles from merging through them', () => {
+      const frozen = new Tile(2, 0, 1);
+      const slider = new Tile(2, 0, 3);
+      grid.cells[0][1] = frozen;
+      grid.cells[0][3] = slider;
+      const result = grid.simulateMove('left', { frozenIds: new Set([frozen.id]) });
+      // Slider should stop before the frozen tile, not merge
+      const sliderPos = result.positions.get(slider.id);
+      expect(sliderPos.col).toBe(2);
+      expect(result.merges.length).toBe(0);
+    });
+  });
 });

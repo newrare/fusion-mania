@@ -11,6 +11,10 @@ npm test       # Run tests
 npm run build  # Production build
 ```
 
+## Convention, best practices, code style and rules
+
+See [docs/CODE-STYLE.md](docs/CODE-STYLE.md) for the full coding conventions, best practices, architecture decisions, and code style rules.
+
 ## Architecture
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full project structure, tech stack, design decisions, and conventions.
@@ -22,6 +26,11 @@ See [docs/LAYOUT.md](docs/LAYOUT.md) for the full documentation on responsive la
 ## Animation System
 
 See [docs/ANIMATION.md](docs/ANIMATION.md) for the animation layers, interruption model (skip in-progress animations on new input), and testing guide.
+
+## Game Modes
+- **Classic Mode**: Pure 2048 gameplay with no powers or enemies.
+- **Free Mode**: 2048 gameplay with random powers appearing on the grid edges ([docs/FREE.md](docs/FREE.md)).
+- **Battle Mode**: 2048 gameplay with enemies.
 
 ## Current Status
 
@@ -115,28 +124,7 @@ The game features an enemy system that adds combat mechanics to the puzzle gamep
 
 ### 🔥 Power System
 
-Each tile can have a power that activates when fused. The power system has two modes:
-
-#### Available Powers
-- **[Fire -]** : Horizontal fire - destroys an entire row
-- **[Fire |]** : Vertical fire - destroys an entire column
-- **[Fire +]** : Cross fire - destroys a row AND a column
-- **[Bomb]** : Explosion - destroys adjacent tiles
-- **[Ice]** : Freezes the tile for 5 movements
-- **[Switch ↔]** : Swap two horizontal tiles
-- **[Switch ↕]** : Swap two vertical tiles
-- **[Teleport]** : Swap with a random tile on the grid
-- **[Expel → ←]** : Horizontal expulsion - edge tile exits the grid
-- **[Expel ↓ ↑]** : Vertical expulsion - edge tile exits the grid
-- **[Wind ↑]** : Blocks DOWN movement for 2 turns
-- **[Wind ↓]** : Blocks UP movement for 2 turns
-- **[Wind ←]** : Blocks RIGHT movement for 2 turns
-- **[Wind →]** : Blocks LEFT movement for 2 turns
-- **[Lightning]** : 4 random tiles are struck and destroyed
-- **[Nuclear]** : All tiles are destroyed
-- **[Blind]** : All tiles are misterious for 5 turns (hide numbers and colors)
-- **[Ads]** : Launches an ad for X seconds
-
+See [docs/POWER.md](docs/POWER.md) for the full documentation on available powers, activation flow, tile states, and game over conditions in Free Mode.
 
 ### Controls
 

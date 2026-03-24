@@ -582,3 +582,59 @@ html, body {
   background-image: linear-gradient(135deg, #ff6b6b, #ee5a24, #ff6b6b);
   color: #fff; border-color: #ee5a24;
 }
+
+/* --- Admin modal (dev mode only) --- */
+.fm-admin-modal {
+  max-width: 360px;
+  width: 90vw;
+}
+
+.fm-admin-section {
+  margin-bottom: 14px;
+}
+
+.fm-admin-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.55;
+  margin-bottom: 6px;
+}
+
+.fm-admin-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+}
+
+.fm-admin-tile-btn {
+  flex: 1 1 calc(25% - 5px);
+  min-width: 52px;
+  max-width: 74px;
+  padding: 6px 4px;
+  font-size: 0.72rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.fm-btn--danger {
+  background: rgba(200, 40, 40, 0.25);
+  border-color: rgba(200, 40, 40, 0.55);
+  color: #ff9090;
+  width: 100%;
+}
+
+.fm-btn--danger:active {
+  background: rgba(200, 40, 40, 0.45);
+}
+
+.fm-btn--admin {
+  background: rgba(40, 140, 60, 0.25);
+  border-color: rgba(60, 180, 80, 0.45);
+  color: #90ff90;
+}
+
+.fm-btn--admin:active {
+  background: rgba(40, 140, 60, 0.45);
+}

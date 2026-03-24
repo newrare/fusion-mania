@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FusionMania — Preview · Nuclear</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { width: 100%; height: 100%; overflow: hidden; }
+
+body {
+  background: linear-gradient(160deg, #1a0a2e 0%, #0d0520 60%, #0a1030 100%);
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Stage ──────────────────────────────────────── */
+.stage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Grid ───────────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 78px);
+  grid-template-rows:    repeat(4, 78px);
+  gap: 9px;
+  padding: 10px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 18px;
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Tiles ──────────────────────────────────────── */
+.tile {
+  width: 78px;
+  height: 78px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: bold;
+  border: 2px solid transparent;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+  /* controlled by JS */
+  opacity: 0;
+  /* CSS vars for fly direction */
+  --fly-x: 0;
+  --fly-y: 0;
+  --spin: 0deg;
+  --explode-delay: 0s;
+  --enter-delay: 0s;
+}
+
+/* ── Tile keyframes ─────────────────────────────── */
+
+@keyframes tile-enter {
+  0%   {
+    opacity: 0;
+    transform: scale(0.28)
+               translate(calc(var(--fly-x) * -130px), calc(var(--fly-y) * -130px))
+               rotate(calc(var(--spin) * -.5));
+  }
+  58%  {
+    opacity: 1;
+    transform: scale(1.07) translate(0, 0) rotate(0deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1)    translate(0, 0) rotate(0deg);
+  }
+}
+
+@keyframes tile-explode {
+  0%   {
+    opacity: 1;
+    transform: scale(1)    translate(0, 0) rotate(0deg);
+    filter: brightness(1.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.18)
+               translate(calc(var(--fly-x) * 280px), calc(var(--fly-y) * 280px))
+               rotate(var(--spin));
+    filter: brightness(0.3);
+  }
+}
+
+.tile.entering {
+  animation: tile-enter 0.58s ease-out forwards;
+  animation-delay: var(--enter-delay);
+}
+
+.tile.exploding {
+  animation: tile-explode 0.62s ease-in forwards;
+  animation-delay: var(--explode-delay);
+}
+
+/* ── Screen flash ───────────────────────────────── */
+#flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: rgba(170, 255, 30, .38);
+  z-index: 10;
+  transition: opacity 0.06s;
+}
+#flash.on  { opacity: 1; transition: opacity 0.04s; }
+#flash.off { opacity: 0; transition: opacity 0.28s; }
+
+/* ── Blast ──────────────────────────────────────── */
+/* Zero-size anchor, placed at stage center, same as grid center */
+.blast {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.arm, .core, .ring {
+  position: absolute;
+  transform-origin: 50% 50%;
+  opacity: 0;
+}
+
+/* ── Nuclear blast keyframes ────────────────────── */
+
+@keyframes nuc-arm-h {
+  0%    { transform: scaleX(0);    opacity: 0; }
+  5%    { transform: scaleX(1.15); opacity: 1; }
+  18%   { transform: scaleX(.94); }
+  46%   { transform: scaleX(1);    opacity: 1; }
+  66%   {                          opacity: .18; }
+  72%   { transform: scaleX(1);    opacity: 0; }
+  72.1% { transform: scaleX(0);    opacity: 0; }
+  100%  { transform: scaleX(0);    opacity: 0; }
+}
+
+@keyframes nuc-arm-v {
+  0%    { transform: scaleY(0);    opacity: 0; }
+  5%    { transform: scaleY(1.15); opacity: 1; }
+  18%   { transform: scaleY(.94); }
+  46%   { transform: scaleY(1);    opacity: 1; }
+  66%   {                          opacity: .18; }
+  72%   { transform: scaleY(1);    opacity: 0; }
+  72.1% { transform: scaleY(0);    opacity: 0; }
+  100%  { transform: scaleY(0);    opacity: 0; }
+}
+
+@keyframes nuc-core {
+  0%   { transform: translate(-50%,-50%) scale(0);   opacity: 0; }
+  5%   { transform: translate(-50%,-50%) scale(5.2); opacity: 1; }
+  16%  { transform: translate(-50%,-50%) scale(2.0); opacity: .95; }
+  52%  { transform: translate(-50%,-50%) scale(1);   opacity: .52; }
+  72%  {                                              opacity: 0; }
+  100% { transform: translate(-50%,-50%) scale(0);   opacity: 0; }
+}
+
+@keyframes nuc-ring-inner {
+  0%   { transform: translate(-50%,-50%) scale(0);   opacity: 0; }
+  6%   {                                              opacity: .92; }
+  18%  { transform: translate(-50%,-50%) scale(.88); opacity: .80; }
+  72%  { transform: translate(-50%,-50%) scale(3.2); opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes nuc-ring-outer {
+  0%   { transform: translate(-50%,-50%) scale(0);   opacity: 0; }
+  10%  {                                              opacity: .58; }
+  22%  { transform: translate(-50%,-50%) scale(.72); opacity: .48; }
+  72%  { transform: translate(-50%,-50%) scale(6.5); opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* Nuclear blast: lime-green + white, thick arms, radial-gradient (no hard border) */
+.blast.active .arm.h {
+  width:  92vw;
+  height: 52px;
+  margin: -26px -46vw;
+  background: radial-gradient(
+    ellipse 44vw 20px at 50% 50%,
+    rgba(255, 255, 220, 1)    0%,
+    rgba(200, 255,   0, .98)  6%,
+    rgba(140, 255,   0, .80) 18%,
+    rgba( 80, 210,   0, .42) 40%,
+    rgba( 30, 150,   0, .14) 62%,
+    transparent               82%
+  );
+  animation: nuc-arm-h 1.9s ease-out forwards;
+}
+
+.blast.active .arm.v {
+  width:  52px;
+  height: 92vh;
+  margin: -46vh -26px;
+  background: radial-gradient(
+    ellipse 20px 44vh at 50% 50%,
+    rgba(255, 255, 220, 1)    0%,
+    rgba(200, 255,   0, .98)  6%,
+    rgba(140, 255,   0, .80) 18%,
+    rgba( 80, 210,   0, .42) 40%,
+    rgba( 30, 150,   0, .14) 62%,
+    transparent               82%
+  );
+  animation: nuc-arm-v 1.9s ease-out forwards;
+}
+
+.blast.active .core {
+  width:  110px;
+  height: 110px;
+  margin: -55px -55px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 1)    0%,
+    rgba(230, 255, 160, .95) 10%,
+    rgba(160, 255,   0, .72) 28%,
+    rgba( 80, 220,   0, .35) 56%,
+    transparent               78%
+  );
+  animation: nuc-core 1.9s ease-out forwards;
+}
+
+.blast.active .ring-inner {
+  width:  220px;
+  height: 220px;
+  margin: -110px -110px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    transparent               52%,
+    rgba(170, 255,   0, .80)  62%,
+    rgba(100, 230,   0, .32)  76%,
+    transparent               90%
+  );
+  animation: nuc-ring-inner 1.9s ease-out forwards;
+}
+
+.blast.active .ring-outer {
+  width:  440px;
+  height: 440px;
+  margin: -220px -220px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    transparent               56%,
+    rgba( 80, 200,   0, .50)  66%,
+    rgba( 40, 160,   0, .18)  78%,
+    transparent               92%
+  );
+  animation: nuc-ring-outer 1.9s ease-out forwards;
+}
+
+/* ── Label ──────────────────────────────────────── */
+#label {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: .82rem;
+  color: rgba(160, 255, 60, .35);
+  letter-spacing: 3px;
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+
+<div id="flash"></div>
+
+<div class="stage" id="stage">
+  <div class="grid" id="grid">
+    <!-- tiles injected by JS -->
+  </div>
+  <div class="blast" id="blast">
+    <div class="arm h"></div>
+    <div class="arm v"></div>
+    <div class="core"></div>
+    <div class="ring-inner"></div>
+    <div class="ring-outer"></div>
+  </div>
+</div>
+
+<div id="label">Nuclear ☢️ Tout détruire</div>
+
+<script>
+  /* ── Tile data ─────────────────────────────────── */
+  const TILE_COLORS = {
+    2:    { bg: '#fff2ff',                                                         text: '#d44db8', border: '#d44db8' },
+    4:    { bg: '#ffe5fd',                                                         text: '#c02ea8', border: '#c02ea8' },
+    8:    { bg: '#ffd6f5',                                                         text: '#aa0f96', border: '#aa0f96' },
+    16:   { bg: '#ffcaff',                                                         text: '#8800b8', border: '#8800b8' },
+    32:   { bg: '#edd2ff',                                                         text: '#6600cc', border: '#6600cc' },
+    64:   { bg: '#dcc2ff',                                                         text: '#4400e0', border: '#4400e0' },
+    128:  { bg: 'linear-gradient(135deg,#c8b8ff,#a898ff)',                         text: '#1a00cc', border: '#1a00cc' },
+    256:  { bg: 'linear-gradient(135deg,#b0ceff,#8ab2ff)',                         text: '#0030ee', border: '#0030ee' },
+    512:  { bg: 'linear-gradient(135deg,#a0eedc,#6cd8c0,#a0eedc)',                 text: '#006699', border: '#006699' },
+    1024: { bg: 'linear-gradient(135deg,#aaffe0,#72e8a8,#aaffe0)',                 text: '#00aa44', border: '#00aa44' },
+    2048: { bg: 'linear-gradient(135deg,#fff580,#ffd0ea,#bce8ff,#c8ffda,#fff580)', text: '#cc8800', border: '#cc8800' },
+  };
+
+  const VALUES  = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048];
+  // Weighted toward lower values for a realistic board
+  const WEIGHTS = [5, 4, 3, 2, 2,  2,  1,   1,   1,   0.5,  0.2];
+  const W_TOTAL = WEIGHTS.reduce((a, b) => a + b, 0);
+
+  function randomValue() {
+    let r = Math.random() * W_TOTAL;
+    for (let i = 0; i < WEIGHTS.length; i++) {
+      r -= WEIGHTS[i];
+      if (r <= 0) return VALUES[i];
+    }
+    return VALUES[0];
+  }
+
+  /* ── Build tiles ───────────────────────────────── */
+  const GRID_SIZE = 4;
+  const CENTER    = (GRID_SIZE - 1) / 2; // 1.5
+
+  const gridEl  = document.getElementById('grid');
+  const blastEl = document.getElementById('blast');
+  const flashEl = document.getElementById('flash');
+
+  const tiles = [];
+
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      const dx   = c - CENTER;
+      const dy   = r - CENTER;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const n    = dist || 0.01;
+      const spin = ((Math.random() - 0.5) * 520).toFixed(1) + 'deg';
+
+      // Explode: inner cells first (dist small → short delay)
+      const explodeDelay = (dist * 0.105).toFixed(3) + 's';
+      // Enter: outer cells first (dist large → short delay)
+      const enterDelay   = ((2.12 - dist) * 0.045).toFixed(3) + 's';
+
+      const el = document.createElement('div');
+      el.className = 'tile';
+      el.style.cssText = [
+        `--fly-x:${(dx / n).toFixed(4)}`,
+        `--fly-y:${(dy / n).toFixed(4)}`,
+        `--spin:${spin}`,
+        `--explode-delay:${explodeDelay}`,
+        `--enter-delay:${enterDelay}`,
+      ].join(';');
+
+      gridEl.appendChild(el);
+      tiles.push({ el, dist });
+    }
+  }
+
+  /* ── Helpers ───────────────────────────────────── */
+  function applyValue(tile) {
+    const val    = randomValue();
+    const colors = TILE_COLORS[val];
+    tile.el.textContent      = val;
+    tile.el.style.background = colors.bg;
+    tile.el.style.color      = colors.text;
+    tile.el.style.borderColor = colors.border;
+  }
+
+  function clearClasses() {
+    tiles.forEach(t => t.el.classList.remove('entering', 'exploding'));
+  }
+
+  function fireBlast() {
+    blastEl.classList.remove('active');
+    void blastEl.offsetWidth; // reset animation
+    blastEl.classList.add('active');
+  }
+
+  /* ── Animation cycle ───────────────────────────── */
+  //  Phase 1  ENTER       tiles fly in from outside        ~700ms
+  //  Phase 2  HOLD        grid is visible, suspense        ~800ms
+  //  Phase 3  BLAST       nuclear cross fires              T=1500
+  //  Phase 4  EXPLODE     tiles scatter (wave from center) T+400ms
+  //  Phase 5  EMPTY       nothing on screen                ~350ms
+  //  Phase 6  RESTART     → loop
+
+  const T_ENTER_TOTAL = 700;  // enter anim + max delay
+  const T_HOLD        = 800;  // pause before blast
+  const T_BLAST       = T_ENTER_TOTAL + T_HOLD;   // 1500
+
+  const T_TILES_AFTER_BLAST = 400;  // ms after blast → tiles start flying
+  const T_EXPLODE_DUR       = 620;  // per-tile animation duration
+  const T_MAX_EXPLODE_DELAY = Math.ceil(2.12 * 105); // ≈ 223ms (outermost tile delay)
+  const T_EMPTY_PAUSE       = 380;
+
+  // Total ms after blast fires before we call runCycle():
+  const T_AFTER_BLAST = T_TILES_AFTER_BLAST + T_MAX_EXPLODE_DELAY + T_EXPLODE_DUR + T_EMPTY_PAUSE;
+  // ≈ 400 + 223 + 620 + 380 = 1623ms
+
+  function runCycle() {
+    clearClasses();
+    blastEl.classList.remove('active');
+
+    // Randomise tile values and start enter animation
+    tiles.forEach(t => {
+      applyValue(t);
+      t.el.classList.add('entering');
+    });
+
+    setTimeout(() => {
+
+      // Flash + blast
+      flashEl.className = 'on';
+      setTimeout(() => { flashEl.className = 'off'; }, 120);
+
+      fireBlast();
+
+      // Tiles start exploding after shockwave delay
+      setTimeout(() => {
+        tiles.forEach(t => t.el.classList.add('exploding'));
+      }, T_TILES_AFTER_BLAST);
+
+      // Restart cycle
+      setTimeout(runCycle, T_AFTER_BLAST);
+
+    }, T_BLAST);
+  }
+
+  // Kick off
+  setTimeout(runCycle, 80);
+</script>
+
+</body>
+</html>

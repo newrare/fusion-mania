@@ -23,14 +23,25 @@ export class PreloadScene extends Phaser.Scene {
     });
 
     // Background layers
-    this.load.image('bg-sky',     'assets/images/background_one_sky.png');
-    this.load.image('bg-rock',    'assets/images/background_one_rock.png');
-    this.load.image('bg-ground',  'assets/images/background_one_ground.png');
-    this.load.image('bg-cloud02', 'assets/images/background_one_cloud_02.png');
-    this.load.image('bg-cloud01', 'assets/images/background_one_cloud_01.png');
+    this.load.image('bg-sky',     'images/background_one_sky.png');
+    this.load.image('bg-rock',    'images/background_one_rock.png');
+    this.load.image('bg-ground',  'images/background_one_ground.png');
+    this.load.image('bg-cloud02', 'images/background_one_cloud_02.png');
+    this.load.image('bg-cloud01', 'images/background_one_cloud_01.png');
   }
 
   create() {
+    // Inject SVG power sprite sheet into the document once (global <use> access)
+    fetch('images/power-sprites.svg')
+      .then((r) => r.text())
+      .then((svg) => {
+        const wrapper = document.createElement('div');
+        wrapper.id = 'fm-power-svgs';
+        wrapper.style.display = 'none';
+        wrapper.innerHTML = svg;
+        document.body.appendChild(wrapper);
+      });
+
     this.scene.start(SCENE_KEYS.TITLE);
   }
 }

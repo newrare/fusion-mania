@@ -1,3 +1,5 @@
+import { ANIM, POWER_TYPES } from '../configs/constants.js';
+
 /**
  * Manages all DOM-based tile animations for the game grid.
  * Independent of Phaser — only depends on DOM + CSS.
@@ -39,6 +41,22 @@ export class AnimationManager {
 
   /** @type {number} Incremented on each new/cancelled move to invalidate stale animations */
   #gen = 0;
+
+  /**
+   * Fireball DOM elements currently in flight for fire-power animations.
+   * Tracked so they can be removed synchronously by `snapToFinalState`.
+   * @type {Set<HTMLElement>}
+   */
+  #pendingFireballs = new Set();
+
+  /**
+   * Consumed tile DOM elements waiting to be removed from the DOM.
+   * Populated by processMerges(); explicitly flushed by clearConsumedElements().
+   * This avoids reliance on `animationend` which can silently fail to fire
+   * (e.g. when a spawn animation is already running on the same element).
+   * @type {Set<HTMLElement>}
+   */
+  #consumedElements = new Set();
 
   /**
    * @param {Map<string, HTMLElement>} tileElements Shared tile ID → DOM element map
@@ -87,6 +105,15 @@ export class AnimationManager {
    * @param {(row: number, col: number) => { x: number, y: number }} cellPositionFn
    */
   snapToFinalState(allTiles, cellPositionFn) {
+    // Remove any in-flight fireballs from fire-power animations
+    for (const el of this.#pendingFireballs) {
+      if (el.isConnected) el.remove();
+    }
+    this.#pendingFireballs.clear();
+
+    // Force-remove any consumed elements that animationend didn't clean up
+    this.clearConsumedElements();
+
     const activeIds = new Set(allTiles.map((t) => t.id));
 
     // Remove orphaned (consumed / partially-animated) elements
@@ -97,12 +124,26 @@ export class AnimationManager {
       }
     }
 
-    // Snap surviving tiles — disable transition, apply final position, clear animation classes
+    // Snap surviving tiles — disable transition, apply final position, clear animation classes,
+    // and sync value class + text in case processMerges was cancelled mid-animation.
     for (const tile of allTiles) {
       const el = this.#tileElements.get(tile.id);
       if (!el) continue;
       el.style.transition = 'none';
       el.classList.remove('fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed');
+
+      // Sync value class (e.g. fm-t512 → fm-t1024) to match grid data.
+      // This handles the case where grid.move() doubled a tile's value but
+      // processMerges was never called (move cancelled before Phase 2).
+      const staleValueClass = [...el.classList].find((c) => /^fm-t\d+$/.test(c));
+      const correctValueClass = `fm-t${tile.value}`;
+      if (staleValueClass !== correctValueClass) {
+        if (staleValueClass) el.classList.remove(staleValueClass);
+        el.classList.add(correctValueClass);
+        const valEl = el.querySelector('.fm-val');
+        if (valEl) valEl.textContent = String(tile.value);
+      }
+
       const { x, y } = cellPositionFn(tile.row, tile.col);
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
@@ -184,7 +225,9 @@ export class AnimationManager {
       const consumedEl = this.#tileElements.get(consumedId);
       if (consumedEl) {
         consumedEl.classList.add('fm-tile--consumed');
-        consumedEl.addEventListener('animationend', () => consumedEl.remove(), { once: true });
+        // Track for explicit removal — do NOT rely on animationend which can
+        // silently fail when another animation is already running on the element.
+        this.#consumedElements.add(consumedEl);
         this.#tileElements.delete(consumedId);
       }
 
@@ -255,9 +298,26 @@ export class AnimationManager {
   }
 
   /**
+   * Remove consumed tile DOM elements that have finished their fade animation.
+   * Called after the MERGE_DURATION await in GridManager.executeMove and at
+   * the start of snapToFinalState so orphans can never persist across moves.
+   */
+  clearConsumedElements() {
+    for (const el of this.#consumedElements) {
+      if (el.isConnected) el.remove();
+    }
+    this.#consumedElements.clear();
+  }
+
+  /**
    * Remove all tile DOM elements and clear the tracking map.
    */
   clearAllTileElements() {
+    for (const el of this.#pendingFireballs) {
+      if (el.isConnected) el.remove();
+    }
+    this.#pendingFireballs.clear();
+    this.clearConsumedElements();
     for (const el of this.#tileElements.values()) {
       el.remove();
     }
@@ -295,6 +355,155 @@ export class AnimationManager {
         });
       }
     }
+  }
+
+  // ─── Fire Animation ─────────────────────────────
+
+  /**
+   * Launch the FUSEAU fireball(s) for a fire power and apply staggered ZAP
+   * destruction animation to each affected tile element.
+   *
+   * Fireballs are tracked in `#pendingFireballs` and cleaned up by
+   * `snapToFinalState` if a new move interrupts the animation.
+   * ZAP-ed tiles are orphans in the grid (already removed by executeEffect),
+   * so `snapToFinalState` will remove their DOM elements as well.
+   *
+   * @param {string} powerType  One of POWER_TYPES.FIRE_H / FIRE_V / FIRE_X
+   * @param {import('../entities/tile.js').Tile} targetTile  The surviving target tile
+   * @param {import('../entities/tile.js').Tile[]} destroyedTiles  Tiles destroyed by the power
+   * @param {(row: number, col: number) => { x: number, y: number }} cellPosFn
+   * @param {number} tileSize  Width/height of a single tile in px
+   */
+  playFireAnimation(powerType, targetTile, destroyedTiles, cellPosFn, tileSize) {
+    if (!this.#gridEl || !targetTile) return;
+
+    const targetPos = cellPosFn(targetTile.row, targetTile.col);
+    const gridW     = this.#gridEl.offsetWidth;
+    const zapDur    = ANIM.FIRE_ZAP_DURATION;
+
+    // Constant speed derived from reference duration over one grid width.
+    // All fireballs travel at this px/ms rate regardless of total distance.
+    const speed = gridW / ANIM.FIRE_BALL_DURATION;
+
+    const isH = powerType === POWER_TYPES.FIRE_H || powerType === POWER_TYPES.FIRE_X;
+    const isV = powerType === POWER_TYPES.FIRE_V || powerType === POWER_TYPES.FIRE_X;
+
+    // Launch fireballs — each travels to the screen edge at constant speed
+    if (isH) {
+      this.#launchFireball('right', targetPos, tileSize, speed);
+      this.#launchFireball('left',  targetPos, tileSize, speed);
+    }
+    if (isV) {
+      this.#launchFireball('down', targetPos, tileSize, speed);
+      this.#launchFireball('up',   targetPos, tileSize, speed);
+    }
+
+    // Apply staggered ZAP: delay = distance-from-start / speed
+    const targetCenterX = targetPos.x + tileSize / 2;
+    const targetCenterY = targetPos.y + tileSize / 2;
+
+    for (const tile of destroyedTiles) {
+      const el = this.#tileElements.get(tile.id);
+      if (!el) continue;
+
+      const tilePos     = cellPosFn(tile.row, tile.col);
+      const tileCenterX = tilePos.x + tileSize / 2;
+      const tileCenterY = tilePos.y + tileSize / 2;
+
+      let delay = 0;
+
+      if (isH && tile.row === targetTile.row) {
+        const goingRight  = tileCenterX > targetCenterX;
+        const startEdge   = goingRight ? targetPos.x + tileSize : targetPos.x;
+        const tileDist    = Math.abs(tileCenterX - startEdge);
+        delay = tileDist / speed;
+      } else if (isV && tile.col === targetTile.col) {
+        const goingDown   = tileCenterY > targetCenterY;
+        const startEdge   = goingDown ? targetPos.y + tileSize : targetPos.y;
+        const tileDist    = Math.abs(tileCenterY - startEdge);
+        delay = tileDist / speed;
+      }
+
+      el.style.setProperty('--fm-zap-dur',   `${zapDur}ms`);
+      el.style.setProperty('--fm-zap-delay', `${Math.round(delay)}ms`);
+      el.classList.remove('fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed');
+      el.classList.add('fm-tile--zap');
+    }
+  }
+
+  /**
+   * Create and animate a single fireball element flying in the given direction.
+   * The ball starts at the border of the target tile and travels at constant
+   * speed (`speed` px/ms) until it exits the viewport.
+   * Duration is computed from the actual travel distance so the ball always
+   * reaches the screen edge smoothly.
+   *
+   * @param {'right'|'left'|'down'|'up'} dir
+   * @param {{ x: number, y: number }} targetPos  Top-left corner of target tile
+   * @param {number} tileSize
+   * @param {number} speed  Travel speed in px/ms
+   */
+  #launchFireball(dir, targetPos, tileSize, speed) {
+    const el = document.createElement('div');
+    el.className = `fm-fireball fm-fireball--${dir}`;
+    this.#pendingFireballs.add(el);
+
+    // Grid rect in viewport coordinates — used to convert screen edges to
+    // grid-local coordinates (all CSS left/top are relative to the grid).
+    const rect = this.#gridEl.getBoundingClientRect();
+
+    // Fireball element is 12×28px; center offsets: cx = left+6, cy = top+14.
+    let startLeft, startTop, endLeft, endTop;
+
+    switch (dir) {
+      case 'right':
+        startLeft = targetPos.x + tileSize - 6;
+        startTop  = targetPos.y + tileSize / 2 - 14;
+        endLeft   = (window.innerWidth - rect.left) + 40;
+        endTop    = startTop;
+        break;
+      case 'left':
+        startLeft = targetPos.x - 6;
+        startTop  = targetPos.y + tileSize / 2 - 14;
+        endLeft   = -(rect.left + 40);
+        endTop    = startTop;
+        break;
+      case 'down':
+        startLeft = targetPos.x + tileSize / 2 - 6;
+        startTop  = targetPos.y + tileSize - 14;
+        endLeft   = startLeft;
+        endTop    = (window.innerHeight - rect.top) + 40;
+        break;
+      case 'up':
+        startLeft = targetPos.x + tileSize / 2 - 6;
+        startTop  = targetPos.y - 14;
+        endLeft   = startLeft;
+        endTop    = -(rect.top + 40);
+        break;
+      default:
+        return;
+    }
+
+    const dist     = Math.hypot(endLeft - startLeft, endTop - startTop);
+    const duration = Math.round(dist / speed);
+
+    el.style.left = `${startLeft}px`;
+    el.style.top  = `${startTop}px`;
+    el.style.transition = `left ${duration}ms linear, top ${duration}ms linear`;
+
+    this.#gridEl.appendChild(el);
+
+    // Force reflow so the browser registers the start position before animating
+    void el.offsetWidth;
+
+    el.style.left = `${endLeft}px`;
+    el.style.top  = `${endTop}px`;
+
+    // Self-remove after the transition ends
+    setTimeout(() => {
+      if (el.isConnected) el.remove();
+      this.#pendingFireballs.delete(el);
+    }, duration + 50);
   }
 
   /**

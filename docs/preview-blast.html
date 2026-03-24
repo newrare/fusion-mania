@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FusionMania — Preview · Solar Blast</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { width: 100%; height: 100%; overflow: hidden; }
+
+body {
+  background: linear-gradient(160deg, #1a0a2e 0%, #0d0520 60%, #0a1030 100%);
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+}
+
+.stage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+h1 {
+  position: absolute;
+  bottom: 38px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.05rem;
+  color: rgba(255, 220, 100, .48);
+  letter-spacing: 3px;
+  text-shadow: 0 0 18px rgba(255, 200, 60, .38);
+  white-space: nowrap;
+}
+
+/* ────────────────────────────────────────────────────
+   Blast: zero-size anchor placed at screen centre.
+   All children are position:absolute, centered via
+   negative margins so their visual midpoint is the
+   blast point.  No outer card, no overflow:hidden.
+   ─────────────────────────────────────────────────── */
+.blast {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+
+.arm, .core, .ring {
+  position: absolute;
+  transform-origin: 50% 50%;
+}
+
+/* ─── keyframes ──────────────────────────────────── */
+
+@keyframes arm-h {
+  0%    { transform: scaleX(0);     opacity: 0; }
+  6%    { transform: scaleX(1.16);  opacity: 1; }
+  20%   { transform: scaleX(.94); }
+  46%   { transform: scaleX(1);     opacity: 1; }
+  66%   {                           opacity: .20; }
+  72%   { transform: scaleX(1);     opacity: 0; }
+  72.1% { transform: scaleX(0);     opacity: 0; }
+  100%  { transform: scaleX(0);     opacity: 0; }
+}
+
+@keyframes arm-v {
+  0%    { transform: scaleY(0);     opacity: 0; }
+  6%    { transform: scaleY(1.16);  opacity: 1; }
+  20%   { transform: scaleY(.94); }
+  46%   { transform: scaleY(1);     opacity: 1; }
+  66%   {                           opacity: .20; }
+  72%   { transform: scaleY(1);     opacity: 0; }
+  72.1% { transform: scaleY(0);     opacity: 0; }
+  100%  { transform: scaleY(0);     opacity: 0; }
+}
+
+@keyframes core-pop {
+  0%   { transform: translate(-50%,-50%) scale(0);   opacity: 0; }
+  6%   { transform: translate(-50%,-50%) scale(3.4); opacity: 1; }
+  18%  { transform: translate(-50%,-50%) scale(1.5); opacity: .90; }
+  50%  { transform: translate(-50%,-50%) scale(1);   opacity: .52; }
+  70%  {                                              opacity: 0; }
+  100% { transform: translate(-50%,-50%) scale(0);   opacity: 0; }
+}
+
+@keyframes ring-out {
+  0%   { transform: translate(-50%,-50%) scale(0);   opacity: 0; }
+  7%   {                                              opacity: .80; }
+  22%  { transform: translate(-50%,-50%) scale(.84); opacity: .65; }
+  72%  { transform: translate(-50%,-50%) scale(4);   opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* ─── Solar arms ─────────────────────────────────────
+   Each arm is a wide element whose background is a
+   radial-gradient ellipse.  The ellipse is narrow in
+   the perpendicular direction → it fades both along
+   the arm (tip fade) AND across it (edge softness).
+   No box-shadow so there is NO stray glow beyond the
+   gradient's transparent boundary.
+   ─────────────────────────────────────────────────── */
+
+/* Horizontal arm — 90vw wide, 90px tall */
+.solar .arm.h {
+  width:  90vw;
+  height: 90px;
+  margin: -45px -45vw;
+  background: radial-gradient(
+    ellipse 44vw 30px at 50% 50%,
+    rgba(255, 255, 255, 1)    0%,
+    rgba(255, 255, 220, .97)  7%,
+    rgba(255, 246, 130, .74) 20%,
+    rgba(255, 210,  50, .40) 42%,
+    rgba(255, 170,   0, .14) 62%,
+    transparent               82%
+  );
+  animation: arm-h 2s ease-out infinite;
+  animation-fill-mode: backwards;
+}
+
+/* Vertical arm — 90px wide, 90vh tall */
+.solar .arm.v {
+  width:  90px;
+  height: 90vh;
+  margin: -45vh -45px;
+  background: radial-gradient(
+    ellipse 30px 44vh at 50% 50%,
+    rgba(255, 255, 255, 1)    0%,
+    rgba(255, 255, 220, .97)  7%,
+    rgba(255, 246, 130, .74) 20%,
+    rgba(255, 210,  50, .40) 42%,
+    rgba(255, 170,   0, .14) 62%,
+    transparent               82%
+  );
+  animation: arm-v 2s ease-out infinite;
+  animation-fill-mode: backwards;
+}
+
+/* Core flash */
+.solar .core {
+  width:  72px;
+  height: 72px;
+  margin: -36px -36px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 1)    0%,
+    rgba(255, 255, 200, .90) 14%,
+    rgba(255, 244,  80, .60) 36%,
+    rgba(255, 160,   0, .26) 62%,
+    transparent               82%
+  );
+  animation: core-pop 2s ease-out infinite;
+  animation-fill-mode: backwards;
+}
+
+/* Expanding halo ring (gradient, not a border) */
+.solar .ring {
+  width:  150px;
+  height: 150px;
+  margin: -75px -75px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    transparent               56%,
+    rgba(255, 230,  80, .58)  67%,
+    rgba(255, 210,  40, .26)  82%,
+    transparent               96%
+  );
+  animation: ring-out 2s ease-out infinite;
+  animation-fill-mode: backwards;
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="blast solar">
+    <div class="arm h"></div>
+    <div class="arm v"></div>
+    <div class="core"></div>
+    <div class="ring"></div>
+  </div>
+  <h1>7 · Solar ☀️ Aveuglant</h1>
+</div>
+
+</body>
+</html>

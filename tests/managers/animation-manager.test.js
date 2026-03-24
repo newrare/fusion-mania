@@ -180,6 +180,59 @@ describe('AnimationManager', () => {
       expect(el?.style.left).toBe('200px');
       expect(el?.style.top).toBe('300px');
     });
+
+    it('flushes consumed elements orphaned by a previous merge', () => {
+      // Simulate a merge: consumed element is tracked but not in allTiles
+      const survivor = new Tile(4, 0, 0);
+      const consumed = new Tile(2, 0, 1);
+      const survivorEl = document.createElement('div');
+      survivorEl.innerHTML = '<span class="fm-val">2</span>';
+      const consumedEl = document.createElement('div');
+      gridEl.appendChild(survivorEl);
+      gridEl.appendChild(consumedEl);
+      tileElements.set(survivor.id, survivorEl);
+      tileElements.set(consumed.id, consumedEl);
+
+      // processMerges tracks consumedEl and removes it from tileElements
+      controller.processMerges([{ tile: survivor, consumedId: consumed.id }], [survivor]);
+      expect(gridEl.contains(consumedEl)).toBe(true); // still in DOM
+
+      // snapToFinalState must flush it even without clearConsumedElements being called first
+      controller.snapToFinalState([survivor], cellPosFn);
+      expect(gridEl.contains(consumedEl)).toBe(false);
+    });
+
+    it('syncs stale value class when processMerges was cancelled before it ran', () => {
+      // Simulate: grid.move() doubled tile (512→1024) but processMerges never ran.
+      // The DOM element still has fm-t512; snapToFinalState must update it to fm-t1024.
+      const tile = new Tile(1024, 0, 0); // grid data: already doubled
+      const el = document.createElement('div');
+      el.className = 'fm-tile fm-t512';   // stale DOM value class
+      el.innerHTML = '<span class="fm-val">512</span>';
+      gridEl.appendChild(el);
+      tileElements.set(tile.id, el);
+
+      controller.snapToFinalState([tile], cellPosFn);
+
+      expect(el.classList.contains('fm-t1024')).toBe(true);
+      expect(el.classList.contains('fm-t512')).toBe(false);
+      expect(el.querySelector('.fm-val')?.textContent).toBe('1024');
+    });
+
+    it('preserves state classes when syncing value class', () => {
+      const tile = new Tile(64, 0, 0);
+      const el = document.createElement('div');
+      el.className = 'fm-tile fm-t32 fm-state-freeze'; // stale value + state class
+      el.innerHTML = '<span class="fm-val">32</span>';
+      gridEl.appendChild(el);
+      tileElements.set(tile.id, el);
+
+      controller.snapToFinalState([tile], cellPosFn);
+
+      expect(el.classList.contains('fm-t64')).toBe(true);
+      expect(el.classList.contains('fm-t32')).toBe(false);
+      expect(el.classList.contains('fm-state-freeze')).toBe(true); // preserved
+    });
   });
 
   // ─── restoreTransitions ──────────────────────────
@@ -340,6 +393,63 @@ describe('AnimationManager', () => {
       controller.processMerges([], [tile]);
 
       expect(tileElements.has(orphan.id)).toBe(false);
+    });
+
+    it('tracks consumed element for explicit removal via clearConsumedElements', () => {
+      const tile = new Tile(4, 0, 0);
+      const consumed = new Tile(2, 0, 1);
+      const el = document.createElement('div');
+      el.innerHTML = '<span class="fm-val">2</span>';
+      const consumedEl = document.createElement('div');
+      gridEl.appendChild(el);
+      gridEl.appendChild(consumedEl);
+      tileElements.set(tile.id, el);
+      tileElements.set(consumed.id, consumedEl);
+
+      controller.processMerges([{ tile, consumedId: consumed.id }], [tile]);
+
+      // Element still in DOM (animation playing), not yet removed
+      expect(gridEl.contains(consumedEl)).toBe(true);
+
+      // clearConsumedElements forces removal
+      controller.clearConsumedElements();
+      expect(gridEl.contains(consumedEl)).toBe(false);
+    });
+  });
+
+  // ─── clearConsumedElements ───────────────────────
+
+  describe('clearConsumedElements', () => {
+    it('removes all consumed elements from the DOM', () => {
+      const tile = new Tile(4, 0, 0);
+      const c1 = new Tile(2, 0, 1);
+      const c2 = new Tile(2, 1, 0);
+      const el = document.createElement('div');
+      el.innerHTML = '<span class="fm-val">2</span>';
+      const el1 = document.createElement('div');
+      const el2 = document.createElement('div');
+      gridEl.appendChild(el);
+      gridEl.appendChild(el1);
+      gridEl.appendChild(el2);
+      tileElements.set(tile.id, el);
+      tileElements.set(c1.id, el1);
+      tileElements.set(c2.id, el2);
+
+      controller.processMerges(
+        [{ tile, consumedId: c1.id }, { tile, consumedId: c2.id }],
+        [tile],
+      );
+      controller.clearConsumedElements();
+
+      expect(gridEl.contains(el1)).toBe(false);
+      expect(gridEl.contains(el2)).toBe(false);
+    });
+
+    it('is idempotent — calling twice does not throw', () => {
+      expect(() => {
+        controller.clearConsumedElements();
+        controller.clearConsumedElements();
+      }).not.toThrow();
     });
   });
 

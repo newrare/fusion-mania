@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { BootScene } from '../scenes/boot-scene.js';
 import { PreloadScene } from '../scenes/preload-scene.js';
 import { TitleScene } from '../scenes/title-scene.js';
-import { GridScene } from '../scenes/grid-scene.js';
+import { GameScene } from '../scenes/game-scene.js';
 
 /** @type {Phaser.Types.Core.GameConfig} */
 const gameConfig = {
@@ -15,7 +15,7 @@ const gameConfig = {
   dom: {
     createContainer: true,
   },
-  scene: [BootScene, PreloadScene, TitleScene, GridScene],
+  scene: [BootScene, PreloadScene, TitleScene, GameScene],
 };
 
 export default gameConfig;

@@ -1,0 +1,527 @@
+/* --- Power system styles --- */
+
+/* --- Power dot (pastille) base --- */
+.fm-power-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  position: relative;
+  background: var(--fm-dot-bg, transparent);
+}
+
+.fm-power-dot.tiny {
+  width: 28px;
+  height: 28px;
+}
+
+.fm-power-dot.tiny::before {
+  border-width: 2px;
+}
+
+.fm-power-dot.tiny .fm-power-icon {
+  width: 50%;
+  height: 50%;
+}
+
+.fm-power-dot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3.5px dashed var(--fm-dot-ring, transparent);
+  animation: fm-dot-spin var(--fm-dot-dur, 8s) linear infinite;
+}
+
+.fm-power-icon {
+  width: 52%;
+  height: 52%;
+  display: block;
+  color: var(--fm-dot-ico, #888);
+  position: relative;
+  z-index: 1;
+}
+
+/* --- Power dot variants --- */
+.fm-power-dot.info {
+  --fm-dot-ring: #3b82f6;
+  --fm-dot-ico: #1d4ed8;
+  --fm-dot-bg: rgba(219,234,254,0.82);
+  --fm-dot-dur: 14s;
+}
+
+.fm-power-dot.warning {
+  --fm-dot-ring: #f59e0b;
+  --fm-dot-ico: #b45309;
+  --fm-dot-bg: rgba(254,243,199,0.82);
+  --fm-dot-dur: 8s;
+}
+
+.fm-power-dot.danger {
+  --fm-dot-ring: #ef4444;
+  --fm-dot-ico: #b91c1c;
+  --fm-dot-bg: rgba(254,226,226,0.82);
+  --fm-dot-dur: 4s;
+}
+
+.fm-power-dot.off {
+  --fm-dot-ring: #9ca3af;
+  --fm-dot-ico: #6b7280;
+  --fm-dot-bg: rgba(243,244,246,0.75);
+}
+
+.fm-power-dot.off::before {
+  animation: fm-dot-spin 24s linear infinite;
+  animation-play-state: paused;
+}
+
+.fm-power-dot.off:hover {
+  --fm-dot-ring: #6b7280;
+  --fm-dot-ico: #374151;
+  cursor: pointer;
+}
+
+.fm-power-dot.off:hover::before {
+  animation-play-state: running;
+}
+
+@keyframes fm-dot-spin { to { transform: rotate(360deg); } }
+
+/* --- Power select modal --- */
+.fm-power-select-modal {
+  max-width: 420px;
+}
+
+.fm-power-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 8px;
+  padding: 12px 6px;
+}
+
+.fm-power-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.fm-power-name {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.7);
+  text-align: center;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+/* --- Grid edge power badges --- */
+.fm-grid-powers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.fm-edge-power {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.fm-edge-power.top {
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.fm-edge-power.bottom {
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.fm-edge-power.left {
+  left: -18px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.fm-edge-power.right {
+  right: -18px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* --- Tile states: active (targeted) --- */
+@keyframes fm-float-y {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-3px); }
+}
+
+@keyframes fm-sun-rays-spin { to { transform: rotate(360deg); } }
+
+@keyframes fm-gold-breath {
+  0%, 100% { opacity: 0.72; }
+  50%      { opacity: 1; }
+}
+
+.fm-state-active {
+  animation: fm-float-y 2.8s ease-in-out infinite !important;
+}
+
+.fm-state-active::before {
+  content: '';
+  position: absolute;
+  width: 160px;
+  height: 160px;
+  top: 50%;
+  left: 50%;
+  margin-top: -80px;
+  margin-left: -80px;
+  transform-origin: 50% 50%;
+  background: repeating-conic-gradient(
+    from 0deg at 50% 50%,
+    rgba(255,255,255,0.38) 0deg 18deg,
+    rgba(255,255,255,0.02) 18deg 36deg
+  );
+  mix-blend-mode: overlay;
+  animation: fm-sun-rays-spin 8s linear infinite;
+  border-radius: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.fm-state-active::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80px;
+  height: 80px;
+  margin-top: -40px;
+  margin-left: -40px;
+  background: radial-gradient(circle,
+    rgba(255,230,60,0.55) 0%,
+    rgba(255,150,0,0.22) 45%,
+    transparent 70%
+  );
+  animation: fm-gold-breath 2.6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 50%;
+}
+
+/* --- Tile state: ghost (expel) --- */
+.fm-state-ghost {
+  opacity: 0.30;
+}
+
+/* --- Tile state: freeze (ice) --- */
+@keyframes fm-ice-shimmer {
+  0%, 100% { background-position: 0% 0%; opacity: 0.75; }
+  50%      { background-position: 100% 100%; opacity: 1; }
+}
+
+.fm-state-freeze {
+  animation: none !important;
+  border-color: #55e8ff !important;
+  box-shadow:
+    0 0 0 2px rgba(10,200,255,0.95),
+    0 0 14px 5px rgba(80,220,255,0.45),
+    inset 0 0 10px rgba(160,240,255,0.18) !important;
+}
+
+.fm-state-freeze::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg,
+    rgba(210,248,255,0.38) 0%,
+    rgba(255,255,255,0.50) 30%,
+    rgba(170,230,255,0.22) 62%,
+    rgba(255,255,255,0.36) 100%
+  );
+  background-size: 200% 200%;
+  animation: fm-ice-shimmer 4.5s ease-in-out infinite;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.fm-state-freeze::after { display: none; }
+
+/* --- Tile state: danger (pre-destruction) --- */
+@keyframes fm-lava-glow {
+  0%, 100% { opacity: 0.72; transform: scaleY(1); }
+  50%      { opacity: 1; transform: scaleY(1.08); }
+}
+
+@keyframes fm-hurt-blink {
+  0%   { opacity: 1; filter: brightness(1); }
+  15%  { opacity: 0.2; filter: brightness(3); }
+  30%  { opacity: 1; filter: brightness(1); }
+  50%  { opacity: 0.2; filter: brightness(3); }
+  70%  { opacity: 1; filter: brightness(1); }
+  85%  { opacity: 0.2; filter: brightness(3); }
+  100% { opacity: 0; filter: brightness(1); }
+}
+
+.fm-state-danger {
+  border-color: #cc3300 !important;
+  box-shadow: 0 4px 14px rgba(200,40,0,0.28) !important;
+  animation: fm-float-y 3.0s ease-in-out infinite !important;
+}
+
+.fm-state-danger::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 45%;
+  background: linear-gradient(to top,
+    rgba(255,40,0,0.55),
+    rgba(255,110,0,0.28),
+    transparent
+  );
+  animation: fm-lava-glow 1.8s ease-in-out infinite;
+  border-radius: 0 0 12px 12px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.fm-state-danger::after { display: none; }
+
+/* --- Tile state: blind --- */
+.fm-state-blind {
+  animation: none !important;
+  background: #888 !important;
+  color: #111 !important;
+  text-shadow: none !important;
+  border-color: #111 !important;
+  box-shadow: none !important;
+}
+
+/* --- Tile state: wind --- */
+.fm-state-wind { overflow: visible; }
+
+.fm-wind-line {
+  position: absolute;
+  pointer-events: none;
+  z-index: 6;
+  border-radius: 6px;
+  opacity: 0;
+}
+
+/* --- Wind right (blocks left movement) --- */
+@keyframes fm-wind-right {
+  0%   { left: -20%; width: 0; opacity: 0; }
+  20%  { width: 30%; opacity: 0.85; }
+  100% { left: 110%; width: 0; opacity: 0; }
+}
+
+.fm-state-wind-right .fm-wind-line {
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.75), transparent);
+  animation: fm-wind-right var(--fm-wd, 1.5s) var(--fm-wdl, 0s) ease-in-out infinite;
+}
+
+.fm-state-wind-right { border-left-color: #999 !important; }
+
+.fm-state-wind-right::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 18px;
+  background: linear-gradient(to right, rgba(140,140,140,0.30), transparent);
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 13px 0 0 13px;
+}
+
+/* --- Wind left (blocks right movement) --- */
+@keyframes fm-wind-left {
+  0%   { right: -20%; width: 0; opacity: 0; }
+  20%  { width: 30%; opacity: 0.85; }
+  100% { right: 110%; width: 0; opacity: 0; }
+}
+
+.fm-state-wind-left .fm-wind-line {
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.75), transparent);
+  animation: fm-wind-left var(--fm-wd, 1.5s) var(--fm-wdl, 0s) ease-in-out infinite;
+}
+
+.fm-state-wind-left { border-right-color: #999 !important; }
+
+.fm-state-wind-left::before {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 18px;
+  background: linear-gradient(to left, rgba(140,140,140,0.30), transparent);
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 0 13px 13px 0;
+}
+
+/* --- Wind up (blocks down movement) --- */
+@keyframes fm-wind-up {
+  0%   { bottom: -20%; height: 0; opacity: 0; }
+  20%  { height: 30%; opacity: 0.85; }
+  100% { bottom: 110%; height: 0; opacity: 0; }
+}
+
+.fm-state-wind-up .fm-wind-line {
+  width: 1.5px;
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,0.75), transparent);
+  animation: fm-wind-up var(--fm-wd, 1.5s) var(--fm-wdl, 0s) ease-in-out infinite;
+}
+
+.fm-state-wind-up { border-bottom-color: #999 !important; }
+
+.fm-state-wind-up::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 18px;
+  background: linear-gradient(to top, rgba(140,140,140,0.30), transparent);
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 0 0 13px 13px;
+}
+
+/* --- Wind down (blocks up movement) --- */
+@keyframes fm-wind-down {
+  0%   { top: -20%; height: 0; opacity: 0; }
+  20%  { height: 30%; opacity: 0.85; }
+  100% { top: 110%; height: 0; opacity: 0; }
+}
+
+.fm-state-wind-down .fm-wind-line {
+  width: 1.5px;
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,0.75), transparent);
+  animation: fm-wind-down var(--fm-wd, 1.5s) var(--fm-wdl, 0s) ease-in-out infinite;
+}
+
+.fm-state-wind-down { border-top-color: #999 !important; }
+
+.fm-state-wind-down::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 18px;
+  background: linear-gradient(to bottom, rgba(140,140,140,0.30), transparent);
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 13px 13px 0 0;
+}
+
+/* --- Power info panel below grid --- */
+.fm-power-info {
+  width: var(--fm-safe-width, 360px);
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.75);
+  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4px;
+  text-align: left;
+}
+
+.fm-power-info-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fm-power-info-dir {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 80px;
+}
+
+.fm-power-info-tiles {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.fm-power-info-tile {
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 0.6rem;
+  font-weight: 900;
+  border: 1px solid transparent;
+}
+
+/* ─── Fire Ball (Fuseau projectile) ─────────────────
+   The "FUSEAU" shape from docs/preview-fire.html.
+   Positioned absolutely inside .fm-grid.
+   .fm-fireball--right/left/up/down rotates body + tail
+   so the tail always trails behind the direction of travel.
+   ─────────────────────────────────────────────────── */
+.fm-fireball {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+  width: 12px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 45% 38%,
+    #fff6e0 0%, #ffc833 16%, #ff7700 44%, #cc2200 74%, #330000 100%);
+  box-shadow:
+    0 0 7px 3px  rgba(255,110,0,1),
+    0 0 18px 6px rgba(255,60,0,.7),
+    0 0 36px 11px rgba(200,20,0,.38);
+  will-change: left, top;
+}
+
+/* Tail — always "above" the element in its local coordinate system.
+   Rotation of the parent element pivots tail into the correct trailing position. */
+.fm-fireball::before {
+  content: '';
+  position: absolute;
+  left: 50%; bottom: 100%;
+  width: 11px; height: 75px; margin-left: -5.5px;
+  background: linear-gradient(to bottom, transparent, rgba(255,90,0,.3), rgba(255,140,0,.87));
+  border-radius: 50% 50% 0 0;
+  filter: blur(3px);
+}
+
+/* --down: default orientation (tail trails up, ball moves down) */
+/* --up: tail trails down */
+.fm-fireball--up   { transform: rotate(180deg); }
+/* --right: tail trails left */
+.fm-fireball--right { transform: rotate(-90deg); }
+/* --left: tail trails right */
+.fm-fireball--left  { transform: rotate(90deg); }
+
+/* ─── ZAP tile-destruction animation ────────────────
+   Single-play, tile becomes invisible at ~65% then
+   stays at scale(0) opacity(0) until removed.
+   Delay and duration are controlled via CSS custom
+   properties set inline by AnimationManager.
+   ─────────────────────────────────────────────────── */
+@keyframes fm-tile-zap {
+  0%,1%  { filter: brightness(1);               opacity: 1;    transform: scale(1); }
+  8%     { filter: brightness(9) saturate(0);   transform: scale(1.09); }
+  15%    { filter: brightness(1);               transform: scale(.98); }
+  22%    { filter: brightness(7) saturate(0);   transform: scale(1.05); }
+  29%    { filter: brightness(1);               opacity: 1; }
+  40%    { filter: brightness(5) saturate(0);   opacity: .75; transform: scale(.92); }
+  55%    { filter: brightness(14) saturate(0);  transform: scale(.35); opacity: .1; }
+  65%    { filter: brightness(0);               transform: scale(0); opacity: 0; }
+  100%   { filter: brightness(0);               transform: scale(0); opacity: 0; }
+}
+
+.fm-tile--zap {
+  animation: fm-tile-zap var(--fm-zap-dur, 500ms) ease-in-out forwards;
+  animation-delay: var(--fm-zap-delay, 0ms);
+}

@@ -17,7 +17,7 @@ export class MenuModal {
 
   /**
    * @param {Phaser.Scene} scene
-   * @param {{ showResume?: boolean, onResume?: Function, onClassic?: Function, onClose?: Function, onQuit?: Function }} options
+   * @param {{ showResume?: boolean, onResume?: Function, onClassic?: Function, onFree?: Function, onClose?: Function, onQuit?: Function, onAdmin?: Function }} options
    */
   constructor(scene, options = {}) {
     this.#scene = scene;
@@ -29,11 +29,16 @@ export class MenuModal {
     }
 
     buttonsHtml += `<button class="fm-btn" data-action="classic">${i18n.t('menu.classic')}</button>`;
+    buttonsHtml += `<button class="fm-btn" data-action="free">${i18n.t('menu.free')}</button>`;
     buttonsHtml += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;
     buttonsHtml += `<button class="fm-btn" data-action="close">${i18n.t('menu.close')}</button>`;
 
     if (options.onQuit) {
       buttonsHtml += `<button class="fm-btn" data-action="quit">${i18n.t('menu.quit')}</button>`;
+    }
+
+    if (import.meta.env.DEV && options.onAdmin) {
+      buttonsHtml += `<button class="fm-btn fm-btn--admin" data-action="admin">⚙ Admin</button>`;
     }
 
     const html = `
@@ -63,6 +68,9 @@ export class MenuModal {
         case 'classic':
           options.onClassic?.();
           break;
+        case 'free':
+          options.onFree?.();
+          break;
         case 'options':
           this.#openOptions();
           break;
@@ -71,6 +79,9 @@ export class MenuModal {
           break;
         case 'quit':
           options.onQuit?.();
+          break;
+        case 'admin':
+          options.onAdmin?.();
           break;
       }
     });

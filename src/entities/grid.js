@@ -123,6 +123,9 @@ export class Grid {
 
           mergeTile.value *= 2;
           mergeTile.merged = true;
+          // Reset to normal state after fusion — no stacking of special states
+          mergeTile.clearState();
+          mergeTile.targeted = false;
           this.cells[mergeTile.row][mergeTile.col] = mergeTile;
           this.score += mergeTile.value;
 
@@ -278,5 +281,103 @@ export class Grid {
     }
 
     return { targetRow: prevRow, targetCol: prevCol, mergeTile: null };
+  }
+
+  /**
+   * Simulate a move without mutating the grid. Returns the resulting tile
+   * positions and which tiles would merge (used for power prediction).
+   * @param {'up' | 'down' | 'left' | 'right'} direction
+   * @param {{ frozenIds?: Set<string>, windBlock?: string | null }} [opts]
+   * @returns {{ moved: boolean, merges: { tileId: string, value: number, row: number, col: number, consumedId: string }[], positions: Map<string, { row: number, col: number }> }}
+   */
+  simulateMove(direction, opts = {}) {
+    const frozenIds = opts.frozenIds ?? new Set();
+    const windBlock = opts.windBlock ?? null;
+
+    // If wind blocks this direction, nothing moves
+    if (windBlock === direction) {
+      return { moved: false, merges: [], positions: new Map() };
+    }
+
+    // Deep-copy cell values
+    /** @type {{ id: string, value: number, row: number, col: number, merged: boolean }[][]} */
+    const sim = Array.from({ length: GRID_SIZE }, () =>
+      Array.from({ length: GRID_SIZE }, () => null),
+    );
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const t = this.cells[r][c];
+        if (t) {
+          sim[r][c] = { id: t.id, value: t.value, row: r, col: c, merged: false };
+        }
+      }
+    }
+
+    const traversals = this.#getTraversals(direction);
+    const delta = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
+    const [dr, dc] = delta[direction];
+
+    const merges = [];
+    const positions = new Map();
+    let moved = false;
+
+    for (const row of traversals.rows) {
+      for (const col of traversals.cols) {
+        const tile = sim[row][col];
+        if (!tile) continue;
+        if (frozenIds.has(tile.id)) {
+          positions.set(tile.id, { row, col });
+          continue;
+        }
+
+        let prevR = row;
+        let prevC = col;
+        let nextR = row + dr;
+        let nextC = col + dc;
+
+        let mergeTile = null;
+        while (nextR >= 0 && nextR < GRID_SIZE && nextC >= 0 && nextC < GRID_SIZE) {
+          const target = sim[nextR][nextC];
+          if (target) {
+            if (target.value === tile.value && !target.merged && !frozenIds.has(target.id)) {
+              mergeTile = target;
+            }
+            break;
+          }
+          prevR = nextR;
+          prevC = nextC;
+          nextR += dr;
+          nextC += dc;
+        }
+
+        if (mergeTile) {
+          sim[row][col] = null;
+          sim[mergeTile.row][mergeTile.col] = null;
+          mergeTile.value *= 2;
+          mergeTile.merged = true;
+          sim[mergeTile.row][mergeTile.col] = mergeTile;
+          merges.push({
+            tileId: mergeTile.id,
+            value: mergeTile.value,
+            row: mergeTile.row,
+            col: mergeTile.col,
+            consumedId: tile.id,
+          });
+          positions.set(mergeTile.id, { row: mergeTile.row, col: mergeTile.col });
+          moved = true;
+        } else if (prevR !== row || prevC !== col) {
+          sim[row][col] = null;
+          tile.row = prevR;
+          tile.col = prevC;
+          sim[prevR][prevC] = tile;
+          positions.set(tile.id, { row: prevR, col: prevC });
+          moved = true;
+        } else {
+          positions.set(tile.id, { row, col });
+        }
+      }
+    }
+
+    return { moved, merges, positions };
   }
 }
