@@ -318,10 +318,10 @@ describe('Grid', () => {
       expect(pos).toEqual({ row: 0, col: 0 });
     });
 
-    it('respects frozenIds — frozen tiles do not move', () => {
+    it('respects iceIds — iced tiles do not move', () => {
       const frozen = new Tile(2, 0, 3);
       grid.cells[0][3] = frozen;
-      const result = grid.simulateMove('left', { frozenIds: new Set([frozen.id]) });
+      const result = grid.simulateMove('left', { iceIds: new Set([frozen.id]) });
       const pos = result.positions.get(frozen.id);
       expect(pos).toEqual({ row: 0, col: 3 });
       expect(result.moved).toBe(false);
@@ -334,16 +334,16 @@ describe('Grid', () => {
       expect(result.merges).toEqual([]);
     });
 
-    it('frozen tiles block other tiles from merging through them', () => {
+    it('iced tiles block other tiles from merging through them', () => {
       const frozen = new Tile(2, 0, 1);
       const slider = new Tile(2, 0, 3);
       grid.cells[0][1] = frozen;
       grid.cells[0][3] = slider;
-      const result = grid.simulateMove('left', { frozenIds: new Set([frozen.id]) });
-      // Slider should stop before the frozen tile, not merge
-      const sliderPos = result.positions.get(slider.id);
-      expect(sliderPos.col).toBe(2);
-      expect(result.merges.length).toBe(0);
+      frozen.applyState('ice', 4);
+      const result = grid.simulateMove('left', { iceIds: new Set([frozen.id]) });
+      // Slider merges INTO the iced tile (ice is cleared on real move)
+      expect(result.merges.length).toBe(1);
+      expect(result.merges[0].tileId).toBe(frozen.id);
     });
   });
 });

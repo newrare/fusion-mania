@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FusionMania — Preview · Swap</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: linear-gradient(160deg, #1a0a2e 0%, #0d0520 60%, #0a1030 100%);
+  min-height: 100vh;
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 52px 20px 80px;
+}
+
+h1 {
+  font-size: 2.2rem;
+  color: #a0e8ff;
+  letter-spacing: 6px;
+  text-shadow: 0 0 28px rgba(80, 200, 255, .75);
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: .72rem;
+  color: rgba(160, 220, 255, .38);
+  letter-spacing: 2px;
+  margin-bottom: 56px;
+}
+
+/* ── two sections side by side ────────────────────── */
+
+.sections {
+  display: flex;
+  gap: 64px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.s-title {
+  font-size: 1.25rem;
+  letter-spacing: 4px;
+}
+.s-cross   { color: #7ee8ff; text-shadow: 0 0 20px rgba(80, 220, 255, .6); }
+.s-squeeze { color: #c4a8ff; text-shadow: 0 0 20px rgba(150, 80, 255, .6); }
+
+.s-desc {
+  font-size: .62rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(200, 220, 255, .28);
+  margin-top: -8px;
+}
+
+/* ── grid panel ────────────────────────────────────── */
+
+.grid-panel {
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 18px;
+  padding: 12px;
+  transition: border-color .25s;
+}
+.section:hover .grid-panel { border-color: rgba(160, 220, 255, .18); }
+
+/* ── grid inner: absolutely-positioned tiles ─────── */
+
+.grid-inner { position: relative; }
+
+/* background cells */
+.cell-bg {
+  position: absolute;
+  width: 74px;
+  height: 74px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid rgba(255, 255, 255, .055);
+}
+
+/* tiles */
+.tile {
+  position: absolute;
+  width: 74px;
+  height: 74px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 1.4rem;
+  border: 2px solid;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .45);
+  z-index: 1;
+}
+
+/* selection glow pulsing — used briefly before animation */
+@keyframes sel-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(100, 220, 255, .85), 0 4px 14px rgba(0, 0, 0, .45);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(100, 220, 255, 1), 0 0 22px rgba(80, 200, 255, .75),
+                0 4px 14px rgba(0, 0, 0, .45);
+  }
+}
+.tile.selected {
+  z-index: 5 !important;
+  animation: sel-pulse .35s ease-in-out infinite;
+}
+
+.replay-hint {
+  font-size: .58rem;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: rgba(160, 220, 255, .28);
+}
+</style>
+</head>
+<body>
+
+<h1>SWAP</h1>
+<p class="subtitle">2 animations corrigées · échanges non-adjacents sur grille</p>
+
+<div class="sections">
+
+  <!-- CROSS -->
+  <div class="section" id="sec-cross">
+    <div class="s-title s-cross">1 · CROSS</div>
+    <div class="s-desc">arcs perpendiculaires · 540 ms</div>
+    <div class="grid-panel">
+      <div class="grid-inner" id="gcross"></div>
+    </div>
+    <div class="replay-hint">clic → swap immédiat</div>
+  </div>
+
+  <!-- SQUEEZE -->
+  <div class="section" id="sec-squeeze">
+    <div class="s-title s-squeeze">2 · SQUEEZE</div>
+    <div class="s-desc">rétrécit · téléporte · grandit</div>
+    <div class="grid-panel">
+      <div class="grid-inner" id="gsqueeze"></div>
+    </div>
+    <div class="replay-hint">clic → swap immédiat</div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const CELL = 74, GAP = 9, STEP = 83; // STEP = CELL + GAP
+  const COLS = 4, ROWS = 4;
+
+  // value → [bg, textColor, borderColor]
+  const TC = {
+      2: ['#faf4d2', '#8a7000', '#d4ae10'],
+      4: ['#ffe5fd', '#c02ea8', '#c02ea8'],
+      8: ['#ffd0b0', '#b83010', '#e05020'],
+     16: ['#e0ccff', '#4400e0', '#6622ff'],
+     32: ['#c8f0d0', '#1a7030', '#28b050'],
+     64: ['#dbeafe', '#1d4ed8', '#3b82f6'],
+    128: ['#fce7f3', '#be185d', '#ec4899'],
+    256: ['#fef3c7', '#b45309', '#f59e0b'],
+  };
+
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = 0 | (Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // Place a tile at its logical dataset position (left/top only, no transform)
+  function setPos(el) {
+    el.style.left = +el.dataset.col * STEP + 'px';
+    el.style.top  = +el.dataset.row * STEP + 'px';
+  }
+
+  // Build a 4×4 grid of absolutely-positioned tiles inside #id
+  function buildGrid(id) {
+    const wrap = document.getElementById(id);
+    const sz = COLS * STEP - GAP;
+    wrap.style.width = wrap.style.height = sz + 'px';
+
+    // background cell slots
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const bg = document.createElement('div');
+        bg.className = 'cell-bg';
+        bg.style.left = c * STEP + 'px';
+        bg.style.top  = r * STEP + 'px';
+        wrap.appendChild(bg);
+      }
+    }
+
+    // tiles: 2 full sets of 2|4|8|16|32|64|128|256 shuffled
+    const vals = shuffle([2, 4, 8, 16, 32, 64, 128, 256, 2, 4, 8, 16, 32, 64, 128, 256]);
+    return vals.map((v, i) => {
+      const el = document.createElement('div');
+      el.className = 'tile';
+      el.textContent = v;
+      el.dataset.row = 0 | (i / COLS);
+      el.dataset.col = i % COLS;
+      const [bg, color, border] = TC[v];
+      el.style.background  = bg;
+      el.style.color       = color;
+      el.style.borderColor = border;
+      setPos(el);
+      wrap.appendChild(el);
+      return el;
+    });
+  }
+
+  // Pick two tiles with Manhattan distance >= 3 (clearly non-adjacent)
+  function pickPair(tiles) {
+    for (let k = 0; k < 400; k++) {
+      const i = 0 | (Math.random() * 16);
+      const j = 0 | (Math.random() * 16);
+      if (i === j) continue;
+      const dr = Math.abs(+tiles[i].dataset.row - +tiles[j].dataset.row);
+      const dc = Math.abs(+tiles[i].dataset.col - +tiles[j].dataset.col);
+      if (dr + dc >= 3) return [tiles[i], tiles[j]];
+    }
+    return [tiles[0], tiles[15]]; // guaranteed fallback (corners)
+  }
+
+  /* ─────────────────────────────────────────────────────
+     CROSS SWAP
+     Both tiles travel simultaneously along curved paths
+     that cross each other at the midpoint.
+     One arc curves to the "left" of the direct line,
+     the other curves to the "right" → they visually cross.
+     Duration: 540 ms (fast)
+     ───────────────────────────────────────────────────── */
+  function swapCross(a, b, done) {
+    const c1 = +a.dataset.col, r1 = +a.dataset.row;
+    const c2 = +b.dataset.col, r2 = +b.dataset.row;
+
+    const dx  = (c2 - c1) * STEP;
+    const dy  = (r2 - r1) * STEP;
+    const len = Math.hypot(dx, dy) || 1;
+
+    // Perpendicular offset — larger arc for distant tiles
+    const h  = Math.max(55, len * .42);
+    const pX = (-dy / len) * h;   // perp unit × arc height
+    const pY = ( dx / len) * h;
+
+    // Tile A arcs to the "left" side, tile B to the "right" side
+    // → paths cross at the midpoint of the straight line
+    const ax = dx / 2 + pX,  ay = dy / 2 + pY;   // A midpoint waypoint
+    const bx = -dx / 2 - pX, by = -dy / 2 - pY;  // B midpoint waypoint (in its own frame)
+
+    a.style.zIndex = 20; // A stays on top at crossing
+    b.style.zIndex = 10;
+
+    const ease = 'cubic-bezier(.4,0,.6,1)';
+    const DUR  = 540;
+
+    const fa = a.animate([
+      { transform: 'translate(0px,0px)' },
+      { transform: `translate(${ax}px,${ay}px)` },
+      { transform: `translate(${dx}px,${dy}px)` },
+    ], { duration: DUR, easing: ease, fill: 'forwards' });
+
+    b.animate([
+      { transform: 'translate(0px,0px)' },
+      { transform: `translate(${bx}px,${by}px)` },
+      { transform: `translate(${-dx}px,${-dy}px)` },
+    ], { duration: DUR, easing: ease, fill: 'forwards' });
+
+    fa.onfinish = () => {
+      // Commit swapped positions to dataset + DOM
+      a.dataset.row = r2; a.dataset.col = c2;
+      b.dataset.row = r1; b.dataset.col = c1;
+      setPos(a); setPos(b);
+      a.style.zIndex = ''; b.style.zIndex = '';
+      [a, b].forEach(t => t.getAnimations().forEach(x => x.cancel()));
+      done?.();
+    };
+  }
+
+  /* ─────────────────────────────────────────────────────
+     SQUEEZE SWAP
+     Phase 1 (360 ms): tile shrinks to a tiny dot, STAYING
+                       CENTERED in its own grid cell (scale
+                       around the tile center — no translate).
+     Phase 2 (instant): positions are swapped in the DOM
+                        while tiles are invisible/tiny.
+     Phase 3 (400 ms): tile re-expands at its new position
+                       with a small overshoot (1.14) then
+                       settles to scale(1).
+     ───────────────────────────────────────────────────── */
+  function swapSqueeze(a, b, done) {
+    const r1 = +a.dataset.row, c1 = +a.dataset.col;
+    const r2 = +b.dataset.row, c2 = +b.dataset.col;
+
+    const SHRINK = 360, EXPAND = 400;
+
+    // Phase 1 — shrink in place (pure scale, no translate → stays centered)
+    const sa = a.animate([
+      { transform: 'scale(1)',    opacity: 1  },
+      { transform: 'scale(0.07)', opacity: .55 },
+    ], { duration: SHRINK, easing: 'ease-in', fill: 'forwards' });
+
+    b.animate([
+      { transform: 'scale(1)',    opacity: 1  },
+      { transform: 'scale(0.07)', opacity: .55 },
+    ], { duration: SHRINK, easing: 'ease-in', fill: 'forwards' });
+
+    sa.onfinish = () => {
+      // Commit the tiny-scale state to inline styles, then cancel animation objects
+      [a, b].forEach(t => {
+        t.getAnimations().forEach(x => { x.commitStyles(); x.cancel(); });
+      });
+
+      // Phase 2 — instant teleport: update left/top to new positions
+      // Tiles are still scale(0.07) from commitStyles above — invisible dots
+      a.dataset.row = r2; a.dataset.col = c2;
+      b.dataset.row = r1; b.dataset.col = c1;
+      setPos(a);
+      setPos(b);
+
+      // Phase 3 — expand at new position
+      const ea = a.animate([
+        { transform: 'scale(0.07)', opacity: .55 },
+        { transform: 'scale(1.14)', opacity: 1   },
+        { transform: 'scale(1)',    opacity: 1   },
+      ], { duration: EXPAND, easing: 'ease-out', fill: 'forwards' });
+
+      b.animate([
+        { transform: 'scale(0.07)', opacity: .55 },
+        { transform: 'scale(1.14)', opacity: 1   },
+        { transform: 'scale(1)',    opacity: 1   },
+      ], { duration: EXPAND, easing: 'ease-out', fill: 'forwards' });
+
+      ea.onfinish = () => {
+        // Commit final state then fully clear so tiles are back to CSS defaults
+        [a, b].forEach(t => {
+          t.getAnimations().forEach(x => { x.commitStyles(); x.cancel(); });
+          t.style.transform = '';
+          t.style.opacity   = '';
+        });
+        done?.();
+      };
+    };
+  }
+
+  /* ─────────────────────────────────────────────────────
+     Loop controller — auto-cycles swap pairs
+     with a 300 ms "selected" highlight before each swap
+     and a 900 ms pause between swaps.
+     Calling .force() cancels any in-progress swap and
+     immediately picks a new pair.
+     ───────────────────────────────────────────────────── */
+  function makeLoop(tiles, swapFn) {
+    let busy    = false;
+    let curPair = null;
+    let timer   = null;
+
+    function resetCur() {
+      if (curPair) {
+        curPair.forEach(t => {
+          t.getAnimations().forEach(x => x.cancel());
+          t.style.transform = '';
+          t.style.opacity   = '';
+          t.style.zIndex    = '';
+          t.classList.remove('selected');
+          setPos(t); // snap to dataset position (may already be swapped — that's fine)
+        });
+      }
+      curPair = null;
+      busy    = false;
+    }
+
+    function go() {
+      if (busy) return;
+      busy    = true;
+      curPair = pickPair(tiles);
+      curPair.forEach(t => t.classList.add('selected'));
+
+      timer = setTimeout(() => {
+        curPair.forEach(t => t.classList.remove('selected'));
+        const pair = curPair; // stable ref for closure
+        swapFn(pair[0], pair[1], () => {
+          busy    = false;
+          curPair = null;
+          timer   = setTimeout(go, 900);
+        });
+      }, 300);
+    }
+
+    timer = setTimeout(go, 600);
+
+    return {
+      force() {
+        clearTimeout(timer);
+        resetCur();
+        go();
+      },
+    };
+  }
+
+  /* ── init ──────────────────────────────────────────── */
+  const ct = buildGrid('gcross');
+  const st = buildGrid('gsqueeze');
+
+  const cl = makeLoop(ct, swapCross);
+  const sl = makeLoop(st, swapSqueeze);
+
+  document.getElementById('sec-cross')  .addEventListener('click', () => cl.force());
+  document.getElementById('sec-squeeze').addEventListener('click', () => sl.force());
+})();
+</script>
+
+</body>
+</html>

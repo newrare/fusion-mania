@@ -27,9 +27,9 @@ describe('TileRenderer', () => {
       expect(TileRenderer.stateClasses(tile)).toContain('fm-state-active');
     });
 
-    it('includes fm-state-freeze for frozen state', () => {
-      tile.applyState('frozen', 5);
-      expect(TileRenderer.stateClasses(tile)).toContain('fm-state-freeze');
+    it('includes fm-state-ice for ice state', () => {
+      tile.applyState('ice', 5);
+      expect(TileRenderer.stateClasses(tile)).toContain('fm-state-ice');
     });
 
     it('includes fm-state-ghost for ghost states', () => {
@@ -50,10 +50,10 @@ describe('TileRenderer', () => {
 
     it('state takes priority over targeted — no accumulation', () => {
       tile.targeted = true;
-      tile.applyState('frozen', 3);
+      tile.applyState('ice', 3);
       const classes = TileRenderer.stateClasses(tile, { windDirection: 'left' });
       expect(classes).not.toContain('fm-state-active');
-      expect(classes).toContain('fm-state-freeze');
+      expect(classes).toContain('fm-state-ice');
       expect(classes).toContain('fm-state-wind');
       expect(classes).toContain('fm-state-wind-left');
     });
@@ -61,11 +61,11 @@ describe('TileRenderer', () => {
 
   describe('applyState', () => {
     it('strips old state classes before applying new ones', () => {
-      el.classList.add('fm-state-freeze', 'fm-state-wind', 'fm-state-wind-up');
+      el.classList.add('fm-state-ice', 'fm-state-wind', 'fm-state-wind-up');
       tile.targeted = true;
       TileRenderer.applyState(el, tile);
       expect(el.classList.contains('fm-state-active')).toBe(true);
-      expect(el.classList.contains('fm-state-freeze')).toBe(false);
+      expect(el.classList.contains('fm-state-ice')).toBe(false);
       expect(el.classList.contains('fm-state-wind')).toBe(false);
       expect(el.classList.contains('fm-state-wind-up')).toBe(false);
     });
@@ -95,11 +95,11 @@ describe('TileRenderer', () => {
 
   describe('applyDanger', () => {
     it('strips all states and adds fm-state-danger', () => {
-      el.classList.add('fm-state-active', 'fm-state-freeze');
+      el.classList.add('fm-state-active', 'fm-state-ice');
       TileRenderer.applyDanger(el);
       expect(el.classList.contains('fm-state-danger')).toBe(true);
       expect(el.classList.contains('fm-state-active')).toBe(false);
-      expect(el.classList.contains('fm-state-freeze')).toBe(false);
+      expect(el.classList.contains('fm-state-ice')).toBe(false);
     });
   });
 

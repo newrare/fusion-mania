@@ -222,7 +222,7 @@ describe('AnimationManager', () => {
     it('preserves state classes when syncing value class', () => {
       const tile = new Tile(64, 0, 0);
       const el = document.createElement('div');
-      el.className = 'fm-tile fm-t32 fm-state-freeze'; // stale value + state class
+      el.className = 'fm-tile fm-t32 fm-state-ice'; // stale value + state class
       el.innerHTML = '<span class="fm-val">32</span>';
       gridEl.appendChild(el);
       tileElements.set(tile.id, el);
@@ -231,7 +231,7 @@ describe('AnimationManager', () => {
 
       expect(el.classList.contains('fm-t64')).toBe(true);
       expect(el.classList.contains('fm-t32')).toBe(false);
-      expect(el.classList.contains('fm-state-freeze')).toBe(true); // preserved
+      expect(el.classList.contains('fm-state-ice')).toBe(true); // preserved
     });
   });
 

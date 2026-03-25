@@ -306,6 +306,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    // Tick power state for EVERY real grid move (cancelled or not)
+    // so ice/blind/expel durations reflect actual grid moves, not completed animations.
+    if (this.#powerManager) {
+      this.#powerManager.tickMove(this.#gm.grid);
+    }
+
     if (moveResult.cancelled) return;
 
     const { merges, hasMergePossible, scoreBefore } = moveResult;
@@ -342,6 +348,10 @@ export class GameScene extends Phaser.Scene {
           this.#gm.playFireAnimation(triggeredPower.type, firePowerTarget, effectResult.destroyed);
           await this.#wait(ANIM.FIRE_BALL_DURATION + ANIM.FIRE_ZAP_DURATION);
           this.#gm.removeTiles(effectResult.destroyed);
+        } else if (effectResult.teleported) {
+          // ── Teleport: cross-arc swap animation between the two tiles ──
+          const { tileA, tileB, oldA, oldB } = effectResult.teleported;
+          await this.#gm.playTeleportAnimation(tileA, tileB, oldA, oldB, ANIM.TELEPORT_DURATION);
         } else {
           // ── Other destructive powers: danger overlay then remove ──
           this.#gm.applyDangerOverlay(effectResult.destroyed);

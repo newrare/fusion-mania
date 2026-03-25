@@ -234,6 +234,8 @@ export class AnimationManager {
       const el = this.#tileElements.get(tile.id);
       if (!el) continue;
       el.className = `fm-tile fm-t${tile.value} fm-tile--merge`;
+      // Remove snowflakes that were on the tile (e.g. from ice state)
+      for (const child of el.querySelectorAll('.fm-snowflake')) child.remove();
       const valEl = el.querySelector('.fm-val');
       if (valEl) valEl.textContent = String(tile.value);
       el.addEventListener('animationend', () => el.classList.remove('fm-tile--merge'), { once: true });
@@ -429,6 +431,98 @@ export class AnimationManager {
       el.classList.remove('fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed');
       el.classList.add('fm-tile--zap');
     }
+  }
+
+  // ─── Teleport Animation ─────────────────────────
+
+  /**
+   * Animate a cross-arc swap between two tiles (Teleport power effect).
+   *
+   * Must be called AFTER `power-manager.executeEffect` has already swapped the
+   * tiles in the data model (tileA/tileB carry their NEW row/col), but BEFORE
+   * `syncTileDom` snaps the DOM — the DOM elements must still sit at their
+   * pre-swap CSS positions (left/top) when this method is called.
+   *
+   * Both tiles travel simultaneous curved arcs that cross at the midpoint
+   * (the same "Cross" animation from preview-swap.html):
+   *  - tileA arcs to the "left" of the straight line
+   *  - tileB arcs to the "right" → paths visually cross in the centre
+   *
+   * Returns a Promise that resolves once the animation has finished and the
+   * DOM left/top values have been committed to the new positions.
+   *
+   * @param {import('../entities/tile.js').Tile} tileA  Post-swap tile (was at oldA)
+   * @param {import('../entities/tile.js').Tile} tileB  Post-swap tile (was at oldB)
+   * @param {{ row: number, col: number }} oldA  Pre-swap logical position of tileA
+   * @param {{ row: number, col: number }} oldB  Pre-swap logical position of tileB
+   * @param {(row: number, col: number) => { x: number, y: number }} cellPosFn
+   * @param {number} duration  Animation duration in ms
+   * @returns {Promise<void>}
+   */
+  playTeleportAnimation(tileA, tileB, oldA, oldB, cellPosFn, duration) {
+    return new Promise((resolve) => {
+      const elA = this.#tileElements.get(tileA.id);
+      const elB = this.#tileElements.get(tileB.id);
+      if (!elA || !elB) { resolve(); return; }
+
+      // Pixel positions (top-left corner of tile)
+      const posOldA = cellPosFn(oldA.row, oldA.col);
+      const posOldB = cellPosFn(oldB.row, oldB.col);
+      const posNewA = cellPosFn(tileA.row, tileA.col); // same as posOldB
+      const posNewB = cellPosFn(tileB.row, tileB.col); // same as posOldA
+
+      // Delta for tileA: old → new
+      const dx  = posNewA.x - posOldA.x;
+      const dy  = posNewA.y - posOldA.y;
+      const len = Math.hypot(dx, dy) || 1;
+
+      // Perpendicular arc offset — larger for distant tiles
+      const h  = Math.max(55, len * 0.42);
+      const pX = (-dy / len) * h;
+      const pY = ( dx / len) * h;
+
+      elA.style.zIndex = '20';
+      elB.style.zIndex = '10';
+
+      // Disable CSS left/top transition while WAAPI drives the motion
+      elA.style.transition = 'none';
+      elB.style.transition = 'none';
+
+      // ── Key trick: pre-commit left/top to the FINAL positions right now.
+      // The tiles will visually appear at their OLD positions via the transform
+      // starting offset, and animate transform → 0 to reach the new positions.
+      // This means NO fill:'forwards' is needed and NO cancel() is required —
+      // when the animation ends transform becomes '' and left/top are correct.
+      elA.style.left = `${posNewA.x}px`;
+      elA.style.top  = `${posNewA.y}px`;
+      elB.style.left = `${posNewB.x}px`;
+      elB.style.top  = `${posNewB.y}px`;
+
+      // tileA transform keyframes: start at -(dx,dy) so its visual = posNewA-(dx,dy) = posOldA
+      // midpoint arc: (-dx/2+pX, -dy/2+pY)  →  end: (0,0) = posNewA ✓
+      const animA = elA.animate([
+        { transform: `translate(${-dx}px, ${-dy}px)` },
+        { transform: `translate(${-dx / 2 + pX}px, ${-dy / 2 + pY}px)` },
+        { transform: 'translate(0px, 0px)' },
+      ], { duration, easing: 'cubic-bezier(0.4,0,0.6,1)', fill: 'none' });
+
+      // tileB transform keyframes: start at (dx,dy) so its visual = posNewB+(dx,dy) = posOldB
+      // midpoint arc: (dx/2-pX, dy/2-pY)  →  end: (0,0) = posNewB ✓
+      elB.animate([
+        { transform: `translate(${dx}px, ${dy}px)` },
+        { transform: `translate(${dx / 2 - pX}px, ${dy / 2 - pY}px)` },
+        { transform: 'translate(0px, 0px)' },
+      ], { duration, easing: 'cubic-bezier(0.4,0,0.6,1)', fill: 'none' });
+
+      animA.onfinish = () => {
+        // transform is already '' (fill:'none'), left/top already at new positions
+        elA.style.zIndex     = '';
+        elB.style.zIndex     = '';
+        elA.style.transition = '';
+        elB.style.transition = '';
+        resolve();
+      };
+    });
   }
 
   /**

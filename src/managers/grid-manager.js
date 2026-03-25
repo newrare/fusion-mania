@@ -256,6 +256,25 @@ export class GridManager {
   }
 
   /**
+   * Animate a cross-arc swap for the Teleport power.
+   * DOM elements must still be at their pre-swap CSS positions when called.
+   *
+   * @param {import('../entities/tile.js').Tile} tileA  Post-swap tile (was at oldA)
+   * @param {import('../entities/tile.js').Tile} tileB  Post-swap tile (was at oldB)
+   * @param {{ row: number, col: number }} oldA  Pre-swap position of tileA
+   * @param {{ row: number, col: number }} oldB  Pre-swap position of tileB
+   * @param {number} duration  ms
+   * @returns {Promise<void>}
+   */
+  playTeleportAnimation(tileA, tileB, oldA, oldB, duration) {
+    return this.#animator?.playTeleportAnimation(
+      tileA, tileB, oldA, oldB,
+      (r, c) => this.cellPosition(r, c),
+      duration,
+    ) ?? Promise.resolve();
+  }
+
+  /**
    * Remove destroyed tiles from the DOM.
    * @param {Tile[]} tiles
    */

@@ -17,13 +17,13 @@ describe('Tile – state system', () => {
 
   describe('applyState', () => {
     it('sets state and turns', () => {
-      tile.applyState('frozen', 5);
-      expect(tile.state).toBe('frozen');
+      tile.applyState('ice', 5);
+      expect(tile.state).toBe('ice');
       expect(tile.stateTurns).toBe(5);
     });
 
     it('overwrites an existing state', () => {
-      tile.applyState('frozen', 3);
+      tile.applyState('ice', 3);
       tile.applyState('blind', 2);
       expect(tile.state).toBe('blind');
       expect(tile.stateTurns).toBe(2);
@@ -32,7 +32,7 @@ describe('Tile – state system', () => {
 
   describe('clearState', () => {
     it('resets state and turns to defaults', () => {
-      tile.applyState('ghost-h', 4);
+      tile.applyState('ice', 3);
       tile.clearState();
       expect(tile.state).toBeNull();
       expect(tile.stateTurns).toBe(0);
@@ -47,10 +47,10 @@ describe('Tile – state system', () => {
 
   describe('tickState', () => {
     it('decrements stateTurns by 1', () => {
-      tile.applyState('frozen', 3);
+      tile.applyState('ice', 3);
       tile.tickState();
       expect(tile.stateTurns).toBe(2);
-      expect(tile.state).toBe('frozen');
+      expect(tile.state).toBe('ice');
     });
 
     it('clears state when turns reach 0', () => {

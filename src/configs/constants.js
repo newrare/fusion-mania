@@ -27,6 +27,8 @@ export const ANIM = {
   FIRE_BALL_DURATION: 500,
   /** Duration of the ZAP tile-destruction animation (ms) */
   FIRE_ZAP_DURATION: 650,
+  /** Duration of the teleport cross-arc swap animation (ms) */
+  TELEPORT_DURATION: 540,
 };
 
 /** Swipe detection */
@@ -114,7 +116,7 @@ export const HIGH_VALUE_THRESHOLD = 32;
 
 /** Default duration (in moves) for timed power effects */
 export const POWER_DURATIONS = {
-  ICE: 5,
+  ICE: 4,
   BLIND: 5,
   EXPEL: 5,
   WIND: 2,

@@ -4,7 +4,7 @@
  */
 export const TILE_STATE_IDS = [
   'normal',
-  'frozen',
+  'ice',
   'ghost-h',
   'ghost-v',
   'blind',
@@ -31,7 +31,7 @@ export class Tile {
   /** @type {boolean} Whether this tile was just merged this turn */
   merged;
 
-  /** @type {string | null} Active state: null | 'frozen' | 'ghost-h' | 'ghost-v' | 'blind' */
+  /** @type {string | null} Active state: null | 'ice' | 'ghost-h' | 'ghost-v' | 'blind' */
   state;
 
   /** @type {number} Remaining moves for the active state (0 = no state) */

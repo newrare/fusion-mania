@@ -99,15 +99,24 @@ export class PowerManager {
   }
 
   /**
-   * Called after each player move. Handles power placement timing.
+   * Advance one move tick: decrement tile state counters and wind.
+   * Must be called for EVERY real grid move, including animation-cancelled ones,
+   * so that state durations reflect actual grid moves rather than completed animations.
+   * @param {import('../entities/grid.js').Grid} grid
+   */
+  tickMove(grid) {
+    this.#movesSincePlacement++;
+    this.#tickWind();
+    this.#tickTileStates(grid);
+  }
+
+  /**
+   * Called after each non-cancelled player move. Handles power placement timing.
+   * `tickMove` must have already been called for this move.
    * @param {import('../entities/grid.js').Grid} grid
    * @returns {Power | null} The newly placed power, or null
    */
   onMove(grid) {
-    this.#movesSincePlacement++;
-    this.#tickWind();
-    this.#tickTileStates(grid);
-
     if (this.#movesSincePlacement >= POWER_PLACEMENT_INTERVAL) {
       this.#movesSincePlacement = 0;
       return this.#tryPlacePower(grid);
@@ -267,9 +276,9 @@ export class PowerManager {
     }
 
     // Simulate the move to check if any merge occurs
-    const frozenIds = this.#getFrozenIds(grid);
+    const iceIds = this.#getIceIds(grid);
     const simResult = grid.simulateMove(direction, {
-      frozenIds,
+      iceIds,
       windBlock: this.#windDirection,
     });
 
@@ -332,8 +341,8 @@ export class PowerManager {
 
   #executeIce(target) {
     if (!target) return { destroyed: [], stateApplied: null };
-    target.applyState('frozen', POWER_DURATIONS.ICE);
-    return { destroyed: [], stateApplied: 'frozen' };
+    target.applyState('ice', POWER_DURATIONS.ICE);
+    return { destroyed: [], stateApplied: 'ice' };
   }
 
   #executeTeleport(grid, target) {
@@ -352,7 +361,15 @@ export class PowerManager {
     other.row = tr;
     other.col = tc;
 
-    return { destroyed: [], stateApplied: 'teleport' };
+    return {
+      destroyed: [],
+      stateApplied: 'teleport',
+      // Both tiles at their NEW positions; old positions saved for animation.
+      teleported: {
+        tileA: target, oldA: { row: tr, col: tc },
+        tileB: other,  oldB: { row: or, col: oc },
+      },
+    };
   }
 
   #executeExpel(target, ghostState) {
@@ -437,10 +454,10 @@ export class PowerManager {
     return type === POWER_TYPES.NUCLEAR || type === POWER_TYPES.BLIND || type === POWER_TYPES.ADS;
   }
 
-  #getFrozenIds(grid) {
+  #getIceIds(grid) {
     const ids = new Set();
     for (const tile of grid.getAllTiles()) {
-      if (tile.state === 'frozen') ids.add(tile.id);
+      if (tile.state === 'ice') ids.add(tile.id);
     }
     return ids;
   }

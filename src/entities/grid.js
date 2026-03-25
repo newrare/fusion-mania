@@ -110,6 +110,8 @@ export class Grid {
       for (const col of traversals.cols) {
         const tile = this.cells[row][col];
         if (!tile) continue;
+        // Iced tiles cannot move
+        if (tile.state === 'ice') continue;
 
         const { targetRow, targetCol, mergeTile } = this.#findTarget(tile, direction);
 
@@ -267,11 +269,11 @@ export class Grid {
     ) {
       const target = this.cells[nextRow][nextCol];
       if (target) {
-        // Can merge?
+        // Can merge if same value and not yet merged (iced tiles CAN be merged into — the merge clears the ice).
         if (target.value === tile.value && !target.merged) {
           return { targetRow: nextRow, targetCol: nextCol, mergeTile: target };
         }
-        // Blocked by different tile
+        // Blocked by different tile (or already-merged tile)
         break;
       }
       prevRow = nextRow;
@@ -287,11 +289,11 @@ export class Grid {
    * Simulate a move without mutating the grid. Returns the resulting tile
    * positions and which tiles would merge (used for power prediction).
    * @param {'up' | 'down' | 'left' | 'right'} direction
-   * @param {{ frozenIds?: Set<string>, windBlock?: string | null }} [opts]
+   * @param {{ iceIds?: Set<string>, windBlock?: string | null }} [opts]
    * @returns {{ moved: boolean, merges: { tileId: string, value: number, row: number, col: number, consumedId: string }[], positions: Map<string, { row: number, col: number }> }}
    */
   simulateMove(direction, opts = {}) {
-    const frozenIds = opts.frozenIds ?? new Set();
+    const iceIds = opts.iceIds ?? new Set();
     const windBlock = opts.windBlock ?? null;
 
     // If wind blocks this direction, nothing moves
@@ -325,7 +327,7 @@ export class Grid {
       for (const col of traversals.cols) {
         const tile = sim[row][col];
         if (!tile) continue;
-        if (frozenIds.has(tile.id)) {
+        if (iceIds.has(tile.id)) {
           positions.set(tile.id, { row, col });
           continue;
         }
@@ -339,7 +341,8 @@ export class Grid {
         while (nextR >= 0 && nextR < GRID_SIZE && nextC >= 0 && nextC < GRID_SIZE) {
           const target = sim[nextR][nextC];
           if (target) {
-            if (target.value === tile.value && !target.merged && !frozenIds.has(target.id)) {
+            if (target.value === tile.value && !target.merged) {
+              // Iced tiles CAN be merged into; the merge clears the ice state in the real move.
               mergeTile = target;
             }
             break;

@@ -21,19 +21,19 @@ Powers are special abilities that interact with the game grid during **Free Mode
 
 | Power         | Icon SVG  | Duration | Effect                                                                              |
 |---------------|-----------|----------|-------------------------------------------------------------------------------------|
-| **Ice**       | `s-ice`   | 5 moves  | Freezes the targeted tile — it cannot move but can be destroyed by powers.          |
+| **Ice**       | `s-ice`   | 4 moves  | Freezes the targeted tile — it cannot move but can be merged.                       |
 | **Blind**     | `s-blind` | 5 moves  | All tiles on the grid become mysterious (hidden value/color). New tiles are normal. |
 | **Expel → ←** | `s-exp-r` | 5 moves  | Targeted tile ignores left/right borders — can exit the grid and be destroyed.      |
 | **Expel ↓ ↑** | `s-exp-d` | 5 moves  | Targeted tile ignores top/bottom borders — can exit the grid and be destroyed.      |
 
 ### Movement Powers
 
-| Power        | Icon SVG     | Duration | Effect                                                                     |
-|--------------|--------------|----------|----------------------------------------------------------------------------|
-| **Wind ↑**   | `s-wind-u`   | 2 moves  | Blocks **downward** movement for all tiles. Player can still swipe down.   |
-| **Wind ↓**   | `s-wind-d`   | 2 moves  | Blocks **upward** movement for all tiles. Player can still swipe up.       |
-| **Wind ←**   | `s-wind-l`   | 2 moves  | Blocks **rightward** movement for all tiles. Player can still swipe right. |
-| **Wind →**   | `s-wind-r`   | 2 moves  | Blocks **leftward** movement for all tiles. Player can still swipe left.   |
+| Power        | Icon SVG   | Duration | Effect                                                                     |
+|--------------|------------|----------|----------------------------------------------------------------------------|
+| **Wind ↑**   | `s-wind-u` | 2 moves  | Blocks **downward** movement for all tiles. Player can still swipe down.   |
+| **Wind ↓**   | `s-wind-d` | 2 moves  | Blocks **upward** movement for all tiles. Player can still swipe up.       |
+| **Wind ←**   | `s-wind-l` | 2 moves  | Blocks **rightward** movement for all tiles. Player can still swipe right. |
+| **Wind →**   | `s-wind-r` | 2 moves  | Blocks **leftward** movement for all tiles. Player can still swipe left.   |
 
 ### Special Powers
 

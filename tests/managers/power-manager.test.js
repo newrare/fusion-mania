@@ -68,6 +68,7 @@ describe('PowerManager', () => {
   describe('onMove — placement timing', () => {
     it('does not place a power on the first move', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
+      pm.tickMove(grid);
       const result = pm.onMove(grid);
       expect(result).toBeNull();
     });
@@ -76,6 +77,7 @@ describe('PowerManager', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
       let placed = null;
       for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) {
+        pm.tickMove(grid);
         placed = pm.onMove(grid);
       }
       expect(placed).not.toBeNull();
@@ -84,7 +86,8 @@ describe('PowerManager', () => {
 
     it('placed power has a type from selectedTypes', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
-      for (let i = 0; i < POWER_PLACEMENT_INTERVAL - 1; i++) pm.onMove(grid);
+      for (let i = 0; i < POWER_PLACEMENT_INTERVAL - 1; i++) { pm.tickMove(grid); pm.onMove(grid); }
+      pm.tickMove(grid);
       const power = pm.onMove(grid);
       expect([POWER_TYPES.FIRE_H, POWER_TYPES.BOMB]).toContain(power.type);
     });
@@ -92,18 +95,19 @@ describe('PowerManager', () => {
     it('resets placement counter after placing', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
       // Place first
-      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) pm.onMove(grid);
-      // Next move should not place
+      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) { pm.tickMove(grid); pm.onMove(grid); }
+      // Next move should not place (counter reset, needs another interval)
+      pm.tickMove(grid);
       expect(pm.onMove(grid)).toBeNull();
     });
   });
 
-  describe('onMove — tile state ticking', () => {
+  describe('tickMove — tile state ticking', () => {
     it('decrements tile stateTurns on each move', () => {
       const tile = new Tile(2, 0, 0);
-      tile.applyState('frozen', 3);
+      tile.applyState('ice', 3);
       grid.cells[0][0] = tile;
-      pm.onMove(grid);
+      pm.tickMove(grid);
       expect(tile.stateTurns).toBe(2);
     });
 
@@ -111,7 +115,7 @@ describe('PowerManager', () => {
       const tile = new Tile(2, 0, 0);
       tile.applyState('blind', 1);
       grid.cells[0][0] = tile;
-      pm.onMove(grid);
+      pm.tickMove(grid);
       expect(tile.state).toBeNull();
     });
   });
@@ -124,7 +128,7 @@ describe('PowerManager', () => {
     it('excludes sides with active powers', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
       // Force placement
-      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) pm.onMove(grid);
+      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) { pm.tickMove(grid); pm.onMove(grid); }
       expect(pm.getAvailableSides().length).toBe(3);
     });
   });
@@ -143,7 +147,7 @@ describe('PowerManager', () => {
     it('returns null when no merge occurred', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
       // Place a power on some side
-      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) pm.onMove(grid);
+      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) { pm.tickMove(grid); pm.onMove(grid); }
       const power = pm.getPowerOnSide('top');
       if (!power) return; // Side may be random, skip if not top
 
@@ -155,7 +159,7 @@ describe('PowerManager', () => {
       const tile = new Tile(2, 0, 0);
       grid.cells[0][0] = tile;
 
-      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) pm.onMove(grid);
+      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) { pm.tickMove(grid); pm.onMove(grid); }
 
       const activePowers = pm.getActivePowers();
       if (activePowers.length === 0) return;
@@ -175,7 +179,7 @@ describe('PowerManager', () => {
       grid.cells[0][0] = tile;
       tile.targeted = true;
 
-      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) pm.onMove(grid);
+      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) { pm.tickMove(grid); pm.onMove(grid); }
       const activePowers = pm.getActivePowers();
       if (activePowers.length === 0) return;
       const power = activePowers[0];
@@ -269,12 +273,12 @@ describe('PowerManager', () => {
     });
 
     describe('ICE', () => {
-      it('applies frozen state to the target', () => {
+      it('applies ice state to the target', () => {
         const target = setupTarget(grid, pm, 2, 1, 1);
         const { destroyed, stateApplied } = pm.executeEffect({ type: POWER_TYPES.ICE }, grid);
         expect(destroyed.length).toBe(0);
-        expect(stateApplied).toBe('frozen');
-        expect(target.state).toBe('frozen');
+        expect(stateApplied).toBe('ice');
+        expect(target.state).toBe('ice');
         expect(target.stateTurns).toBe(POWER_DURATIONS.ICE);
       });
     });
@@ -506,7 +510,7 @@ describe('PowerManager', () => {
         grid,
       );
 
-      pm.onMove(grid);
+      pm.tickMove(grid);
       expect(pm.windTurns).toBe(1);
       expect(pm.windDirection).toBe('down');
     });
@@ -525,7 +529,7 @@ describe('PowerManager', () => {
         grid,
       );
 
-      pm.onMove(grid);
+      pm.tickMove(grid);
       expect(pm.windTurns).toBe(0);
       expect(pm.windDirection).toBeNull();
     });
