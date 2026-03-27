@@ -114,6 +114,24 @@ export const POWER_PLACEMENT_INTERVAL = 2;
 /** High-value tile threshold for danger coloring */
 export const HIGH_VALUE_THRESHOLD = 32;
 
+/** Power categories for badge coloring — ordered by severity */
+export const POWER_CATEGORIES = {
+  danger: [POWER_TYPES.FIRE_H, POWER_TYPES.FIRE_V, POWER_TYPES.FIRE_X, POWER_TYPES.BOMB, POWER_TYPES.NUCLEAR, POWER_TYPES.LIGHTNING],
+  warning: [POWER_TYPES.TELEPORT, POWER_TYPES.EXPEL_H, POWER_TYPES.EXPEL_V, POWER_TYPES.BLIND],
+  info: [POWER_TYPES.WIND_UP, POWER_TYPES.WIND_DOWN, POWER_TYPES.WIND_LEFT, POWER_TYPES.WIND_RIGHT, POWER_TYPES.ICE],
+};
+
+/**
+ * Get the badge color category for a power type.
+ * @param {string} type — POWER_TYPES value
+ * @returns {'danger' | 'warning' | 'info'}
+ */
+export function getPowerCategory(type) {
+  if (POWER_CATEGORIES.danger.includes(type)) return 'danger';
+  if (POWER_CATEGORIES.warning.includes(type)) return 'warning';
+  return 'info';
+}
+
 /** Default duration (in moves) for timed power effects */
 export const POWER_DURATIONS = {
   ICE: 4,

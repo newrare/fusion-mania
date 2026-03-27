@@ -39,6 +39,7 @@ export const en = {
   'confirm.yes': 'Yes',
   'confirm.no': 'No',
   'free.select_powers': 'Select Powers',
+  'free.choose_power': 'Choose a Power',
   'free.start': 'Start Game',
   'free.move_up': 'Move Up',
   'free.move_down': 'Move Down',

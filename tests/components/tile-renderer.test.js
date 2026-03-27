@@ -1,5 +1,11 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Mock i18n-manager before importing TileRenderer
+vi.mock('../../src/managers/i18n-manager.js', () => ({
+  i18n: { t: (key) => key },
+}));
+
 import { TileRenderer } from '../../src/components/tile-renderer.js';
 import { Tile } from '../../src/entities/tile.js';
 

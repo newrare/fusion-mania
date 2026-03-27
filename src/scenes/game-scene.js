@@ -12,9 +12,11 @@ import { layout } from '../managers/layout-manager.js';
 import { saveManager } from '../managers/save-manager.js';
 import { GridManager } from '../managers/grid-manager.js';
 import { PowerManager } from '../managers/power-manager.js';
+import { TileRenderer } from '../components/tile-renderer.js';
 import { MenuModal } from '../components/menu-modal.js';
 import { GameOverModal } from '../components/game-over-modal.js';
 import { PowerSelectModal } from '../components/power-select-modal.js';
+import { PowerChoiceModal } from '../components/power-choice-modal.js';
 import { AdminModal } from '../components/admin-modal.js';
 import { addBackground } from '../utils/background.js';
 
@@ -78,6 +80,9 @@ export class GameScene extends Phaser.Scene {
   /** @type {PowerSelectModal | null} */
   #powerSelectModal = null;
 
+  /** @type {PowerChoiceModal | null} */
+  #powerChoiceModal = null;
+
   /** @type {AdminModal | null} */
   #adminModal = null;
 
@@ -112,6 +117,7 @@ export class GameScene extends Phaser.Scene {
     this.#comboBreaking = false;
     this.#powerManager = null;
     this.#powerSelectModal = null;
+    this.#powerChoiceModal = null;
     this.#adminModal = null;
     this.#powerInfoEl = null;
     this.#powerInfoDom = null;
@@ -243,7 +249,7 @@ export class GameScene extends Phaser.Scene {
 
   /** @param {Phaser.Input.Keyboard.Key} event */
   #handleKey = (event) => {
-    if (this.#gameOver || this.#menuModal) return;
+    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal) return;
 
     /** @type {'up' | 'down' | 'left' | 'right' | null} */
     let direction = null;
@@ -274,7 +280,7 @@ export class GameScene extends Phaser.Scene {
       this.#pointerStartY = pointer.y;
       return;
     }
-    if (this.#gameOver || this.#menuModal) return;
+    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal) return;
 
     const dx = pointer.x - this.#pointerStartX;
     const dy = pointer.y - this.#pointerStartY;
@@ -297,17 +303,22 @@ export class GameScene extends Phaser.Scene {
   async #executeMove(direction) {
     this.#gm.clearFusionIndicators();
 
+    // Pause flip animations during move
+    if (this.#powerManager) {
+      TileRenderer.pauseFlips(this.#gm.tileElements);
+    }
+
     const waitFn = (ms) => this.#wait(ms);
     const moveResult = await this.#gm.executeMove(direction, waitFn);
 
     if (!moveResult.moved) {
       this.#gm.updateFusionIndicators();
       this.#updatePowerVisuals();
+      if (this.#powerManager) TileRenderer.resumeFlips(this.#gm.tileElements);
       return;
     }
 
-    // Tick power state for EVERY real grid move (cancelled or not)
-    // so ice/blind/expel durations reflect actual grid moves, not completed animations.
+    // Tick power state for EVERY real grid move
     if (this.#powerManager) {
       this.#powerManager.tickMove(this.#gm.grid);
     }
@@ -330,42 +341,27 @@ export class GameScene extends Phaser.Scene {
 
     // ── Power system ──
     if (this.#powerManager) {
-      const triggeredPower = this.#powerManager.checkTrigger(direction, merges);
-      if (triggeredPower) {
-        const isFirePower = triggeredPower.type === POWER_TYPES.FIRE_H
-          || triggeredPower.type === POWER_TYPES.FIRE_V
-          || triggeredPower.type === POWER_TYPES.FIRE_X;
+      const triggers = this.#powerManager.checkMergeTriggers(merges, this.#gm.grid);
 
-        // Capture target tile before executeEffect modifies the grid
-        const firePowerTarget = isFirePower
-          ? this.#powerManager.getTargetTile(this.#gm.grid)
-          : null;
+      for (const trigger of triggers) {
+        let chosenPower = trigger.powerType;
 
-        const effectResult = this.#powerManager.executeEffect(triggeredPower, this.#gm.grid);
-
-        if (isFirePower && firePowerTarget && effectResult.destroyed.length > 0) {
-          // ── Fire: FUSEAU fireballs fly + staggered ZAP on each destroyed tile ──
-          this.#gm.playFireAnimation(triggeredPower.type, firePowerTarget, effectResult.destroyed);
-          await this.#wait(ANIM.FIRE_BALL_DURATION + ANIM.FIRE_ZAP_DURATION);
-          this.#gm.removeTiles(effectResult.destroyed);
-        } else if (effectResult.teleported) {
-          // ── Teleport: cross-arc swap animation between the two tiles ──
-          const { tileA, tileB, oldA, oldB } = effectResult.teleported;
-          await this.#gm.playTeleportAnimation(tileA, tileB, oldA, oldB, ANIM.TELEPORT_DURATION);
-        } else {
-          // ── Other destructive powers: danger overlay then remove ──
-          this.#gm.applyDangerOverlay(effectResult.destroyed);
-          if (effectResult.destroyed.length > 0) {
-            await this.#wait(400);
-            this.#gm.removeTiles(effectResult.destroyed);
-          }
+        if (trigger.needsChoice) {
+          // Open choice modal and wait for player selection
+          chosenPower = await this.#showPowerChoiceModal(trigger.powerType, trigger.powerTypeB);
         }
+
+        await this.#executePowerEffect(chosenPower, trigger.tile);
       }
 
       this.#powerManager.onMove(this.#gm.grid);
-      this.#powerManager.refreshTarget(this.#gm.grid);
       this.#gm.syncTileDom(this.#powerManager.windDirection);
       this.#updatePowerVisuals();
+    }
+
+    // Resume flip animations
+    if (this.#powerManager) {
+      TileRenderer.resumeFlips(this.#gm.tileElements);
     }
 
     this.#updateHUD();
@@ -375,6 +371,55 @@ export class GameScene extends Phaser.Scene {
     if (!this.#gm.grid.canMove()) {
       this.#onGameOver();
     }
+  }
+
+  /**
+   * Execute a single power effect with appropriate animation.
+   * @param {string} powerType
+   * @param {import('../entities/tile.js').Tile} target
+   */
+  async #executePowerEffect(powerType, target) {
+    const isFirePower = powerType === POWER_TYPES.FIRE_H
+      || powerType === POWER_TYPES.FIRE_V
+      || powerType === POWER_TYPES.FIRE_X;
+
+    const effectResult = this.#powerManager.executeEffect(powerType, this.#gm.grid, target);
+
+    if (isFirePower && target && effectResult.destroyed.length > 0) {
+      this.#gm.playFireAnimation(powerType, target, effectResult.destroyed);
+      await this.#wait(ANIM.FIRE_BALL_DURATION + ANIM.FIRE_ZAP_DURATION);
+      this.#gm.removeTiles(effectResult.destroyed);
+    } else if (effectResult.teleported) {
+      const { tileA, tileB, oldA, oldB } = effectResult.teleported;
+      await this.#gm.playTeleportAnimation(tileA, tileB, oldA, oldB, ANIM.TELEPORT_DURATION);
+    } else {
+      this.#gm.applyDangerOverlay(effectResult.destroyed);
+      if (effectResult.destroyed.length > 0) {
+        await this.#wait(400);
+        this.#gm.removeTiles(effectResult.destroyed);
+      }
+    }
+  }
+
+  /**
+   * Show the power choice modal and wait for player to pick.
+   * @param {string} powerTypeA
+   * @param {string} powerTypeB
+   * @returns {Promise<string>} The chosen power type
+   */
+  #showPowerChoiceModal(powerTypeA, powerTypeB) {
+    return new Promise((resolve) => {
+      this.#powerChoiceModal = new PowerChoiceModal(this, {
+        powerTypeA,
+        powerTypeB,
+        onChoice: (chosenType) => {
+          this.#powerChoiceModal?.destroy();
+          this.#powerChoiceModal = null;
+          this.#skipNextPointerUp = true;
+          resolve(chosenType);
+        },
+      });
+    });
   }
 
   // ─── HUD UPDATE ──────────────────────────────────
@@ -552,36 +597,38 @@ export class GameScene extends Phaser.Scene {
   #updatePowerVisuals() {
     if (!this.#powerManager || !this.#gm.gridEl) return;
 
+    // Remove old edge indicators
     for (const old of this.#gm.gridEl.querySelectorAll('.fm-edge-power')) {
       old.remove();
     }
 
-    const activePowers = this.#powerManager.getActivePowers();
+    // Show color-only indicators on edges based on prediction
+    const directions = /** @type {const} */ (['up', 'down', 'left', 'right']);
+    const dirToSide = { up: 'top', down: 'bottom', left: 'left', right: 'right' };
 
-    for (const power of activePowers) {
-      const color = this.#powerManager.getBadgeColor(power.side, this.#gm.grid);
+    for (const dir of directions) {
+      const color = this.#powerManager.getBadgeColor(dir, this.#gm.grid);
+      if (!color) continue;
+
+      const side = dirToSide[dir];
       const badge = document.createElement('div');
-      badge.className = `fm-edge-power ${power.side}`;
-      badge.innerHTML = `
-        <div class="fm-power-dot tiny ${color}">
-          <svg class="fm-power-icon" aria-hidden="true"><use href="#${power.svgId}"/></svg>
-        </div>`;
+      badge.className = `fm-edge-power ${side}`;
+      badge.innerHTML = `<div class="fm-power-dot tiny ${color}"><span class="fm-edge-warn">!</span></div>`;
       this.#gm.gridEl.appendChild(badge);
     }
 
-    this.#updatePowerInfoPanel(activePowers);
+    this.#updatePowerInfoPanel();
   }
 
-  /** @param {import('../entities/power.js').Power[]} activePowers */
-  #updatePowerInfoPanel(activePowers) {
-    if (!this.#powerInfoEl) return;
+  #updatePowerInfoPanel() {
+    if (!this.#powerInfoEl || !this.#powerManager) return;
 
-    if (activePowers.length === 0) {
+    if (!this.#powerManager.hasPoweredTiles(this.#gm.grid)) {
       this.#powerInfoEl.style.display = 'none';
       return;
     }
 
-    const directions = ['up', 'down', 'left', 'right'];
+    const directions = /** @type {const} */ (['up', 'down', 'left', 'right']);
     const dirLabels = {
       up: i18n.t('free.move_up'),
       down: i18n.t('free.move_down'),
@@ -591,24 +638,22 @@ export class GameScene extends Phaser.Scene {
 
     let html = '';
     for (const dir of directions) {
-      const prediction = this.#powerManager.predictEffect(dir, this.#gm.grid);
-      if (!prediction) continue;
-      if (prediction.destroyed.length === 0) continue;
+      const predictions = this.#powerManager.predictForDirection(dir, this.#gm.grid);
+      if (predictions.length === 0) continue;
 
-      const meta = POWER_META[prediction.powerType];
-      const powerName = i18n.t(meta.nameKey);
+      for (const pred of predictions) {
+        const meta = POWER_META[pred.powerType];
+        const powerName = i18n.t(meta.nameKey);
 
-      let tilesHtml = '';
-      for (const d of prediction.destroyed) {
-        tilesHtml += `<span class="fm-power-info-tile fm-t${d.value}">${d.value}</span>`;
+        html += `
+          <div class="fm-power-info-line">
+            <span class="fm-power-info-dir">${dirLabels[dir]}</span>
+            <span>${powerName}</span>
+            <div class="fm-power-info-tiles">
+              <span class="fm-power-info-tile fm-t${pred.tileValue}">${pred.tileValue}</span>
+            </div>
+          </div>`;
       }
-
-      html += `
-        <div class="fm-power-info-line">
-          <span class="fm-power-info-dir">${dirLabels[dir]}</span>
-          <span>${powerName}</span>
-          <div class="fm-power-info-tiles">${tilesHtml}</div>
-        </div>`;
     }
 
     if (html) {
@@ -625,6 +670,7 @@ export class GameScene extends Phaser.Scene {
     this.#destroyMenuModal();
     this.#gameOverModal?.destroy();
     this.#powerSelectModal?.destroy();
+    this.#powerChoiceModal?.destroy();
     this.#adminModal?.destroy();
     this.#powerInfoDom?.destroy();
     this.input.keyboard.off('keydown', this.#handleKey, this);

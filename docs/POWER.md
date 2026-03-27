@@ -2,34 +2,35 @@
 
 ## Overview
 
-Powers are special abilities that interact with the game grid during **Free Mode** (and later **Battle Mode**). Each power has an icon (SVG pastille), a unique effect, and specific activation conditions.
+Powers are special abilities that interact with the game grid during **Free Mode** (and later **Battle Mode**). Each power has an icon (SVG pastille), a unique effect, and activates when its carrier tile merges.
 
 ## Power List
 
-### Destructive Powers
+### Destructive Powers (danger)
 
 | Power         | Icon SVG      | Effect                                                                                     |
 |---------------|---------------|--------------------------------------------------------------------------------------------|
-| **Fire -**    | `s-fire-h`    | Destroys all tiles in the same **row** as the targeted tile (targeted survives).           |
-| **Fire \|**   | `s-fire-v`    | Destroys all tiles in the same **column** as the targeted tile (targeted survives).        |
-| **Fire +**    | `s-fire-x`    | Destroys all tiles in the same **row and column** as the targeted tile (targeted survives).|
-| **Bomb**      | `s-bomb`      | Destroys **only** the targeted tile.                                                       |
-| **Lightning** | `s-lightning` | Destroys **3 tiles**: the targeted tile + 2 random top-of-column tiles (can be empty).     |
-| **Nuclear**   | `s-nuclear`   | Destroys **all tiles** on the grid, including the targeted tile.                           |
+| **Fire -**    | `s-fire-h`    | Destroys all tiles in the same **row** as the target tile (target survives).               |
+| **Fire \|**   | `s-fire-v`    | Destroys all tiles in the same **column** as the target tile (target survives).            |
+| **Fire +**    | `s-fire-x`    | Destroys all tiles in the same **row and column** as the target tile (target survives).    |
+| **Bomb**      | `s-bomb`      | Destroys **only** the target tile.                                                         |
+| **Lightning** | `s-lightning` | Destroys **3 tiles**: the target tile + 2 random top-of-column tiles (can be empty).       |
+| **Nuclear**   | `s-nuclear`   | Destroys **all tiles** on the grid, including the target tile.                             |
 
-### Status Powers
+### Status Powers (warning)
 
 | Power         | Icon SVG  | Duration | Effect                                                                              |
 |---------------|-----------|----------|-------------------------------------------------------------------------------------|
-| **Ice**       | `s-ice`   | 4 moves  | Freezes the targeted tile — it cannot move but can be merged.                       |
-| **Blind**     | `s-blind` | 5 moves  | All tiles on the grid become mysterious (hidden value/color). New tiles are normal. |
-| **Expel → ←** | `s-exp-r` | 5 moves  | Targeted tile ignores left/right borders — can exit the grid and be destroyed.      |
-| **Expel ↓ ↑** | `s-exp-d` | 5 moves  | Targeted tile ignores top/bottom borders — can exit the grid and be destroyed.      |
+| **Blind**     | `s-blind` | 5 moves  | All tiles on the grid become mysterious (hidden value/color). New tiles are normal.  |
+| **Expel → ←** | `s-exp-r` | 5 moves  | Target tile ignores left/right borders — can exit the grid and be destroyed.         |
+| **Expel ↓ ↑** | `s-exp-d` | 5 moves  | Target tile ignores top/bottom borders — can exit the grid and be destroyed.         |
+| **Teleport**  | `s-teleport` | -    | Swaps the target tile's position with a random other tile.                           |
 
-### Movement Powers
+### Passive Powers (info)
 
 | Power        | Icon SVG   | Duration | Effect                                                                     |
 |--------------|------------|----------|----------------------------------------------------------------------------|
+| **Ice**      | `s-ice`    | 4 moves  | Freezes the target tile — it cannot move but can be merged.                |
 | **Wind ↑**   | `s-wind-u` | 2 moves  | Blocks **downward** movement for all tiles. Player can still swipe down.   |
 | **Wind ↓**   | `s-wind-d` | 2 moves  | Blocks **upward** movement for all tiles. Player can still swipe up.       |
 | **Wind ←**   | `s-wind-l` | 2 moves  | Blocks **rightward** movement for all tiles. Player can still swipe right. |
@@ -39,34 +40,34 @@ Powers are special abilities that interact with the game grid during **Free Mode
 
 | Power        | Icon SVG     | Effect                                                       |
 |--------------|--------------|--------------------------------------------------------------|
-| **Teleport** | `s-teleport` | Swaps the targeted tile's position with a random other tile. |
 | **Ads**      | `s-ads`      | Launches a fullscreen ad modal for a set duration.           |
 
 ## Power Activation Flow
 
 ```
 1. Every 2 moves → randomly pick a power from the selected pool
-2. Randomly choose an available grid edge (top/bottom/left/right)
-3. Place the power badge (tiny pastille) at the center of that edge
-4. If no targeted tile exists, pick one randomly
-5. Player makes a move:
-   a. Check if move direction matches any power's side
-   b. Simulate the move to check if the targeted tile merges
-   c. If yes → trigger the power's effect
-   d. Remove the power from the edge
-   e. If targeted tile was destroyed and powers remain → pick new targeted tile
-6. Decrement turn counters for active tile states (ice, blind, expel, wind)
+2. Assign the power to a random tile that has no power yet
+3. The powered tile displays a flip-card animation (front = tile, back = power icon)
+4. Player makes a move:
+   a. If a powered tile merges during the move, its power activates
+   b. If both merging tiles have the SAME power → activate once
+   c. If both merging tiles have DIFFERENT powers → show choice modal
+   d. The merged (surviving) tile becomes the power's target
+   e. Multiple fusions with powers execute in sequence
+5. Decrement turn counters for active tile states (ice, blind, expel, wind)
 ```
 
-## Power Badge Colors
+## Edge Indicators
 
-The badge on the grid edge is dynamically colored:
+The 4 grid edges show color-coded `!` indicators predicting what would happen:
 
-- **`info`** (blue): Power trigger would destroy **no tiles**
-- **`warning`** (amber): Power trigger would destroy only **low-value tiles** (2, 4, 8, 16)
-- **`danger`** (red): Power trigger would destroy **high-value tiles** (32+)
+- **`danger`** (red): Destructive powers would trigger (fire, bomb, nuclear, lightning)
+- **`warning`** (amber): Disruptive powers would trigger (teleport, expel, blind)
+- **`info`** (blue): Passive powers would trigger (wind, ice)
 
-Colors are recalculated before each player move using a grid state simulation.
+Priority: **danger > warning > info**. If multiple powers would trigger in the same direction, the highest severity color is shown.
+
+Indicators only appear if a powered tile would actually merge in that direction.
 
 ## SVG Icons
 
@@ -103,17 +104,38 @@ All power icons are inline SVG `<symbol>` elements embedded in the game DOM. Ref
 - Ghost (expel) tiles can exit the grid — if they do, they are destroyed and the power ends.
 - Blind tiles display as gray with `?` instead of their value.
 
+## Powered Tile Visual
+
+A tile carrying a power uses a flip-card animation (see `docs/preview-powers.html`):
+
+- **Front face**: Normal tile (value + color) with a small power hint at the bottom (icon + name)
+- **Back face**: Full-color face based on power category (danger=red, warning=amber, info=blue) with large power icon
+
+The flip animation pauses during player moves and resumes after.
+
 ## CSS Classes
 
-### Power Badge (pastille)
+### Edge Indicators
 
 ```
-.fm-power-dot          — Base circle container
-.fm-power-dot.tiny     — Small version for grid edges
-.fm-power-dot.info     — Blue (no destruction)
-.fm-power-dot.warning  — Amber (low-value destruction)
-.fm-power-dot.danger   — Red (high-value destruction)
-.fm-power-dot.off      — Greyed out (unselected / inactive)
+.fm-edge-power          — Positioned at grid edges (top/bottom/left/right)
+.fm-power-dot.tiny      — Small circle with color
+.fm-edge-warn           — "!" text inside the dot
+```
+
+### Powered Tile (flip card)
+
+```
+.fm-tile-powered        — Enables perspective on the tile
+.fm-flip-card           — The rotating card container
+.fm-flip-front          — Front face (normal tile)
+.fm-flip-back           — Back face (power face)
+.fm-pw-danger           — Red back face (destructive)
+.fm-pw-warning          — Amber back face (disruptive)
+.fm-pw-info             — Blue back face (passive)
+.fm-pwr-hint            — Small icon + name on front face
+.fm-back-ico            — Large icon on back face
+.fm-bval                — Value reminder on back face
 ```
 
 ### Tile States

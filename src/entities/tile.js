@@ -40,6 +40,9 @@ export class Tile {
   /** @type {boolean} Whether this tile is the current power target */
   targeted;
 
+  /** @type {string | null} Power type charged on this tile (from POWER_TYPES) */
+  power;
+
   /**
    * @param {number} value
    * @param {number} row
@@ -54,6 +57,7 @@ export class Tile {
     this.state = null;
     this.stateTurns = 0;
     this.targeted = false;
+    this.power = null;
   }
 
   /**

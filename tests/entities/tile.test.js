@@ -25,4 +25,15 @@ describe('Tile', () => {
     expect(typeof tile.id).toBe('string');
     expect(tile.id.length).toBeGreaterThan(0);
   });
+
+  it('starts with power = null', () => {
+    const tile = new Tile(2, 0, 0);
+    expect(tile.power).toBeNull();
+  });
+
+  it('can have a power assigned', () => {
+    const tile = new Tile(2, 0, 0);
+    tile.power = 'fire-h';
+    expect(tile.power).toBe('fire-h');
+  });
 });

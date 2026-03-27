@@ -1,40 +1,29 @@
-import { Power } from '../entities/power.js';
 import {
   POWER_TYPES,
-  GRID_SIDES,
-  SIDE_TO_DIRECTION,
-  DIRECTION_TO_SIDE,
   POWER_PLACEMENT_INTERVAL,
   POWER_DURATIONS,
-  HIGH_VALUE_THRESHOLD,
   GRID_SIZE,
+  getPowerCategory,
 } from '../configs/constants.js';
 
 /**
  * Manages the power system during Free Mode gameplay.
+ * Powers are charged on individual tiles. When a powered tile merges,
+ * its power triggers.
  * Pure logic — no DOM or Phaser dependency.
  */
 export class PowerManager {
   /** @type {string[]} Power types the player selected before the game */
   #selectedTypes;
 
-  /** @type {Map<string, Power>} Active powers on grid edges — keyed by side */
-  #activePowers = new Map();
-
-  /** @type {string | null} ID of the currently targeted tile */
-  #targetedTileId = null;
-
   /** @type {number} Moves since last power placement */
   #movesSincePlacement = 0;
 
-  /** @type {Map<string, string>} Wind blocks — direction → 'blocked', with remaining turns tracked via tiles */
-  #windBlocks = new Map();
-
-  /** @type {number} Wind remaining turns (global, not per-tile) */
-  #windTurns = 0;
-
   /** @type {string | null} Currently blocked wind direction */
   #windDirection = null;
+
+  /** @type {number} Wind remaining turns */
+  #windTurns = 0;
 
   /**
    * @param {string[]} selectedTypes — Array of POWER_TYPES values chosen by the player
@@ -48,11 +37,6 @@ export class PowerManager {
     return [...this.#selectedTypes];
   }
 
-  /** @returns {string | null} */
-  get targetedTileId() {
-    return this.#targetedTileId;
-  }
-
   /** @returns {string | null} Currently blocked direction by wind */
   get windDirection() {
     return this.#windDirection;
@@ -64,44 +48,7 @@ export class PowerManager {
   }
 
   /**
-   * Return the currently targeted tile, or null if none.
-   * @param {import('../entities/grid.js').Grid} grid
-   * @returns {import('../entities/tile.js').Tile | null}
-   */
-  getTargetTile(grid) {
-    if (!this.#targetedTileId) return null;
-    return this.#findTileById(grid, this.#targetedTileId) ?? null;
-  }
-
-  /**
-   * Get all active powers (on grid edges).
-   * @returns {Power[]}
-   */
-  getActivePowers() {
-    return [...this.#activePowers.values()];
-  }
-
-  /**
-   * Get the power on a specific side.
-   * @param {string} side
-   * @returns {Power | null}
-   */
-  getPowerOnSide(side) {
-    return this.#activePowers.get(side) ?? null;
-  }
-
-  /**
-   * Get grid sides that have no active power.
-   * @returns {string[]}
-   */
-  getAvailableSides() {
-    return GRID_SIDES.filter((s) => !this.#activePowers.has(s));
-  }
-
-  /**
    * Advance one move tick: decrement tile state counters and wind.
-   * Must be called for EVERY real grid move, including animation-cancelled ones,
-   * so that state durations reflect actual grid moves rather than completed animations.
    * @param {import('../entities/grid.js').Grid} grid
    */
   tickMove(grid) {
@@ -111,116 +58,92 @@ export class PowerManager {
   }
 
   /**
-   * Called after each non-cancelled player move. Handles power placement timing.
-   * `tickMove` must have already been called for this move.
+   * Called after each non-cancelled player move. Handles power placement on tiles.
    * @param {import('../entities/grid.js').Grid} grid
-   * @returns {Power | null} The newly placed power, or null
+   * @returns {import('../entities/tile.js').Tile | null} The tile that received a power, or null
    */
   onMove(grid) {
     if (this.#movesSincePlacement >= POWER_PLACEMENT_INTERVAL) {
       this.#movesSincePlacement = 0;
-      return this.#tryPlacePower(grid);
+      return this.#tryAssignPower(grid);
     }
     return null;
   }
 
   /**
-   * Try to place a new random power on an available side.
+   * Assign a random power to a random tile without a power.
    * @param {import('../entities/grid.js').Grid} grid
-   * @returns {Power | null}
+   * @returns {import('../entities/tile.js').Tile | null}
    */
-  #tryPlacePower(grid) {
-    const availableSides = this.getAvailableSides();
-    if (availableSides.length === 0 || this.#selectedTypes.length === 0) return null;
+  #tryAssignPower(grid) {
+    if (this.#selectedTypes.length === 0) return null;
 
-    const side = availableSides[Math.floor(Math.random() * availableSides.length)];
+    const candidates = grid.getAllTiles().filter((t) => !t.power);
+    if (candidates.length === 0) return null;
+
+    const tile = candidates[Math.floor(Math.random() * candidates.length)];
     const type = this.#selectedTypes[Math.floor(Math.random() * this.#selectedTypes.length)];
-
-    const power = new Power(type, side);
-    this.#activePowers.set(side, power);
-
-    // Ensure a targeted tile exists
-    if (!this.#targetedTileId || !this.#findTileById(grid, this.#targetedTileId)) {
-      this.#pickNewTarget(grid);
-    }
-
-    return power;
+    tile.power = type;
+    return tile;
   }
 
   /**
-   * Pick a new random targeted tile from the grid.
+   * Check merges for powered tiles and return trigger info.
+   * Called after grid.move() with the merge results.
+   *
+   * @param {{ tile: import('../entities/tile.js').Tile, fromRow: number, fromCol: number, consumedId: string, consumedPower: string | null }[]} merges
    * @param {import('../entities/grid.js').Grid} grid
+   * @returns {{ powerType: string, powerTypeB?: string, tile: import('../entities/tile.js').Tile, needsChoice: boolean }[]}
    */
-  #pickNewTarget(grid) {
-    const tiles = grid.getAllTiles();
-    if (tiles.length === 0) {
-      this.#targetedTileId = null;
-      return;
-    }
-    // Unmark old target
-    const oldTarget = tiles.find((t) => t.targeted);
-    if (oldTarget) oldTarget.targeted = false;
+  checkMergeTriggers(merges, grid) {
+    const triggers = [];
 
-    const chosen = tiles[Math.floor(Math.random() * tiles.length)];
-    chosen.targeted = true;
-    this.#targetedTileId = chosen.id;
-  }
+    for (const merge of merges) {
+      const survivor = merge.tile;
+      const survivorPower = survivor.power;
+      const consumedPower = merge.consumedPower ?? null;
 
-  /**
-   * Ensure the targeted tile is still valid. If not, pick a new one.
-   * @param {import('../entities/grid.js').Grid} grid
-   */
-  refreshTarget(grid) {
-    if (this.#activePowers.size === 0) {
-      // No active powers → clear target
-      if (this.#targetedTileId) {
-        const old = this.#findTileById(grid, this.#targetedTileId);
-        if (old) old.targeted = false;
-        this.#targetedTileId = null;
+      if (!survivorPower && !consumedPower) continue;
+
+      if (survivorPower && consumedPower) {
+        if (survivorPower === consumedPower) {
+          // Same power → trigger once, clear from survivor
+          survivor.power = null;
+          triggers.push({ powerType: survivorPower, tile: survivor, needsChoice: false });
+        } else {
+          // Different powers → player chooses
+          survivor.power = null;
+          triggers.push({
+            powerType: survivorPower,
+            powerTypeB: consumedPower,
+            tile: survivor,
+            needsChoice: true,
+          });
+        }
+      } else {
+        // Only one tile has a power
+        const power = survivorPower || consumedPower;
+        survivor.power = null;
+        triggers.push({ powerType: power, tile: survivor, needsChoice: false });
       }
-      return;
     }
-    // Check if current target still exists
-    if (this.#targetedTileId && this.#findTileById(grid, this.#targetedTileId)) {
-      return;
-    }
-    this.#pickNewTarget(grid);
+
+    return triggers;
   }
 
   /**
-   * Check if a power should trigger for a given direction.
-   * Triggers when the move in that direction produces at least one merge.
-   * The power effect still emanates from the targeted tile.
-   * @param {'up' | 'down' | 'left' | 'right'} direction
-   * @param {{ tile: import('../entities/tile.js').Tile, fromRow: number, fromCol: number, consumedId: string }[]} merges
-   * @returns {Power | null} The power that triggers, or null
-   */
-  checkTrigger(direction, merges) {
-    const side = DIRECTION_TO_SIDE[direction];
-    const power = this.#activePowers.get(side);
-    if (!power) return null;
-
-    // Trigger when any merge occurred in this direction
-    if (merges.length === 0) return null;
-
-    // Remove the power from the grid
-    this.#activePowers.delete(side);
-    return power;
-  }
-
-  /**
-   * Execute a power's effect on the grid. Returns info about destroyed tiles.
-   * @param {Power} power
+   * Execute a power's effect on the grid.
+   * @param {string} powerType
    * @param {import('../entities/grid.js').Grid} grid
-   * @returns {{ destroyed: import('../entities/tile.js').Tile[], stateApplied: string | null }}
+   * @param {import('../entities/tile.js').Tile} target — the merged tile
+   * @returns {{ destroyed: import('../entities/tile.js').Tile[], stateApplied: string | null, teleported?: object }}
    */
-  executeEffect(power, grid) {
-    const target = this.#findTileById(grid, this.#targetedTileId);
-    if (!target && !this.#isGridWideEffect(power.type)) {
+  executeEffect(powerType, grid, target) {
+    if (!target && !this.#isGridWideEffect(powerType)) {
       return { destroyed: [], stateApplied: null };
     }
 
-    switch (power.type) {
+    switch (powerType) {
       case POWER_TYPES.FIRE_H:
         return this.#executeFire(grid, target, 'horizontal');
       case POWER_TYPES.FIRE_V:
@@ -259,51 +182,92 @@ export class PowerManager {
   }
 
   /**
-   * Predict which tiles would be destroyed by a power for a given direction.
-   * Used for badge coloring and info panel.
+   * Predict which powers would trigger for a given direction.
+   * Used for edge badge coloring and info panel.
    * @param {'up' | 'down' | 'left' | 'right'} direction
    * @param {import('../entities/grid.js').Grid} grid
-   * @returns {{ powerType: string, destroyed: { id: string, value: number }[] } | null}
+   * @returns {{ powerType: string, tileId: string, tileValue: number }[]}
    */
-  predictEffect(direction, grid) {
-    const side = DIRECTION_TO_SIDE[direction];
-    const power = this.#activePowers.get(side);
-    if (!power) return null;
-
-    const target = this.#findTileById(grid, this.#targetedTileId);
-    if (!target && !this.#isGridWideEffect(power.type)) {
-      return { powerType: power.type, destroyed: [] };
-    }
-
-    // Simulate the move to check if any merge occurs
+  predictForDirection(direction, grid) {
     const iceIds = this.#getIceIds(grid);
     const simResult = grid.simulateMove(direction, {
       iceIds,
       windBlock: this.#windDirection,
     });
 
-    if (simResult.merges.length === 0) {
-      return { powerType: power.type, destroyed: [] };
+    if (!simResult.moved || simResult.merges.length === 0) return [];
+
+    const predictions = [];
+
+    for (const merge of simResult.merges) {
+      // Find the original tiles involved in this merge
+      const survivorTile = grid.getAllTiles().find((t) => t.id === merge.tileId);
+      const consumedTile = grid.getAllTiles().find((t) => t.id === merge.consumedId);
+
+      const survivorPower = survivorTile?.power ?? null;
+      const consumedPower = consumedTile?.power ?? null;
+
+      if (!survivorPower && !consumedPower) continue;
+
+      if (survivorPower && consumedPower && survivorPower === consumedPower) {
+        // Same power → trigger once
+        predictions.push({
+          powerType: survivorPower,
+          tileId: merge.tileId,
+          tileValue: merge.value,
+        });
+      } else if (survivorPower && consumedPower) {
+        // Different powers → both listed (player will choose)
+        predictions.push({
+          powerType: survivorPower,
+          tileId: merge.tileId,
+          tileValue: merge.value,
+        });
+        predictions.push({
+          powerType: consumedPower,
+          tileId: merge.consumedId,
+          tileValue: merge.value,
+        });
+      } else {
+        const power = survivorPower || consumedPower;
+        predictions.push({
+          powerType: power,
+          tileId: merge.tileId,
+          tileValue: merge.value,
+        });
+      }
     }
 
-    // Predict destroyed tiles based on simulated positions
-    const destroyed = this.#predictDestroyed(power.type, grid, target, simResult);
-    return { powerType: power.type, destroyed };
+    return predictions;
   }
 
   /**
-   * Determine the badge color for a power on a given side.
-   * @param {string} side
+   * Determine the badge color for a direction based on predicted power triggers.
+   * Priority: danger > warning > info.
+   * @param {'up' | 'down' | 'left' | 'right'} direction
    * @param {import('../entities/grid.js').Grid} grid
-   * @returns {'info' | 'warning' | 'danger'}
+   * @returns {'danger' | 'warning' | 'info' | null} null if no power would trigger
    */
-  getBadgeColor(side, grid) {
-    const direction = SIDE_TO_DIRECTION[side];
-    const prediction = this.predictEffect(direction, grid);
-    if (!prediction || prediction.destroyed.length === 0) return 'info';
+  getBadgeColor(direction, grid) {
+    const predictions = this.predictForDirection(direction, grid);
+    if (predictions.length === 0) return null;
 
-    const hasHighValue = prediction.destroyed.some((d) => d.value >= HIGH_VALUE_THRESHOLD);
-    return hasHighValue ? 'danger' : 'warning';
+    let highest = 'info';
+    for (const p of predictions) {
+      const cat = getPowerCategory(p.powerType);
+      if (cat === 'danger') return 'danger'; // Can't go higher
+      if (cat === 'warning') highest = 'warning';
+    }
+    return highest;
+  }
+
+  /**
+   * Check if any tile on the grid has a power.
+   * @param {import('../entities/grid.js').Grid} grid
+   * @returns {boolean}
+   */
+  hasPoweredTiles(grid) {
+    return grid.getAllTiles().some((t) => t.power);
   }
 
   // ─── Private: Effects ────────────────────────────
@@ -364,10 +328,9 @@ export class PowerManager {
     return {
       destroyed: [],
       stateApplied: 'teleport',
-      // Both tiles at their NEW positions; old positions saved for animation.
       teleported: {
         tileA: target, oldA: { row: tr, col: tc },
-        tileB: other,  oldB: { row: or, col: oc },
+        tileB: other, oldB: { row: or, col: oc },
       },
     };
   }
@@ -387,27 +350,22 @@ export class PowerManager {
   #executeLightning(grid, target) {
     const destroyed = [];
 
-    // Collect top-of-column positions (including empty)
-    /** @type {{ row: number, col: number, tile: import('../entities/tile.js').Tile | null }[]} */
     const topCols = [];
     for (let c = 0; c < GRID_SIZE; c++) {
       for (let r = 0; r < GRID_SIZE; r++) {
         topCols.push({ row: r, col: c, tile: grid.cells[r][c] });
         break;
       }
-      // If column is empty push an empty slot
       if (topCols.length <= c) {
         topCols.push({ row: 0, col: c, tile: null });
       }
     }
 
-    // Target is always hit first
     if (target) {
       destroyed.push(target);
       grid.cells[target.row][target.col] = null;
     }
 
-    // Pick 2 more random top-of-column slots (can be empty)
     const candidates = topCols.filter((s) => !target || s.tile?.id !== target.id);
     for (let i = 0; i < 2 && candidates.length > 0; i++) {
       const idx = Math.floor(Math.random() * candidates.length);
@@ -440,16 +398,6 @@ export class PowerManager {
 
   // ─── Private: Helpers ────────────────────────────
 
-  /**
-   * @param {import('../entities/grid.js').Grid} grid
-   * @param {string} id
-   * @returns {import('../entities/tile.js').Tile | null}
-   */
-  #findTileById(grid, id) {
-    if (!id) return null;
-    return grid.getAllTiles().find((t) => t.id === id) ?? null;
-  }
-
   #isGridWideEffect(type) {
     return type === POWER_TYPES.NUCLEAR || type === POWER_TYPES.BLIND || type === POWER_TYPES.ADS;
   }
@@ -478,87 +426,12 @@ export class PowerManager {
   }
 
   /**
-   * Predict destroyed tiles for a power type based on simulated grid state.
-   * @param {string} type
-   * @param {import('../entities/grid.js').Grid} grid
-   * @param {import('../entities/tile.js').Tile | null} target
-   * @param {object} simResult
-   * @returns {{ id: string, value: number }[]}
-   */
-  #predictDestroyed(type, grid, target, simResult) {
-    const destroyed = [];
-    if (!target && !this.#isGridWideEffect(type)) return destroyed;
-
-    // Find where the target will be after the simulated move
-    const targetPos = target ? (simResult.positions.get(target.id) ?? { row: target.row, col: target.col }) : null;
-
-    // Find simulated merge that involves target — the target's value may have changed
-    const targetMerge = target ? simResult.merges.find((m) => m.tileId === target.id || m.consumedId === target.id) : null;
-    const targetValueAfter = targetMerge ? targetMerge.value : target?.value;
-
-    switch (type) {
-      case POWER_TYPES.FIRE_H: {
-        if (!targetPos) break;
-        for (const tile of grid.getAllTiles()) {
-          if (tile.id === target?.id) continue;
-          const pos = simResult.positions.get(tile.id) ?? { row: tile.row, col: tile.col };
-          if (pos.row === targetPos.row) destroyed.push({ id: tile.id, value: tile.value });
-        }
-        break;
-      }
-      case POWER_TYPES.FIRE_V: {
-        if (!targetPos) break;
-        for (const tile of grid.getAllTiles()) {
-          if (tile.id === target?.id) continue;
-          const pos = simResult.positions.get(tile.id) ?? { row: tile.row, col: tile.col };
-          if (pos.col === targetPos.col) destroyed.push({ id: tile.id, value: tile.value });
-        }
-        break;
-      }
-      case POWER_TYPES.FIRE_X: {
-        if (!targetPos) break;
-        for (const tile of grid.getAllTiles()) {
-          if (tile.id === target?.id) continue;
-          const pos = simResult.positions.get(tile.id) ?? { row: tile.row, col: tile.col };
-          if (pos.row === targetPos.row || pos.col === targetPos.col) {
-            destroyed.push({ id: tile.id, value: tile.value });
-          }
-        }
-        break;
-      }
-      case POWER_TYPES.BOMB:
-        if (target) destroyed.push({ id: target.id, value: target.value });
-        break;
-      case POWER_TYPES.NUCLEAR:
-        for (const tile of grid.getAllTiles()) {
-          destroyed.push({ id: tile.id, value: tile.value });
-        }
-        break;
-      case POWER_TYPES.LIGHTNING: {
-        if (target) destroyed.push({ id: target.id, value: target.value });
-        // Can't perfectly predict random, but include the target at least
-        break;
-      }
-      // ICE, TELEPORT, EXPEL, WIND, BLIND, ADS: no destruction
-      default:
-        break;
-    }
-
-    return destroyed;
-  }
-
-  /**
    * Serialize the power manager state for saving.
    * @returns {object}
    */
   serialize() {
     return {
       selectedTypes: this.#selectedTypes,
-      activePowers: [...this.#activePowers.entries()].map(([side, p]) => ({
-        side,
-        type: p.type,
-      })),
-      targetedTileId: this.#targetedTileId,
       movesSincePlacement: this.#movesSincePlacement,
       windDirection: this.#windDirection,
       windTurns: this.#windTurns,
@@ -567,21 +440,13 @@ export class PowerManager {
 
   /**
    * Restore the power manager state from saved data.
+   * Tile powers are saved/restored as part of the grid serialization.
    * @param {object} data
-   * @param {import('../entities/grid.js').Grid} grid
    */
-  restore(data, grid) {
+  restore(data) {
     this.#selectedTypes = data.selectedTypes ?? [];
     this.#movesSincePlacement = data.movesSincePlacement ?? 0;
     this.#windDirection = data.windDirection ?? null;
     this.#windTurns = data.windTurns ?? 0;
-    this.#activePowers.clear();
-    for (const { side, type } of data.activePowers ?? []) {
-      this.#activePowers.set(side, new Power(type, side));
-    }
-    this.#targetedTileId = data.targetedTileId ?? null;
-    // Re-mark the targeted tile
-    const target = this.#findTileById(grid, this.#targetedTileId);
-    if (target) target.targeted = true;
   }
 }

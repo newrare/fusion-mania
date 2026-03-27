@@ -39,6 +39,7 @@ export const fr = {
   'confirm.yes': 'Oui',
   'confirm.no': 'Non',
   'free.select_powers': 'Choisir les pouvoirs',
+  'free.choose_power': 'Choisir un pouvoir',
   'free.start': 'Lancer la partie',
   'free.move_up': 'Haut',
   'free.move_down': 'Bas',

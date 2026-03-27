@@ -4,7 +4,13 @@
  * Each tile state (normal, frozen, ghost, blind, active/targeted, wind, danger)
  * gets a clean, self-contained CSS class set. When the state changes the element
  * is rebuilt from a deterministic template — no leftover classes.
+ *
+ * Powered tiles use a flip-card structure (front = tile, back = power face)
+ * with a periodic flipY animation that pauses during moves.
  */
+
+import { POWER_META, getPowerCategory } from '../configs/constants.js';
+import { i18n } from '../managers/i18n-manager.js';
 
 /** All state-related CSS classes that may appear on a tile element. */
 const STATE_CLASSES = [
@@ -42,7 +48,6 @@ export class TileRenderer {
         classes.push('fm-state-blind');
         break;
       default:
-        // Only show targeted visual when the tile has no other state
         if (tile.targeted) {
           classes.push('fm-state-active');
         }
@@ -59,6 +64,7 @@ export class TileRenderer {
   /**
    * Apply the correct state to a tile DOM element. Strips all old state classes
    * first, then applies only what the tile data says.
+   * Also handles the power flip-card structure.
    *
    * @param {HTMLElement} el
    * @param {import('../entities/tile.js').Tile} tile
@@ -85,13 +91,16 @@ export class TileRenderer {
       TileRenderer.#injectSnowflakes(el);
     }
 
-    // 5. Ensure the displayed value is correct
+    // 5. Handle power flip-card
+    TileRenderer.#syncPowerFlip(el, tile);
+
+    // 6. Ensure the displayed value is correct
     const valEl = el.querySelector('.fm-val');
     if (valEl) {
       valEl.textContent = tile.state === 'blind' ? '?' : String(tile.value);
     }
 
-    // 6. Ensure the value class (fm-tN) matches the tile value
+    // 7. Ensure the value class (fm-tN) matches the tile value
     TileRenderer.syncValueClass(el, tile.value);
   }
 
@@ -102,7 +111,6 @@ export class TileRenderer {
    */
   static syncValueClass(el, value) {
     const target = `fm-t${value}`;
-    // Quick check — skip DOM work if already correct
     if (el.classList.contains(target)) return;
     for (const cls of [...el.classList]) {
       if (cls.startsWith('fm-t') && cls !== 'fm-tile' && cls !== target) {
@@ -117,15 +125,139 @@ export class TileRenderer {
    * @param {HTMLElement} el
    */
   static applyDanger(el) {
-    // Strip conflicting states but keep base tile identity
     for (const cls of STATE_CLASSES) {
       el.classList.remove(cls);
     }
-    // Remove snowflakes from ice state if present
     for (const child of el.querySelectorAll('.fm-snowflake')) {
       child.remove();
     }
     el.classList.add('fm-state-danger');
+  }
+
+  /**
+   * Pause flip animations on all powered tiles (call before a move).
+   * @param {Map<string, HTMLElement>} tileElements
+   */
+  static pauseFlips(tileElements) {
+    for (const el of tileElements.values()) {
+      const card = el.querySelector('.fm-flip-card');
+      if (card) {
+        card.style.animationPlayState = 'paused';
+        card.style.transform = 'rotateY(0deg)';
+      }
+    }
+  }
+
+  /**
+   * Resume flip animations on powered tiles (call after a move completes).
+   * @param {Map<string, HTMLElement>} tileElements
+   */
+  static resumeFlips(tileElements) {
+    for (const el of tileElements.values()) {
+      const card = el.querySelector('.fm-flip-card');
+      if (card) {
+        card.style.animationPlayState = '';
+        card.style.transform = '';
+      }
+    }
+  }
+
+  /**
+   * Sync the flip-card structure for a powered tile.
+   * If the tile has a power, build/update the flip structure.
+   * If no power, strip it and restore the simple layout.
+   * @param {HTMLElement} el
+   * @param {import('../entities/tile.js').Tile} tile
+   */
+  static #syncPowerFlip(el, tile) {
+    const hasFlip = el.classList.contains('fm-tile-powered');
+
+    if (!tile.power) {
+      if (hasFlip) {
+        TileRenderer.#removeFlipStructure(el, tile);
+      }
+      return;
+    }
+
+    const meta = POWER_META[tile.power];
+    if (!meta) return;
+
+    const category = getPowerCategory(tile.power);
+
+    if (hasFlip) {
+      // Update existing flip structure
+      TileRenderer.#updateFlipStructure(el, tile, meta, category);
+    } else {
+      // Build flip structure
+      TileRenderer.#buildFlipStructure(el, tile, meta, category);
+    }
+  }
+
+  /**
+   * Build the flip-card DOM structure inside the tile element.
+   * @param {HTMLElement} el
+   * @param {import('../entities/tile.js').Tile} tile
+   * @param {{ svgId: string, nameKey: string }} meta
+   * @param {'danger' | 'warning' | 'info'} category
+   */
+  static #buildFlipStructure(el, tile, meta, category) {
+    el.classList.add('fm-tile-powered');
+
+    // Save existing fm-val span
+    const existingVal = el.querySelector('.fm-val');
+    const valText = existingVal ? existingVal.textContent : String(tile.value);
+
+    // Clear inner content
+    el.innerHTML = '';
+
+    const powerName = i18n.t(meta.nameKey);
+
+    el.innerHTML = `
+      <div class="fm-flip-card">
+        <div class="fm-flip-front">
+          <span class="fm-val">${valText}</span>
+          <div class="fm-pwr-hint">
+            <svg><use href="#${meta.svgId}"/></svg>
+            <span>${powerName}</span>
+            <svg><use href="#${meta.svgId}"/></svg>
+          </div>
+        </div>
+        <div class="fm-flip-back fm-pw-${category}">
+          <div class="fm-back-ico"><svg><use href="#${meta.svgId}"/></svg></div>
+          <div class="fm-bval">${tile.value}</div>
+        </div>
+      </div>`;
+  }
+
+  /**
+   * Update an existing flip structure (e.g. when value changes after merge).
+   * @param {HTMLElement} el
+   * @param {import('../entities/tile.js').Tile} tile
+   * @param {{ svgId: string, nameKey: string }} meta
+   * @param {'danger' | 'warning' | 'info'} category
+   */
+  static #updateFlipStructure(el, tile, meta, category) {
+    const valEl = el.querySelector('.fm-flip-front .fm-val');
+    if (valEl) valEl.textContent = String(tile.value);
+
+    const bvalEl = el.querySelector('.fm-bval');
+    if (bvalEl) bvalEl.textContent = String(tile.value);
+
+    const back = el.querySelector('.fm-flip-back');
+    if (back) {
+      back.classList.remove('fm-pw-danger', 'fm-pw-warning', 'fm-pw-info');
+      back.classList.add(`fm-pw-${category}`);
+    }
+  }
+
+  /**
+   * Remove the flip structure and restore the simple tile layout.
+   * @param {HTMLElement} el
+   * @param {import('../entities/tile.js').Tile} tile
+   */
+  static #removeFlipStructure(el, tile) {
+    el.classList.remove('fm-tile-powered');
+    el.innerHTML = `<span class="fm-val">${tile.state === 'blind' ? '?' : String(tile.value)}</span>`;
   }
 
   /**
