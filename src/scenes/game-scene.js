@@ -645,13 +645,19 @@ export class GameScene extends Phaser.Scene {
         const meta = POWER_META[pred.powerType];
         const powerName = i18n.t(meta.nameKey);
 
+        let tilesHtml = '';
+        if (pred.destroyedValues && pred.destroyedValues.length > 0) {
+          const pills = pred.destroyedValues
+            .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
+            .join('');
+          tilesHtml = `<div class="fm-power-info-tiles">${pills}</div>`;
+        }
+
         html += `
           <div class="fm-power-info-line">
             <span class="fm-power-info-dir">${dirLabels[dir]}</span>
             <span>${powerName}</span>
-            <div class="fm-power-info-tiles">
-              <span class="fm-power-info-tile fm-t${pred.tileValue}">${pred.tileValue}</span>
-            </div>
+            ${tilesHtml}
           </div>`;
       }
     }

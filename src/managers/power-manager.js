@@ -186,7 +186,7 @@ export class PowerManager {
    * Used for edge badge coloring and info panel.
    * @param {'up' | 'down' | 'left' | 'right'} direction
    * @param {import('../entities/grid.js').Grid} grid
-   * @returns {{ powerType: string, tileId: string, tileValue: number }[]}
+   * @returns {{ powerType: string, tileId: string, tileValue: number, destroyedValues: number[] }[]}
    */
   predictForDirection(direction, grid) {
     const iceIds = this.#getIceIds(grid);
@@ -197,10 +197,12 @@ export class PowerManager {
 
     if (!simResult.moved || simResult.merges.length === 0) return [];
 
+    // Build a post-move grid snapshot for destruction prediction
+    const simGrid = this.#buildSimGrid(grid, simResult);
+
     const predictions = [];
 
     for (const merge of simResult.merges) {
-      // Find the original tiles involved in this merge
       const survivorTile = grid.getAllTiles().find((t) => t.id === merge.tileId);
       const consumedTile = grid.getAllTiles().find((t) => t.id === merge.consumedId);
 
@@ -209,36 +211,119 @@ export class PowerManager {
 
       if (!survivorPower && !consumedPower) continue;
 
+      const addPrediction = (powerType) => {
+        predictions.push({
+          powerType,
+          tileId: merge.tileId,
+          tileValue: merge.value,
+          destroyedValues: this.#predictDestroyed(
+            powerType,
+            merge.row,
+            merge.col,
+            merge.tileId,
+            simGrid,
+          ),
+        });
+      };
+
       if (survivorPower && consumedPower && survivorPower === consumedPower) {
-        // Same power → trigger once
-        predictions.push({
-          powerType: survivorPower,
-          tileId: merge.tileId,
-          tileValue: merge.value,
-        });
+        addPrediction(survivorPower);
       } else if (survivorPower && consumedPower) {
-        // Different powers → both listed (player will choose)
-        predictions.push({
-          powerType: survivorPower,
-          tileId: merge.tileId,
-          tileValue: merge.value,
-        });
-        predictions.push({
-          powerType: consumedPower,
-          tileId: merge.consumedId,
-          tileValue: merge.value,
-        });
+        addPrediction(survivorPower);
+        addPrediction(consumedPower);
       } else {
-        const power = survivorPower || consumedPower;
-        predictions.push({
-          powerType: power,
-          tileId: merge.tileId,
-          tileValue: merge.value,
-        });
+        addPrediction(survivorPower || consumedPower);
       }
     }
 
     return predictions;
+  }
+
+  /**
+   * Build a post-move grid snapshot from simulateMove results.
+   * @param {import('../entities/grid.js').Grid} grid
+   * @param {{ merges: object[], positions: Map<string, {row:number, col:number}> }} simResult
+   * @returns {({ id: string, value: number } | null)[][]}
+   */
+  #buildSimGrid(grid, simResult) {
+    const simGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
+    const consumedIds = new Set(simResult.merges.map((m) => m.consumedId));
+    const mergedValues = new Map(simResult.merges.map((m) => [m.tileId, m.value]));
+
+    for (const tile of grid.getAllTiles()) {
+      if (consumedIds.has(tile.id)) continue;
+
+      const pos = simResult.positions.get(tile.id);
+      const row = pos ? pos.row : tile.row;
+      const col = pos ? pos.col : tile.col;
+      const value = mergedValues.get(tile.id) ?? tile.value;
+      simGrid[row][col] = { id: tile.id, value };
+    }
+
+    return simGrid;
+  }
+
+  /**
+   * Predict which tile values would be destroyed if a power activates at the given position.
+   * @param {string} powerType
+   * @param {number} targetRow
+   * @param {number} targetCol
+   * @param {string} targetId
+   * @param {({ id: string, value: number } | null)[][]} simGrid
+   * @returns {number[]}
+   */
+  #predictDestroyed(powerType, targetRow, targetCol, targetId, simGrid) {
+    const destroyed = [];
+    const seenIds = new Set();
+
+    const addCell = (r, c) => {
+      const cell = simGrid[r]?.[c];
+      if (cell && cell.id !== targetId && !seenIds.has(cell.id)) {
+        seenIds.add(cell.id);
+        destroyed.push(cell.value);
+      }
+    };
+
+    switch (powerType) {
+      case POWER_TYPES.FIRE_H:
+        for (let c = 0; c < GRID_SIZE; c++) addCell(targetRow, c);
+        break;
+      case POWER_TYPES.FIRE_V:
+        for (let r = 0; r < GRID_SIZE; r++) addCell(r, targetCol);
+        break;
+      case POWER_TYPES.FIRE_X:
+        for (let c = 0; c < GRID_SIZE; c++) addCell(targetRow, c);
+        for (let r = 0; r < GRID_SIZE; r++) addCell(r, targetCol);
+        break;
+      case POWER_TYPES.BOMB: {
+        // Bomb destroys the target tile itself
+        const cell = simGrid[targetRow]?.[targetCol];
+        if (cell) destroyed.push(cell.value);
+        break;
+      }
+      case POWER_TYPES.NUCLEAR:
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            const cell = simGrid[r][c];
+            if (cell && !seenIds.has(cell.id)) {
+              seenIds.add(cell.id);
+              destroyed.push(cell.value);
+            }
+          }
+        }
+        break;
+      case POWER_TYPES.LIGHTNING: {
+        // Target is destroyed (plus 2 random top tiles — unpredictable)
+        const cell = simGrid[targetRow]?.[targetCol];
+        if (cell) destroyed.push(cell.value);
+        break;
+      }
+      default:
+        // Non-destructive powers (ice, wind, expel, teleport, blind): nothing destroyed
+        break;
+    }
+
+    return destroyed;
   }
 
   /**

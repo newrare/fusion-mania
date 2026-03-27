@@ -91,17 +91,17 @@ export class TileRenderer {
       TileRenderer.#injectSnowflakes(el);
     }
 
-    // 5. Handle power flip-card
+    // 5. Ensure the value class (fm-tN) matches the tile value (must be before #syncPowerFlip)
+    TileRenderer.syncValueClass(el, tile.value);
+
+    // 6. Handle power flip-card
     TileRenderer.#syncPowerFlip(el, tile);
 
-    // 6. Ensure the displayed value is correct
+    // 7. Ensure the displayed value is correct
     const valEl = el.querySelector('.fm-val');
     if (valEl) {
       valEl.textContent = tile.state === 'blind' ? '?' : String(tile.value);
     }
-
-    // 7. Ensure the value class (fm-tN) matches the tile value
-    TileRenderer.syncValueClass(el, tile.value);
   }
 
   /**
@@ -201,15 +201,15 @@ export class TileRenderer {
    * @param {'danger' | 'warning' | 'info'} category
    */
   static #buildFlipStructure(el, tile, meta, category) {
+    // Read computed colors BEFORE adding fm-tile-powered (which forces background: transparent)
+    const cs = window.getComputedStyle(el);
+    el.style.setProperty('--fm-tile-bg', cs.backgroundColor);
+    el.style.setProperty('--fm-tile-color', cs.color);
+    el.style.setProperty('--fm-tile-border', cs.borderColor);
+
     el.classList.add('fm-tile-powered');
 
-    // Save existing fm-val span
-    const existingVal = el.querySelector('.fm-val');
-    const valText = existingVal ? existingVal.textContent : String(tile.value);
-
-    // Clear inner content
-    el.innerHTML = '';
-
+    const valText = tile.state === 'blind' ? '?' : String(tile.value);
     const powerName = i18n.t(meta.nameKey);
 
     el.innerHTML = `
@@ -238,7 +238,7 @@ export class TileRenderer {
    */
   static #updateFlipStructure(el, tile, meta, category) {
     const valEl = el.querySelector('.fm-flip-front .fm-val');
-    if (valEl) valEl.textContent = String(tile.value);
+    if (valEl) valEl.textContent = tile.state === 'blind' ? '?' : String(tile.value);
 
     const bvalEl = el.querySelector('.fm-bval');
     if (bvalEl) bvalEl.textContent = String(tile.value);
@@ -248,6 +248,14 @@ export class TileRenderer {
       back.classList.remove('fm-pw-danger', 'fm-pw-warning', 'fm-pw-info');
       back.classList.add(`fm-pw-${category}`);
     }
+
+    // Re-read colors: fm-tile-powered forces background:transparent, so temporarily remove it
+    el.classList.remove('fm-tile-powered');
+    const cs = window.getComputedStyle(el);
+    el.style.setProperty('--fm-tile-bg', cs.backgroundColor);
+    el.style.setProperty('--fm-tile-color', cs.color);
+    el.style.setProperty('--fm-tile-border', cs.borderColor);
+    el.classList.add('fm-tile-powered');
   }
 
   /**

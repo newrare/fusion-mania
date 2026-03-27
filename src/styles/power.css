@@ -475,6 +475,11 @@
 /* --- Powered tile: flip card --- */
 .fm-tile-powered {
   perspective: 300px;
+  /* Make the tile shell transparent — colors move into .fm-flip-front via JS CSS vars */
+  overflow: visible !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .fm-flip-card {
@@ -496,7 +501,7 @@
   inset: 0;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  border-radius: inherit;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -505,6 +510,11 @@
 
 .fm-flip-front {
   z-index: 1;
+  /* Colors injected via CSS custom properties set by TileRenderer */
+  background: var(--fm-tile-bg, transparent);
+  color: var(--fm-tile-color, inherit);
+  border: 2px solid var(--fm-tile-border, transparent);
+  box-shadow: 0 5px 16px rgba(140,80,200,0.13);
 }
 
 .fm-flip-back {
