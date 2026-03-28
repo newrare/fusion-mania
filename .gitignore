@@ -6,3 +6,4 @@ ios/
 *.local
 
 drafts/
+.claude/
