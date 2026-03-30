@@ -137,7 +137,7 @@ export const POWER_DURATIONS = {
   ICE: 4,
   BLIND: 5,
   EXPEL: 5,
-  WIND: 2,
+  WIND: 3,
 };
 
 /**

@@ -44,20 +44,36 @@ describe('TileRenderer', () => {
       expect(TileRenderer.stateClasses(tile)).toContain('fm-state-blind');
     });
 
-    it('includes wind classes when windDirection is set', () => {
-      const classes = TileRenderer.stateClasses(tile, { windDirection: 'up' });
+    it('includes wind classes when windDirection is set — CSS class uses blow direction (opposite of blocked)', () => {
+      // windDirection:'down' means movement blocked downward → wind blows UP → fm-state-wind-up
+      const classes = TileRenderer.stateClasses(tile, { windDirection: 'down' });
       expect(classes).toContain('fm-state-wind');
       expect(classes).toContain('fm-state-wind-up');
+    });
+
+    it('maps each blocked direction to the correct CSS blow direction', () => {
+      const cases = [
+        { blocked: 'down',  cssDir: 'up'    },
+        { blocked: 'up',    cssDir: 'down'  },
+        { blocked: 'right', cssDir: 'left'  },
+        { blocked: 'left',  cssDir: 'right' },
+      ];
+      for (const { blocked, cssDir } of cases) {
+        const classes = TileRenderer.stateClasses(tile, { windDirection: blocked });
+        expect(classes).toContain(`fm-state-wind-${cssDir}`);
+        expect(classes).not.toContain(`fm-state-wind-${blocked}`);
+      }
     });
 
     it('state takes priority over targeted — no accumulation', () => {
       tile.targeted = true;
       tile.applyState('ice', 3);
+      // windDirection:'left' blocks left → wind blows right → fm-state-wind-right
       const classes = TileRenderer.stateClasses(tile, { windDirection: 'left' });
       expect(classes).not.toContain('fm-state-active');
       expect(classes).toContain('fm-state-ice');
       expect(classes).toContain('fm-state-wind');
-      expect(classes).toContain('fm-state-wind-left');
+      expect(classes).toContain('fm-state-wind-right');
     });
   });
 
@@ -70,6 +86,36 @@ describe('TileRenderer', () => {
       expect(el.classList.contains('fm-state-ice')).toBe(false);
       expect(el.classList.contains('fm-state-wind')).toBe(false);
       expect(el.classList.contains('fm-state-wind-up')).toBe(false);
+    });
+
+    it('injects fm-wind-line elements when windDirection is active', () => {
+      TileRenderer.applyState(el, tile, { windDirection: 'down' });
+      const lines = el.querySelectorAll('.fm-wind-line');
+      expect(lines.length).toBeGreaterThan(0);
+      // Horizontal wind (up/down blow) → lines positioned with left%
+      for (const line of lines) {
+        expect(line.style.left).toMatch(/%$/);
+      }
+    });
+
+    it('fm-wind-line elements use top% for horizontal wind (right/left blow)', () => {
+      TileRenderer.applyState(el, tile, { windDirection: 'up' }); // blocks up → blows down → horizontal? No wait...
+      // windDirection:'up' blocks up → blow direction = 'down' → vertical animation → left%
+      // windDirection:'right' blocks right → blow direction = 'left' → horizontal → top%
+      TileRenderer.applyState(el, tile, { windDirection: 'right' });
+      const lines = el.querySelectorAll('.fm-wind-line');
+      expect(lines.length).toBeGreaterThan(0);
+      for (const line of lines) {
+        expect(line.style.top).toMatch(/%$/);
+      }
+    });
+
+    it('removes old fm-wind-line elements when state changes', () => {
+      TileRenderer.applyState(el, tile, { windDirection: 'down' });
+      expect(el.querySelectorAll('.fm-wind-line').length).toBeGreaterThan(0);
+      // Apply again without wind — lines should be removed
+      TileRenderer.applyState(el, tile);
+      expect(el.querySelectorAll('.fm-wind-line').length).toBe(0);
     });
 
     it('sets value text to "?" for blind state', () => {

@@ -493,6 +493,86 @@ describe('PowerManager', () => {
     });
   });
 
+  describe('predictForDirection', () => {
+    it('returns empty when no powered tiles would merge', () => {
+      grid.cells[0][0] = new Tile(2, 0, 0);
+      grid.cells[0][1] = new Tile(4, 0, 1); // different value — no merge
+      expect(pm.predictForDirection('left', grid)).toEqual([]);
+    });
+
+    it('returns a prediction when a powered tile would merge', () => {
+      const t1 = new Tile(2, 0, 0);
+      t1.power = POWER_TYPES.ICE;
+      const t2 = new Tile(2, 1, 0);
+      grid.cells[0][0] = t1;
+      grid.cells[1][0] = t2;
+
+      const preds = pm.predictForDirection('up', grid);
+      expect(preds.length).toBe(1);
+      expect(preds[0].powerType).toBe(POWER_TYPES.ICE);
+    });
+
+    it('returns empty when wind blocks the direction — even with powered tiles that would merge', () => {
+      const t1 = new Tile(2, 0, 0);
+      t1.power = POWER_TYPES.ICE;
+      const t2 = new Tile(2, 1, 0);
+      grid.cells[0][0] = t1;
+      grid.cells[1][0] = t2;
+
+      // Wind is blocking the 'up' direction
+      pm.restore({
+        selectedTypes: pm.selectedTypes,
+        movesSincePlacement: 0,
+        windDirection: 'up',
+        windTurns: 2,
+      });
+
+      expect(pm.predictForDirection('up', grid)).toEqual([]);
+    });
+
+    it('still returns predictions for unblocked directions when wind is active', () => {
+      const t1 = new Tile(2, 0, 0);
+      t1.power = POWER_TYPES.ICE;
+      const t2 = new Tile(2, 0, 1);
+      grid.cells[0][0] = t1;
+      grid.cells[0][1] = t2;
+
+      // Wind blocks 'up', but 'left' is free
+      pm.restore({
+        selectedTypes: pm.selectedTypes,
+        movesSincePlacement: 0,
+        windDirection: 'up',
+        windTurns: 2,
+      });
+
+      const preds = pm.predictForDirection('left', grid);
+      expect(preds.length).toBe(1);
+      expect(preds[0].powerType).toBe(POWER_TYPES.ICE);
+    });
+  });
+
+  describe('getBadgeColor — wind blocking', () => {
+    it('returns null for a direction blocked by wind even with powered tiles', () => {
+      const t1 = new Tile(2, 0, 0);
+      t1.power = POWER_TYPES.ICE;
+      const t2 = new Tile(2, 1, 0);
+      grid.cells[0][0] = t1;
+      grid.cells[1][0] = t2;
+
+      pm.restore({
+        selectedTypes: pm.selectedTypes,
+        movesSincePlacement: 0,
+        windDirection: 'up',
+        windTurns: 3,
+      });
+
+      // 'up' is blocked — no merge will happen so no badge
+      expect(pm.getBadgeColor('up', grid)).toBeNull();
+      // 'down' is not blocked — but no merge in that direction either for this layout
+      // Just verify the blocked direction is null
+    });
+  });
+
   describe('wind ticking', () => {
     it('decrements wind turns on each move', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);

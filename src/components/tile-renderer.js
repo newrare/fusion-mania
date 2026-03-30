@@ -27,6 +27,26 @@ const STATE_CLASSES = [
   'fm-state-wind-right',
 ];
 
+/**
+ * Maps a blocked direction (stored in windDirection) to its opposite
+ * (the actual wind-blow direction), which determines the CSS class and visual.
+ * e.g. windDirection='down' (blocks downward) → wind blows upward → class fm-state-wind-up
+ */
+const WIND_CSS_DIR = { up: 'down', down: 'up', left: 'right', right: 'left' };
+
+/**
+ * Deterministic positions for wind-line elements (percentage along the cross-axis).
+ * Horizontal wind (right/left): position = top%. Vertical wind (up/down): position = left%.
+ */
+const WIND_LINE_LAYOUT = [
+  { pos: 12, dur: 0.90, dl:  0.00 },
+  { pos: 27, dur: 1.20, dl: -0.55 },
+  { pos: 44, dur: 0.80, dl: -1.10 },
+  { pos: 58, dur: 1.10, dl: -0.35 },
+  { pos: 70, dur: 0.95, dl: -1.70 },
+  { pos: 83, dur: 1.30, dl: -0.85 },
+];
+
 /** Category → sparkle colour (uses category colour, not the tile value colour). */
 const SPARKLE_COLOR = { danger: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
 
@@ -73,7 +93,9 @@ export class TileRenderer {
     }
 
     if (opts.windDirection) {
-      classes.push('fm-state-wind', `fm-state-wind-${opts.windDirection}`);
+      // CSS class uses the wind-blow direction (opposite of the blocked direction)
+      const cssDir = WIND_CSS_DIR[opts.windDirection] ?? opts.windDirection;
+      classes.push('fm-state-wind', `fm-state-wind-${cssDir}`);
     }
 
     return classes;
@@ -94,8 +116,8 @@ export class TileRenderer {
       el.classList.remove(cls);
     }
 
-    // 2. Remove any snowflakes from a previous ice state
-    for (const child of el.querySelectorAll('.fm-snowflake')) {
+    // 2. Remove children from previous states (snowflakes, wind lines)
+    for (const child of el.querySelectorAll('.fm-snowflake, .fm-wind-line')) {
       child.remove();
     }
 
@@ -104,9 +126,13 @@ export class TileRenderer {
       el.classList.add(cls);
     }
 
-    // 4. Inject snowflake children for ice state
+    // 4. Inject state-specific children
     if (tile.state === 'ice') {
       TileRenderer.#injectSnowflakes(el);
+    }
+    if (opts.windDirection) {
+      const cssDir = WIND_CSS_DIR[opts.windDirection] ?? opts.windDirection;
+      TileRenderer.#injectWindLines(el, cssDir);
     }
 
     // 5. Ensure the value class (fm-tN) matches the tile value (must be before #syncPowerFlip)
@@ -269,6 +295,22 @@ export class TileRenderer {
       span.style.cssText =
         `top:${f.top};left:${f.left};font-size:${f.sz};--fm-sd:${f.sd};--fm-sdl:${f.sdl}`;
       el.appendChild(span);
+    }
+  }
+
+  /**
+   * Inject animated wind-line children for the wind tile state.
+   * @param {HTMLElement} el
+   * @param {'up' | 'down' | 'left' | 'right'} cssDir — wind-blow direction (CSS class direction)
+   */
+  static #injectWindLines(el, cssDir) {
+    const isHorizontal = cssDir === 'right' || cssDir === 'left';
+    const posProp = isHorizontal ? 'top' : 'left';
+    for (const { pos, dur, dl } of WIND_LINE_LAYOUT) {
+      const line = document.createElement('div');
+      line.className = 'fm-wind-line';
+      line.style.cssText = `${posProp}:${pos}%;--fm-wd:${dur}s;--fm-wdl:${dl}s;`;
+      el.appendChild(line);
     }
   }
 }

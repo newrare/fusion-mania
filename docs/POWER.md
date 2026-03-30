@@ -8,39 +8,39 @@ Powers are special abilities that interact with the game grid during **Free Mode
 
 ### Destructive Powers (danger)
 
-| Power         | Icon SVG      | Effect                                                                                     |
-|---------------|---------------|--------------------------------------------------------------------------------------------|
-| **Fire -**    | `s-fire-h`    | Destroys all tiles in the same **row** as the target tile (target survives).               |
-| **Fire \|**   | `s-fire-v`    | Destroys all tiles in the same **column** as the target tile (target survives).            |
-| **Fire +**    | `s-fire-x`    | Destroys all tiles in the same **row and column** as the target tile (target survives).    |
-| **Bomb**      | `s-bomb`      | Destroys **only** the target tile.                                                         |
-| **Lightning** | `s-lightning` | Destroys **3 tiles**: the target tile + 2 random top-of-column tiles (can be empty).       |
-| **Nuclear**   | `s-nuclear`   | Destroys **all tiles** on the grid, including the target tile.                             |
+| Power         | Icon SVG      | Effect                                                                                  |
+|---------------|---------------|-----------------------------------------------------------------------------------------|
+| **Fire -**    | `s-fire-h`    | Destroys all tiles in the same **row** as the target tile (target survives).            |
+| **Fire \|**   | `s-fire-v`    | Destroys all tiles in the same **column** as the target tile (target survives).         |
+| **Fire +**    | `s-fire-x`    | Destroys all tiles in the same **row and column** as the target tile (target survives). |
+| **Bomb**      | `s-bomb`      | Destroys **only** the target tile.                                                      |
+| **Lightning** | `s-lightning` | Destroys **3 tiles**: the target tile + 2 random top-of-column tiles (can be empty).    |
+| **Nuclear**   | `s-nuclear`   | Destroys **all tiles** on the grid, including the target tile.                          |
 
 ### Status Powers (warning)
 
-| Power         | Icon SVG  | Duration | Effect                                                                              |
-|---------------|-----------|----------|-------------------------------------------------------------------------------------|
-| **Blind**     | `s-blind` | 5 moves  | All tiles on the grid become mysterious (hidden value/color). New tiles are normal.  |
-| **Expel → ←** | `s-exp-r` | 5 moves  | Target tile ignores left/right borders — can exit the grid and be destroyed.         |
-| **Expel ↓ ↑** | `s-exp-d` | 5 moves  | Target tile ignores top/bottom borders — can exit the grid and be destroyed.         |
-| **Teleport**  | `s-teleport` | -    | Swaps the target tile's position with a random other tile.                           |
+| Power         | Icon SVG     | Duration | Effect                                                                              |
+|---------------|--------------|----------|-------------------------------------------------------------------------------------|
+| **Blind**     | `s-blind`    | 5 moves  | All tiles on the grid become mysterious (hidden value/color). New tiles are normal. |
+| **Expel → ←** | `s-exp-r`    | 5 moves  | Target tile ignores left/right borders — can exit the grid and be destroyed.        |
+| **Expel ↓ ↑** | `s-exp-d`    | 5 moves  | Target tile ignores top/bottom borders — can exit the grid and be destroyed.        |
+| **Teleport**  | `s-teleport` | -        | Swaps the target tile's position with a random other tile.                          |
 
 ### Passive Powers (info)
 
-| Power        | Icon SVG   | Duration | Effect                                                                     |
-|--------------|------------|----------|----------------------------------------------------------------------------|
-| **Ice**      | `s-ice`    | 4 moves  | Freezes the target tile — it cannot move but can be merged.                |
-| **Wind ↑**   | `s-wind-u` | 2 moves  | Blocks **downward** movement for all tiles. Player can still swipe down.   |
-| **Wind ↓**   | `s-wind-d` | 2 moves  | Blocks **upward** movement for all tiles. Player can still swipe up.       |
-| **Wind ←**   | `s-wind-l` | 2 moves  | Blocks **rightward** movement for all tiles. Player can still swipe right. |
-| **Wind →**   | `s-wind-r` | 2 moves  | Blocks **leftward** movement for all tiles. Player can still swipe left.   |
+| Power      | Icon SVG   | Duration | Effect                                                                     |
+|------------|------------|----------|----------------------------------------------------------------------------|
+| **Ice**    | `s-ice`    | 4 moves  | Freezes the target tile — it cannot move but can be merged.                |
+| **Wind ↑** | `s-wind-u` | 3 moves  | Blocks **downward** movement for all tiles. Player can still swipe down.   |
+| **Wind ↓** | `s-wind-d` | 3 moves  | Blocks **upward** movement for all tiles. Player can still swipe up.       |
+| **Wind ←** | `s-wind-l` | 3 moves  | Blocks **rightward** movement for all tiles. Player can still swipe right. |
+| **Wind →** | `s-wind-r` | 3 moves  | Blocks **leftward** movement for all tiles. Player can still swipe left.   |
 
 ### Special Powers
 
-| Power        | Icon SVG     | Effect                                                       |
-|--------------|--------------|--------------------------------------------------------------|
-| **Ads**      | `s-ads`      | Launches a fullscreen ad modal for a set duration.           |
+| Power   | Icon SVG | Effect                                             |
+|---------|----------|----------------------------------------------------|
+| **Ads** | `s-ads`  | Launches a fullscreen ad modal for a set duration. |
 
 ## Power Activation Flow
 

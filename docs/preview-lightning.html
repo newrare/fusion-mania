@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FusionMania — Preview · Lightning v2</title>
+<style>
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: linear-gradient(160deg,#0a0a2e 0%,#050518 60%,#0a0a20 100%);
+  min-height: 100vh;
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+  color: #fff;
+  padding: 36px 24px 80px;
+  overflow-x: hidden;
+}
+h1 {
+  text-align: center;
+  font-size: 2rem;
+  color: #b0d0ff;
+  letter-spacing: 3px;
+  margin-bottom: 6px;
+  text-shadow: 0 0 24px rgba(100,160,255,.8), 0 0 60px rgba(80,120,255,.4);
+}
+.subtitle {
+  text-align: center;
+  font-size: .8rem;
+  color: rgba(150,190,255,.45);
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+.recipe {
+  text-align: center;
+  font-size: .68rem;
+  color: rgba(120,160,255,.32);
+  margin-bottom: 60px;
+  letter-spacing: .5px;
+}
+.recipe span { color: rgba(160,200,255,.55); }
+
+/* ── Layout centré ─────────────────────────────────── */
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.card-label {
+  font-size: .62rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(150,190,255,.35);
+  text-align: center;
+}
+
+/* ── Scene ─────────────────────────────────────────── */
+.scene {
+  position: relative;
+  width: 130px;
+  height: 170px;
+  overflow: visible;
+}
+
+/* ── Tile ──────────────────────────────────────────── */
+.tile, .tile-reset {
+  position: absolute;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 54px; height: 54px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2a3a6a 0%, #1a2450 100%);
+  border: 2px solid rgba(100,140,255,.35);
+  box-shadow: 0 2px 12px rgba(0,0,40,.6), inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* Zigzag shape */
+.zz { clip-path: polygon(58% 0%, 100% 0%, 42% 47%, 88% 47%, 8% 100%, 52% 53%, 8% 53%); }
+
+/*
+╔═══════════════════════════════════════════════════════╗
+║  TIMELINE — 2.4s                                      ║
+║   0 – 18% : idle                                      ║
+║  18 – 26% : sparks ambiants apparaissent              ║
+║  23 – 26% : éclair principal descend (rapide)         ║
+║  26%       : CONTACT — ring apparaît immédiatement    ║
+║  26 – 52% : ring s'expande et s'efface                ║
+║  26 – 40% : éclair + sparks visibles                  ║
+║  40 – 44% : tile clignote (static noise)              ║
+║  44 – 62% : tile se désintègre                        ║
+║  62 – 83% : scène vide                                ║
+║  83 – 84% : reset                                     ║
+║  84 –100% : tile visible                              ║
+╚═══════════════════════════════════════════════════════╝
+*/
+
+/* ── Éclair principal ──────────────────────────────── */
+@keyframes bolt {
+  0%,22%   { opacity:0; transform:translateX(-50%) scaleY(0); }
+  26%      { opacity:1; transform:translateX(-50%) scaleY(1); }
+  38%      { opacity:1; }
+  43%,100% { opacity:0; }
+}
+
+/* ── Tile static-noise ─────────────────────────────── */
+@keyframes tile-anim {
+  0%,26%  { opacity:1; filter:none; transform:translateX(-50%); }
+  29%     { filter:brightness(2.2) contrast(2); }
+  33%     { filter:brightness(.3) contrast(3) hue-rotate(28deg);    transform:translateX(calc(-50% + 2px)); }
+  36%     { filter:brightness(3.8) contrast(.4);                    transform:translateX(calc(-50% - 2px)); }
+  39%     { filter:brightness(.5) contrast(2.2) hue-rotate(-22deg); transform:translateX(calc(-50% + 1px)); }
+  42%     { filter:brightness(2.5) contrast(1.5);                   transform:translateX(-50%); }
+  45%     { filter:none; opacity:1; transform:translateX(-50%); }
+  55%     { opacity:1; }
+  63%     { opacity:0; transform:translateX(-50%) scale(.68); filter:blur(2px); }
+  84%,100%{ opacity:0; }
+}
+@keyframes tile-reset-anim {
+  0%,83%  { opacity:0; }
+  84%,100%{ opacity:1; }
+}
+
+/* ── Ring — centre sur le bord haut de la tile ─────── */
+/*
+   La tile a bottom:0, height:54px → son bord haut est à bottom:54px.
+   L'élément ring fait 70×70px.
+   bottom:54px + translateY(50%) → déplace l'élément vers le bas de 35px
+   → bord bas du ring à 54-35=19px, centre à 54px ✓
+   translateX(-50%) → centrage horizontal
+*/
+@keyframes ring-anim {
+  0%,25.5%{ opacity:0; transform:translate(-50%,50%) scale(.12); }
+  26%     { opacity:1; transform:translate(-50%,50%) scale(.12); }
+  53%     { opacity:0; transform:translate(-50%,50%) scale(2.6);  }
+  100%    { opacity:0; }
+}
+.ring {
+  position: absolute;
+  bottom: 54px; left: 50%;
+  width: 70px; height: 70px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(140,200,255,.95);
+  box-shadow:
+    0 0 6px 2px  rgba(120,190,255,.65),
+    0 0 18px 5px rgba(80,150,255,.28);
+  pointer-events: none;
+  animation: ring-anim 2.4s ease-in-out infinite;
+}
+
+/* ── Sparks — wrapper (rotation) + inner (scaleY) ─── */
+.sw {
+  position: absolute;
+  transform-origin: top center;
+}
+.si {
+  transform-origin: top center;
+  filter: blur(.35px) drop-shadow(0 0 3px #aaddff) drop-shadow(0 0 8px #4466ff);
+}
+
+@keyframes sp-early  { 0%,16%{opacity:0;transform:scaleY(0)} 19%{opacity:1;transform:scaleY(1)} 33%{opacity:.9} 40%,100%{opacity:0} }
+@keyframes sp-mid    { 0%,20%{opacity:0;transform:scaleY(0)} 24%{opacity:.85;transform:scaleY(1)} 36%{opacity:.85} 42%,100%{opacity:0} }
+@keyframes sp-brief  { 0%,24%{opacity:0;transform:scaleY(0)} 27%{opacity:.8;transform:scaleY(1)} 32%{opacity:0} 100%{opacity:0} }
+@keyframes sp-late   { 0%,26%{opacity:0;transform:scaleY(0)} 29%{opacity:.75;transform:scaleY(1)} 37%{opacity:.75} 43%,100%{opacity:0} }
+
+/* ── Positions des 7 sparks ────────────────────────── */
+/* a */ .sw-a { left:  8px; top: 12px; transform:rotate(-15deg); }
+/* b */ .sw-b { left: 88px; top:  8px; transform:rotate( 12deg); }
+/* c */ .sw-c { left:  2px; top: 55px; transform:rotate(-24deg); }
+/* d */ .sw-d { left: 94px; top: 46px; transform:rotate( 22deg); }
+/* e */ .sw-e { left: 24px; top:  2px; transform:rotate( -5deg); }
+/* f */ .sw-f { left: 72px; top: 26px; transform:rotate( 28deg); }
+/* g */ .sw-g { left: -8px; top: 32px; transform:rotate(-32deg); }
+
+/* Tailles et animations de chaque spark */
+.sw-a .si { width:8px; height:24px; background:linear-gradient(180deg,#fff,#88ccff);    animation:sp-early 2.4s ease-in-out infinite; }
+.sw-b .si { width:7px; height:20px; background:linear-gradient(180deg,#aaddff,#4466ff); animation:sp-mid   2.4s ease-in-out infinite; }
+.sw-c .si { width:6px; height:16px; background:linear-gradient(180deg,#88ccff,#4466ff); animation:sp-brief 2.4s ease-in-out infinite; }
+.sw-d .si { width:6px; height:18px; background:linear-gradient(180deg,#aaddff,#6677ff); animation:sp-late  2.4s ease-in-out infinite; }
+.sw-e .si { width:6px; height:13px; background:linear-gradient(180deg,#fff,#88ccff);    animation:sp-brief 2.4s ease-in-out infinite; animation-delay:-.15s; }
+.sw-f .si { width:5px; height:14px; background:linear-gradient(180deg,#88ccff,#4488ff); animation:sp-mid   2.4s ease-in-out infinite; animation-delay:-.38s; }
+.sw-g .si { width:7px; height:20px; background:linear-gradient(180deg,#aaddff,#4466ff); animation:sp-early 2.4s ease-in-out infinite; animation-delay:-.08s; }
+
+/* ── Éclair principal ──────────────────────────────── */
+.bolt {
+  position:absolute; left:50%; top:6px;
+  width:14px; height:90px; /* atteint exactement le bord haut de la tile */
+  transform:translateX(-50%) scaleY(0);
+  transform-origin:top center;
+  background:linear-gradient(180deg,#fff,#ccecff,#88ccff,#4466ff);
+  filter:blur(.2px) drop-shadow(0 0 7px #aaddff) drop-shadow(0 0 18px #4466ff);
+  animation: bolt 2.4s ease-in-out infinite;
+}
+
+/* ── Tile ──────────────────────────────────────────── */
+.tile       { animation: tile-anim       2.4s ease-in-out infinite; }
+.tile-reset { animation: tile-reset-anim 2.4s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<h1>⚡ Lightning v2</h1>
+<p class="subtitle">Dense · 7 sparks · 1 ring · static noise</p>
+<p class="recipe">
+  <span>Static noise</span> (clignotement tile) ·
+  <span>Ring</span> (onde au contact, bord haut de la tile) ·
+  <span>Sparks</span> (éclairs ambiants en parallèle)
+</p>
+
+<div class="stage">
+  <div class="scene">
+
+    <!-- Éclair principal -->
+    <div class="bolt zz"></div>
+
+    <!-- 7 sparks ambiants -->
+    <div class="sw sw-a"><div class="si zz"></div></div>
+    <div class="sw sw-b"><div class="si zz"></div></div>
+    <div class="sw sw-c"><div class="si zz"></div></div>
+    <div class="sw sw-d"><div class="si zz"></div></div>
+    <div class="sw sw-e"><div class="si zz"></div></div>
+    <div class="sw sw-f"><div class="si zz"></div></div>
+    <div class="sw sw-g"><div class="si zz"></div></div>
+
+    <!-- Tile -->
+    <div class="tile"></div>
+    <div class="tile-reset"></div>
+
+    <!-- Ring — centré sur le bord haut de la tile -->
+    <div class="ring"></div>
+
+  </div>
+  <span class="card-label">Dense · 7 sparks · 1 ring · 2.4s</span>
+</div>
+
+</body>
+</html>

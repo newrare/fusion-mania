@@ -303,6 +303,13 @@ export class GameScene extends Phaser.Scene {
   async #executeMove(direction) {
     this.#gm.clearFusionIndicators();
 
+    // Wind blocks this direction — input is accepted but no tiles move
+    if (this.#powerManager?.windDirection === direction) {
+      this.#gm.updateFusionIndicators();
+      this.#updatePowerVisuals();
+      return;
+    }
+
     const waitFn = (ms) => this.#wait(ms);
     const moveResult = await this.#gm.executeMove(direction, waitFn);
 
