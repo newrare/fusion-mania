@@ -638,3 +638,110 @@ html, body {
 .fm-btn--admin:active {
   background: rgba(40, 140, 60, 0.45);
 }
+
+/* ─────────────────────────────────────────────────────── */
+/* Lightning power animation                               */
+/* ─────────────────────────────────────────────────────── */
+
+/* Zigzag shape used by bolt + sparks */
+.fm-zz {
+  clip-path: polygon(58% 0%,100% 0%,42% 47%,88% 47%,8% 100%,52% 53%,8% 53%);
+}
+
+/* Main bolt: descends from top of scene, transform-origin top center */
+@keyframes fm-lightning-bolt {
+  0%,22%    { opacity:0; transform:translateX(-50%) scaleY(0); }
+  26%       { opacity:1; transform:translateX(-50%) scaleY(1); }
+  38%       { opacity:1; }
+  43%,100%  { opacity:0; }
+}
+
+/* Ring expanding at contact point */
+@keyframes fm-lightning-ring {
+  0%,25.5%  { opacity:0; transform:translate(-50%,50%) scale(.12); }
+  26%       { opacity:1; transform:translate(-50%,50%) scale(.12); }
+  53%       { opacity:0; transform:translate(-50%,50%) scale(2.6); }
+  100%      { opacity:0; }
+}
+
+/* Spark timing variants */
+@keyframes fm-spark-early { 0%,16%{opacity:0;transform:scaleY(0)} 19%{opacity:1;transform:scaleY(1)} 33%{opacity:.9} 40%,100%{opacity:0} }
+@keyframes fm-spark-mid   { 0%,20%{opacity:0;transform:scaleY(0)} 24%{opacity:.85;transform:scaleY(1)} 36%{opacity:.85} 42%,100%{opacity:0} }
+@keyframes fm-spark-brief { 0%,24%{opacity:0;transform:scaleY(0)} 27%{opacity:.8;transform:scaleY(1)} 32%{opacity:0} 100%{opacity:0} }
+@keyframes fm-spark-late  { 0%,26%{opacity:0;transform:scaleY(0)} 29%{opacity:.75;transform:scaleY(1)} 37%{opacity:.75} 43%,100%{opacity:0} }
+
+/* Tile static-noise hit → disintegrate */
+@keyframes fm-lightning-tile {
+  0%,26%   { opacity:1; filter:none; transform:translateX(0); }
+  29%      { filter:brightness(2.2) contrast(2); }
+  33%      { filter:brightness(.3) contrast(3) hue-rotate(28deg);    transform:translateX(2px); }
+  36%      { filter:brightness(3.8) contrast(.4);                    transform:translateX(-2px); }
+  39%      { filter:brightness(.5) contrast(2.2) hue-rotate(-22deg); transform:translateX(1px); }
+  42%      { filter:brightness(2.5) contrast(1.5);                   transform:translateX(0); }
+  45%      { filter:none; opacity:1; transform:translateX(0); }
+  55%      { opacity:1; }
+  63%      { opacity:0; transform:scale(.68); filter:blur(2px); }
+  100%     { opacity:0; }
+}
+
+/* Lightning scene: an overflow-visible container positioned above the tile */
+.fm-lightning-scene {
+  position: absolute;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 20;
+}
+
+/* Main bolt */
+.fm-lightning-scene .fm-lb {
+  position: absolute;
+  left: 50%; top: 8px;
+  width: 14px; height: 85px;
+  transform: translateX(-50%) scaleY(0);
+  transform-origin: top center;
+  background: linear-gradient(180deg,#fff,#ccecff,#88ccff,#4466ff);
+  filter: blur(.2px) drop-shadow(0 0 7px #aaddff) drop-shadow(0 0 18px #4466ff);
+  animation: fm-lightning-bolt 1.5s ease-in-out forwards;
+}
+
+/* Ring at contact (bottom edge of scene = top of tile) */
+.fm-lightning-scene .fm-lr {
+  position: absolute;
+  bottom: 0; left: 50%;
+  width: 70px; height: 70px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(140,200,255,.95);
+  box-shadow: 0 0 6px 2px rgba(120,190,255,.65), 0 0 18px 5px rgba(80,150,255,.28);
+  animation: fm-lightning-ring 1.5s ease-in-out forwards;
+}
+
+/* Spark wrappers (rotation) + inner (size + animation) */
+.fm-lightning-scene .fm-sw { position:absolute; transform-origin:top center; }
+.fm-lightning-scene .fm-si {
+  transform-origin: top center;
+  filter: blur(.35px) drop-shadow(0 0 3px #aaddff) drop-shadow(0 0 8px #4466ff);
+}
+
+/* Spark positions */
+.fm-lightning-scene .fm-sw-a { left:  8px; top:20px; transform:rotate(-15deg); }
+.fm-lightning-scene .fm-sw-b { left: 88px; top:16px; transform:rotate( 12deg); }
+.fm-lightning-scene .fm-sw-c { left:  2px; top:55px; transform:rotate(-24deg); }
+.fm-lightning-scene .fm-sw-d { left: 94px; top:46px; transform:rotate( 22deg); }
+.fm-lightning-scene .fm-sw-e { left: 24px; top:10px; transform:rotate( -5deg); }
+.fm-lightning-scene .fm-sw-f { left: 72px; top:32px; transform:rotate( 28deg); }
+.fm-lightning-scene .fm-sw-g { left: -8px; top:38px; transform:rotate(-32deg); }
+
+/* Spark sizes + animation */
+.fm-lightning-scene .fm-sw-a .fm-si { width:8px; height:24px; background:linear-gradient(180deg,#fff,#88ccff);    animation:fm-spark-early 1.5s ease-in-out forwards; }
+.fm-lightning-scene .fm-sw-b .fm-si { width:7px; height:20px; background:linear-gradient(180deg,#aaddff,#4466ff); animation:fm-spark-mid   1.5s ease-in-out forwards; }
+.fm-lightning-scene .fm-sw-c .fm-si { width:6px; height:16px; background:linear-gradient(180deg,#88ccff,#4466ff); animation:fm-spark-brief 1.5s ease-in-out forwards; }
+.fm-lightning-scene .fm-sw-d .fm-si { width:6px; height:18px; background:linear-gradient(180deg,#aaddff,#6677ff); animation:fm-spark-late  1.5s ease-in-out forwards; }
+.fm-lightning-scene .fm-sw-e .fm-si { width:6px; height:13px; background:linear-gradient(180deg,#fff,#88ccff);    animation:fm-spark-brief 1.5s ease-in-out forwards; animation-delay:-.15s; }
+.fm-lightning-scene .fm-sw-f .fm-si { width:5px; height:14px; background:linear-gradient(180deg,#88ccff,#4488ff); animation:fm-spark-mid   1.5s ease-in-out forwards; animation-delay:-.38s; }
+.fm-lightning-scene .fm-sw-g .fm-si { width:7px; height:20px; background:linear-gradient(180deg,#aaddff,#4466ff); animation:fm-spark-early 1.5s ease-in-out forwards; animation-delay:-.08s; }
+
+/* Tile element class applied during lightning hit */
+.fm-tile--lightning {
+  animation: fm-lightning-tile 1.5s ease-in-out forwards;
+  z-index: 3;
+}

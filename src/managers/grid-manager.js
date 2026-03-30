@@ -256,6 +256,20 @@ export class GridManager {
   }
 
   /**
+   * Play lightning strike animations for 1–3 column strikes.
+   * @param {{ col: number, row: number, tile: import('../entities/tile.js').Tile | null }[]} strikes
+   */
+  playLightningAnimation(strikes) {
+    this.#animator?.playLightningAnimation(
+      strikes,
+      (r, c) => this.cellPosition(r, c),
+      layout.grid.tileSize,
+      ANIM.LIGHTNING_ANIM_DURATION,
+      ANIM.LIGHTNING_STRIKE_DELAY,
+    );
+  }
+
+  /**
    * Animate a cross-arc swap for the Teleport power.
    * DOM elements must still be at their pre-swap CSS positions when called.
    *

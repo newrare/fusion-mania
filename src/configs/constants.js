@@ -29,6 +29,10 @@ export const ANIM = {
   FIRE_ZAP_DURATION: 650,
   /** Duration of the teleport cross-arc swap animation (ms) */
   TELEPORT_DURATION: 540,
+  /** Duration of a single lightning bolt strike animation (ms) */
+  LIGHTNING_ANIM_DURATION: 1500,
+  /** Delay between consecutive lightning strikes when multiple columns are hit (ms) */
+  LIGHTNING_STRIKE_DELAY: 350,
 };
 
 /** Swipe detection */

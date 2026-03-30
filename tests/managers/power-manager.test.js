@@ -378,6 +378,101 @@ describe('PowerManager', () => {
       });
     });
 
+    describe('LIGHTNING', () => {
+      it('returns lightningStrikes with 1–3 entries', () => {
+        fillGrid(grid, [
+          [2, 4, 8, 16],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ]);
+
+        const results = new Set();
+        for (let i = 0; i < 40; i++) {
+          const { lightningStrikes } = pm.executeEffect(POWER_TYPES.LIGHTNING, grid, null);
+          results.add(lightningStrikes.length);
+          // Restore grid each iteration
+          for (let c = 0; c < GRID_SIZE; c++) grid.cells[0][c] = new Tile([2, 4, 8, 16][c], 0, c);
+        }
+        expect(results.has(1) || results.has(2) || results.has(3)).toBe(true);
+        expect([...results].every((n) => n >= 1 && n <= 3)).toBe(true);
+      });
+
+      it('strikes are unique columns', () => {
+        fillGrid(grid, [
+          [2, 4, 8, 16],
+          [null, null, null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ]);
+        for (let i = 0; i < 20; i++) {
+          // Restore grid
+          for (let c = 0; c < GRID_SIZE; c++) grid.cells[0][c] = new Tile([2, 4, 8, 16][c], 0, c);
+          const { lightningStrikes } = pm.executeEffect(POWER_TYPES.LIGHTNING, grid, null);
+          const cols = lightningStrikes.map((s) => s.col);
+          expect(new Set(cols).size).toBe(cols.length);
+        }
+      });
+
+      it('destroys the top tile of each struck column', () => {
+        fillGrid(grid, [
+          [2,    4,    8,    16],
+          [32,   64,   null, null],
+          [null, null, null, null],
+          [null, null, null, null],
+        ]);
+
+        const { destroyed, lightningStrikes } = pm.executeEffect(POWER_TYPES.LIGHTNING, grid, null);
+
+        for (const strike of lightningStrikes) {
+          if (strike.tile) {
+            expect(destroyed).toContain(strike.tile);
+            expect(grid.cells[strike.row][strike.col]).toBeNull();
+          }
+        }
+      });
+
+      it('strike targets top row (row 0) when column is empty', () => {
+        // All columns empty
+        const { lightningStrikes } = pm.executeEffect(POWER_TYPES.LIGHTNING, grid, null);
+        for (const strike of lightningStrikes) {
+          expect(strike.tile).toBeNull();
+          expect(strike.row).toBe(0);
+        }
+        expect(grid.getAllTiles().length).toBe(0);
+      });
+
+      it('destroys nothing when all struck columns are empty', () => {
+        const { destroyed } = pm.executeEffect(POWER_TYPES.LIGHTNING, grid, null);
+        expect(destroyed.length).toBe(0);
+      });
+
+      it('hits top-most tile when tiles are not in row 0', () => {
+        // Only tiles in row 2
+        grid.cells[2][0] = new Tile(8, 2, 0);
+        grid.cells[2][1] = new Tile(16, 2, 1);
+        grid.cells[2][2] = new Tile(32, 2, 2);
+        grid.cells[2][3] = new Tile(64, 2, 3);
+
+        for (let attempt = 0; attempt < 20; attempt++) {
+          // Restore grid
+          grid.cells[2][0] = new Tile(8, 2, 0);
+          grid.cells[2][1] = new Tile(16, 2, 1);
+          grid.cells[2][2] = new Tile(32, 2, 2);
+          grid.cells[2][3] = new Tile(64, 2, 3);
+
+          const { lightningStrikes } = pm.executeEffect(POWER_TYPES.LIGHTNING, grid, null);
+          for (const strike of lightningStrikes) {
+            if (strike.tile) {
+              expect(strike.row).toBe(2);
+            }
+          }
+          // Restore cleared cells
+          for (let c = 0; c < GRID_SIZE; c++) grid.cells[2][c] = new Tile([8,16,32,64][c], 2, c);
+        }
+      });
+    });
+
     describe('NUCLEAR', () => {
       it('destroys all tiles', () => {
         fillGrid(grid, [

@@ -388,6 +388,12 @@ export class GameScene extends Phaser.Scene {
     } else if (effectResult.teleported) {
       const { tileA, tileB, oldA, oldB } = effectResult.teleported;
       await this.#gm.playTeleportAnimation(tileA, tileB, oldA, oldB, ANIM.TELEPORT_DURATION);
+    } else if (powerType === POWER_TYPES.LIGHTNING && effectResult.lightningStrikes) {
+      const numStrikes = effectResult.lightningStrikes.length;
+      this.#gm.playLightningAnimation(effectResult.lightningStrikes);
+      const totalDuration = (numStrikes - 1) * ANIM.LIGHTNING_STRIKE_DELAY + ANIM.LIGHTNING_ANIM_DURATION;
+      await this.#wait(totalDuration);
+      this.#gm.removeTiles(effectResult.destroyed);
     } else {
       this.#gm.applyDangerOverlay(effectResult.destroyed);
       if (effectResult.destroyed.length > 0) {

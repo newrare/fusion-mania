@@ -50,6 +50,13 @@ export class AnimationManager {
   #pendingFireballs = new Set();
 
   /**
+   * Lightning scene DOM elements currently in flight.
+   * Tracked so they can be removed synchronously by `snapToFinalState`.
+   * @type {Set<HTMLElement>}
+   */
+  #pendingLightningScenes = new Set();
+
+  /**
    * Consumed tile DOM elements waiting to be removed from the DOM.
    * Populated by processMerges(); explicitly flushed by clearConsumedElements().
    * This avoids reliance on `animationend` which can silently fail to fire
@@ -111,6 +118,12 @@ export class AnimationManager {
     }
     this.#pendingFireballs.clear();
 
+    // Remove any in-flight lightning scenes
+    for (const el of this.#pendingLightningScenes) {
+      if (el.isConnected) el.remove();
+    }
+    this.#pendingLightningScenes.clear();
+
     // Force-remove any consumed elements that animationend didn't clean up
     this.clearConsumedElements();
 
@@ -130,7 +143,7 @@ export class AnimationManager {
       const el = this.#tileElements.get(tile.id);
       if (!el) continue;
       el.style.transition = 'none';
-      el.classList.remove('fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed');
+      el.classList.remove('fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed', 'fm-tile--lightning');
 
       // Sync value class (e.g. fm-t512 → fm-t1024) to match grid data.
       // This handles the case where grid.move() doubled a tile's value but
@@ -319,6 +332,10 @@ export class AnimationManager {
       if (el.isConnected) el.remove();
     }
     this.#pendingFireballs.clear();
+    for (const el of this.#pendingLightningScenes) {
+      if (el.isConnected) el.remove();
+    }
+    this.#pendingLightningScenes.clear();
     this.clearConsumedElements();
     for (const el of this.#tileElements.values()) {
       el.remove();
@@ -356,6 +373,77 @@ export class AnimationManager {
           rgb: i < count / 2 ? '250,204,21' : '200,160,255',
         });
       }
+    }
+  }
+
+  // ─── Lightning Animation ─────────────────────────
+
+  /**
+   * Play lightning strike animations for 1–3 column strikes.
+   * Creates bolt + sparks + ring above each target cell, applies the
+   * static-noise hit animation to the tile element (if one exists).
+   * Strikes are staggered by `strikeDelay` ms.
+   *
+   * @param {{ col: number, row: number, tile: import('../entities/tile.js').Tile | null }[]} strikes
+   * @param {(row: number, col: number) => { x: number, y: number }} cellPosFn
+   * @param {number} tileSize
+   * @param {number} animDuration  Duration of each strike animation (ms)
+   * @param {number} strikeDelay   Delay between consecutive strikes (ms)
+   */
+  playLightningAnimation(strikes, cellPosFn, tileSize, animDuration, strikeDelay) {
+    if (!this.#gridEl) return;
+
+    const SCENE_W  = 130;
+    const SCENE_H  = 100; // px of bolt descent above the tile
+
+    for (let i = 0; i < strikes.length; i++) {
+      const strike = strikes[i];
+      const delay  = i * strikeDelay;
+
+      setTimeout(() => {
+        if (!this.#gridEl) return;
+
+        const pos    = cellPosFn(strike.row, strike.col);
+        const sceneX = pos.x + tileSize / 2 - SCENE_W / 2;
+        const sceneY = pos.y - SCENE_H;
+
+        const scene = document.createElement('div');
+        scene.className = 'fm-lightning-scene';
+        scene.style.left   = `${sceneX}px`;
+        scene.style.top    = `${sceneY}px`;
+        scene.style.width  = `${SCENE_W}px`;
+        scene.style.height = `${SCENE_H}px`;
+
+        scene.innerHTML = [
+          '<div class="fm-lb fm-zz"></div>',
+          '<div class="fm-sw fm-sw-a"><div class="fm-si fm-zz"></div></div>',
+          '<div class="fm-sw fm-sw-b"><div class="fm-si fm-zz"></div></div>',
+          '<div class="fm-sw fm-sw-c"><div class="fm-si fm-zz"></div></div>',
+          '<div class="fm-sw fm-sw-d"><div class="fm-si fm-zz"></div></div>',
+          '<div class="fm-sw fm-sw-e"><div class="fm-si fm-zz"></div></div>',
+          '<div class="fm-sw fm-sw-f"><div class="fm-si fm-zz"></div></div>',
+          '<div class="fm-sw fm-sw-g"><div class="fm-si fm-zz"></div></div>',
+          '<div class="fm-lr"></div>',
+        ].join('');
+
+        this.#gridEl.appendChild(scene);
+        this.#pendingLightningScenes.add(scene);
+
+        // Apply hit animation to the tile element if it still exists
+        if (strike.tile) {
+          const tileEl = this.#tileElements.get(strike.tile.id);
+          if (tileEl) {
+            tileEl.classList.remove('fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed');
+            tileEl.classList.add('fm-tile--lightning');
+          }
+        }
+
+        // Auto-remove the scene once the animation ends
+        setTimeout(() => {
+          if (scene.isConnected) scene.remove();
+          this.#pendingLightningScenes.delete(scene);
+        }, animDuration + 50);
+      }, delay);
     }
   }
 

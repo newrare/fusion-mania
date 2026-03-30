@@ -170,7 +170,7 @@ export class PowerManager {
       case POWER_TYPES.WIND_RIGHT:
         return this.#executeWind('left');
       case POWER_TYPES.LIGHTNING:
-        return this.#executeLightning(grid, target);
+        return this.#executeLightning(grid);
       case POWER_TYPES.NUCLEAR:
         return this.#executeNuclear(grid);
       case POWER_TYPES.BLIND:
@@ -314,9 +314,17 @@ export class PowerManager {
         }
         break;
       case POWER_TYPES.LIGHTNING: {
-        // Target is destroyed (plus 2 random top tiles — unpredictable)
-        const cell = simGrid[targetRow]?.[targetCol];
-        if (cell) destroyed.push(cell.value);
+        // Strikes 1–3 random columns — all column tops are at risk
+        for (let c = 0; c < GRID_SIZE; c++) {
+          for (let r = 0; r < GRID_SIZE; r++) {
+            const cell = simGrid[r]?.[c];
+            if (cell && cell.id !== targetId && !seenIds.has(cell.id)) {
+              seenIds.add(cell.id);
+              destroyed.push(cell.value);
+              break; // only the top tile per column
+            }
+          }
+        }
         break;
       }
       default:
@@ -441,36 +449,40 @@ export class PowerManager {
     return { destroyed: [], stateApplied: `wind-${blockedDirection}` };
   }
 
-  #executeLightning(grid, target) {
+  #executeLightning(grid) {
     const destroyed = [];
 
-    const topCols = [];
-    for (let c = 0; c < GRID_SIZE; c++) {
+    // Pick 1–3 random columns (shuffle and take first N)
+    const numStrikes = 1 + Math.floor(Math.random() * 3);
+    const cols = [0, 1, 2, 3];
+    for (let i = cols.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [cols[i], cols[j]] = [cols[j], cols[i]];
+    }
+    const chosenCols = cols.slice(0, numStrikes);
+
+    const strikes = [];
+    for (const col of chosenCols) {
+      // Find the top tile in this column (first non-null row)
+      let topTile = null;
+      let strikeRow = 0;
       for (let r = 0; r < GRID_SIZE; r++) {
-        topCols.push({ row: r, col: c, tile: grid.cells[r][c] });
-        break;
+        if (grid.cells[r][col]) {
+          topTile = grid.cells[r][col];
+          strikeRow = r;
+          break;
+        }
       }
-      if (topCols.length <= c) {
-        topCols.push({ row: 0, col: c, tile: null });
+
+      if (topTile) {
+        destroyed.push(topTile);
+        grid.cells[topTile.row][topTile.col] = null;
       }
+
+      strikes.push({ col, row: strikeRow, tile: topTile });
     }
 
-    if (target) {
-      destroyed.push(target);
-      grid.cells[target.row][target.col] = null;
-    }
-
-    const candidates = topCols.filter((s) => !target || s.tile?.id !== target.id);
-    for (let i = 0; i < 2 && candidates.length > 0; i++) {
-      const idx = Math.floor(Math.random() * candidates.length);
-      const slot = candidates.splice(idx, 1)[0];
-      if (slot.tile) {
-        destroyed.push(slot.tile);
-        grid.cells[slot.tile.row][slot.tile.col] = null;
-      }
-    }
-
-    return { destroyed, stateApplied: null };
+    return { destroyed, stateApplied: null, lightningStrikes: strikes };
   }
 
   #executeNuclear(grid) {
@@ -493,7 +505,12 @@ export class PowerManager {
   // ─── Private: Helpers ────────────────────────────
 
   #isGridWideEffect(type) {
-    return type === POWER_TYPES.NUCLEAR || type === POWER_TYPES.BLIND || type === POWER_TYPES.ADS;
+    return (
+      type === POWER_TYPES.NUCLEAR ||
+      type === POWER_TYPES.BLIND ||
+      type === POWER_TYPES.ADS ||
+      type === POWER_TYPES.LIGHTNING
+    );
   }
 
   #getIceIds(grid) {

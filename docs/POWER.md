@@ -8,14 +8,15 @@ Powers are special abilities that interact with the game grid during **Free Mode
 
 ### Destructive Powers (danger)
 
-| Power         | Icon SVG      | Effect                                                                                  |
-|---------------|---------------|-----------------------------------------------------------------------------------------|
-| **Fire -**    | `s-fire-h`    | Destroys all tiles in the same **row** as the target tile (target survives).            |
-| **Fire \|**   | `s-fire-v`    | Destroys all tiles in the same **column** as the target tile (target survives).         |
-| **Fire +**    | `s-fire-x`    | Destroys all tiles in the same **row and column** as the target tile (target survives). |
-| **Bomb**      | `s-bomb`      | Destroys **only** the target tile.                                                      |
-| **Lightning** | `s-lightning` | Destroys **3 tiles**: the target tile + 2 random top-of-column tiles (can be empty).    |
-| **Nuclear**   | `s-nuclear`   | Destroys **all tiles** on the grid, including the target tile.                          |
+| Power         | Icon SVG      | Effect                                                                                                      |
+|---------------|---------------|-------------------------------------------------------------------------------------------------------------|
+| **Fire -**    | `s-fire-h`    | Destroys all tiles in the same **row** as the target tile (target survives).                                |
+| **Fire \|**   | `s-fire-v`    | Destroys all tiles in the same **column** as the target tile (target survives).                             |
+| **Fire +**    | `s-fire-x`    | Destroys all tiles in the same **row and column** as the target tile (target survives).                     |
+| **Bomb**      | `s-bomb`      | Destroys **only** the target tile.                                                                          |
+| **Lightning** | `s-lightning` | Strikes **1 to 3 random columns**: destroys the top tile of each struck column                              |
+|               |               | (empty columns are struck but nothing is destroyed). Multiple strikes play with a short delay between them. |
+| **Nuclear**   | `s-nuclear`   | Destroys **all tiles** on the grid, including the target tile.                                              |
 
 ### Status Powers (warning)
 
