@@ -472,148 +472,76 @@
   border-radius: 13px 13px 0 0;
 }
 
-/* --- Powered tile: flip card --- */
+/* --- Powered tile: heartbeat toggle + sparkle particles --- */
+/* Le tile garde son apparence normale ; .fm-pw-face est un overlay absolu */
+
 .fm-tile-powered {
-  perspective: 300px;
-  /* Make the tile shell transparent — colors move into .fm-flip-front via JS CSS vars */
-  overflow: visible !important;
-  background: transparent !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
+  overflow: hidden; /* clip sparkles to tile bounds */
 }
 
-.fm-flip-card {
-  width: 100%;
-  height: 100%;
+.fm-tile-powered .fm-val {
   position: relative;
-  transform-style: preserve-3d;
-  animation: fm-flipY 8s ease-in-out infinite;
+  z-index: 4; /* above sparkles and face */
+  animation: fm-hb-val 3s ease-in-out infinite;
+  transform-origin: center;
 }
 
-@keyframes fm-flipY {
-  0%, 62.5%  { transform: rotateY(0deg); }
-  75%, 87.5% { transform: rotateY(180deg); }
-  100%       { transform: rotateY(0deg); }
-}
-
-.fm-flip-front, .fm-flip-back {
+.fm-pw-face {
   position: absolute;
   inset: 0;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
   border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-}
-
-.fm-flip-front {
-  z-index: 1;
-  /* Colors injected via CSS custom properties set by TileRenderer */
-  background: var(--fm-tile-bg, transparent);
-  color: var(--fm-tile-color, inherit);
-  border: 2px solid var(--fm-tile-border, transparent);
-  box-shadow: 0 5px 16px rgba(140,80,200,0.13);
-}
-
-.fm-flip-back {
-  transform: rotateY(180deg);
-  z-index: 0;
-}
-
-/* Power hint on front face */
-.fm-pwr-hint {
-  position: absolute;
-  bottom: 4px;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  white-space: nowrap;
+  opacity: 0;
   pointer-events: none;
+  z-index: 3; /* above sparkles, below val */
+  animation: fm-hb-ico 3s ease-in-out infinite;
 }
 
-.fm-pwr-hint svg {
-  width: 9px;
-  height: 9px;
-  flex-shrink: 0;
-  opacity: 0.7;
-  color: inherit;
+.fm-pw-face svg {
+  width: 42px;
+  height: 42px;
+  color: currentColor;
 }
 
-.fm-pwr-hint span {
-  font-size: 0.41rem;
-  font-weight: 800;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  line-height: 1;
-  opacity: 0.65;
-}
-
-/* Back face: power category colors */
-.fm-pw-danger {
-  background: #ef4444;
-  color: #fff;
-  border-color: #991b1b;
-}
-
-.fm-pw-warning {
-  background: #f59e0b;
-  color: #fff;
-  border-color: #92400e;
-}
-
-.fm-pw-info {
-  background: #3b82f6;
-  color: #fff;
-  border-color: #1e40af;
-}
-
-.fm-pw-danger::before, .fm-pw-warning::before, .fm-pw-info::before {
-  content: '';
+/* --- Power sparkle particles (replace dashed ring) --- */
+/* Small copies of the power icon that appear/disappear on the tile, upright, with a glow. */
+.fm-pw-sparkle {
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(circle at 38% 32%, rgba(255,255,255,0.18), transparent 65%);
-  z-index: 1;
   pointer-events: none;
+  opacity: 0;
+  z-index: 1; /* behind val and face */
+  filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 6px currentColor);
+  animation: fm-sparkle-float var(--fm-sp-dur, 2.5s) var(--fm-sp-dl, 0s) ease-in-out infinite;
 }
 
-.fm-back-ico {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 2;
+@keyframes fm-sparkle-float {
+  0%, 100% { opacity: 0;    transform: scale(0); }
+  30%, 70%  { opacity: 0.82; transform: scale(1); }
 }
 
-.fm-back-ico svg {
-  width: 100%;
-  height: 100%;
-  color: #fff;
-  animation: fm-ico-glow 2s ease-in-out infinite alternate;
-  filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));
+@keyframes fm-hb-val {
+   0%   { opacity: 1; transform: scale(1); }
+   8%   { transform: scale(1.2); }
+  16%   { transform: scale(0.95); }
+  24%   { transform: scale(1.14); }
+  36%   { opacity: 1; transform: scale(1); }
+  44%   { opacity: 0; transform: scale(0.6) rotate(-12deg); }
+  94%   { opacity: 0; transform: scale(0.6) rotate(12deg); }
+ 100%   { opacity: 1; transform: scale(1); }
 }
 
-@keyframes fm-ico-glow {
-  from { opacity: 0.88; }
-  to   { opacity: 1; }
-}
-
-.fm-bval {
-  position: absolute;
-  bottom: 5px;
-  right: 5px;
-  font-weight: 900;
-  font-size: 0.65rem;
-  opacity: 0.72;
-  white-space: nowrap;
-  z-index: 3;
+@keyframes fm-hb-ico {
+   0%   { opacity: 0; transform: scale(0.6); }
+  44%   { opacity: 0; transform: scale(0.6) rotate(12deg); }
+  50%   { opacity: 1; transform: scale(1); }
+  58%   { transform: scale(1.12); }
+  66%   { transform: scale(0.96); }
+  74%   { transform: scale(1.08); }
+  86%   { opacity: 1; transform: scale(1); }
+  94%   { opacity: 0; transform: scale(0.6) rotate(-12deg); }
+ 100%   { opacity: 0; transform: scale(0.6); }
 }
 
 /* --- Power info panel below grid --- */

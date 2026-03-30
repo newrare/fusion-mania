@@ -6,13 +6,13 @@ import {
   POWER_META,
   POWER_TYPES,
   ANIM,
+  getPowerCategory,
 } from '../configs/constants.js';
 import { i18n } from '../managers/i18n-manager.js';
 import { layout } from '../managers/layout-manager.js';
 import { saveManager } from '../managers/save-manager.js';
 import { GridManager } from '../managers/grid-manager.js';
 import { PowerManager } from '../managers/power-manager.js';
-import { TileRenderer } from '../components/tile-renderer.js';
 import { MenuModal } from '../components/menu-modal.js';
 import { GameOverModal } from '../components/game-over-modal.js';
 import { PowerSelectModal } from '../components/power-select-modal.js';
@@ -303,18 +303,12 @@ export class GameScene extends Phaser.Scene {
   async #executeMove(direction) {
     this.#gm.clearFusionIndicators();
 
-    // Pause flip animations during move
-    if (this.#powerManager) {
-      TileRenderer.pauseFlips(this.#gm.tileElements);
-    }
-
     const waitFn = (ms) => this.#wait(ms);
     const moveResult = await this.#gm.executeMove(direction, waitFn);
 
     if (!moveResult.moved) {
       this.#gm.updateFusionIndicators();
       this.#updatePowerVisuals();
-      if (this.#powerManager) TileRenderer.resumeFlips(this.#gm.tileElements);
       return;
     }
 
@@ -357,11 +351,6 @@ export class GameScene extends Phaser.Scene {
       this.#powerManager.onMove(this.#gm.grid);
       this.#gm.syncTileDom(this.#powerManager.windDirection);
       this.#updatePowerVisuals();
-    }
-
-    // Resume flip animations
-    if (this.#powerManager) {
-      TileRenderer.resumeFlips(this.#gm.tileElements);
     }
 
     this.#updateHUD();
@@ -642,6 +631,12 @@ export class GameScene extends Phaser.Scene {
       if (predictions.length === 0) continue;
 
       for (const pred of predictions) {
+        // Danger powers: skip if no tiles would be destroyed (e.g. fire on an empty row)
+        if (
+          getPowerCategory(pred.powerType) === 'danger' &&
+          (!pred.destroyedValues || pred.destroyedValues.length === 0)
+        ) continue;
+
         const meta = POWER_META[pred.powerType];
         const powerName = i18n.t(meta.nameKey);
 

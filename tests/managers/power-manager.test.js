@@ -96,6 +96,18 @@ describe('PowerManager', () => {
       expect(t2.power).toBeTruthy();
     });
 
+    it('does not assign power to tiles with an active state', () => {
+      const t1 = new Tile(2, 0, 0);
+      t1.applyState('ice', 3); // frozen — not a valid candidate
+      grid.cells[0][0] = t1;
+      const t2 = new Tile(4, 0, 1); // normal — valid candidate
+      grid.cells[0][1] = t2;
+
+      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) { pm.tickMove(grid); pm.onMove(grid); }
+      expect(t2.power).toBeTruthy();
+      expect(t1.power).toBeFalsy();
+    });
+
     it('resets placement counter after assigning', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
       for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) { pm.tickMove(grid); pm.onMove(grid); }
@@ -424,18 +436,30 @@ describe('PowerManager', () => {
       expect(pm.getBadgeColor('up', grid)).toBeNull();
     });
 
-    it('returns danger for destructive powers', () => {
-      // Two tiles that can merge, one with fire power
+    it('returns danger for destructive powers when tiles would be destroyed', () => {
+      // t1 (FIRE_H) merges with t2; t3 is in t1's row and would be destroyed
+      const t1 = new Tile(2, 0, 0);
+      t1.power = POWER_TYPES.FIRE_H;
+      const t2 = new Tile(2, 1, 0);
+      const t3 = new Tile(4, 0, 1); // same row as t1 — FIRE_H destroys it
+      grid.cells[0][0] = t1;
+      grid.cells[1][0] = t2;
+      grid.cells[0][1] = t3;
+      expect(pm.getBadgeColor('up', grid)).toBe('danger');
+    });
+
+    it('returns null for danger power when no tiles would be destroyed', () => {
+      // FIRE_H on an isolated row — nothing else to burn
       const t1 = new Tile(2, 0, 0);
       t1.power = POWER_TYPES.FIRE_H;
       const t2 = new Tile(2, 1, 0);
       grid.cells[0][0] = t1;
       grid.cells[1][0] = t2;
-      // Moving up would merge t2 into t1
-      expect(pm.getBadgeColor('up', grid)).toBe('danger');
+      expect(pm.getBadgeColor('up', grid)).toBeNull();
     });
 
-    it('returns warning for teleport/expel/blind', () => {
+    it('returns warning for non-destructive warning powers (teleport/expel/blind)', () => {
+      // TELEPORT repositions tiles — always shown regardless of destruction
       const t1 = new Tile(2, 0, 0);
       t1.power = POWER_TYPES.TELEPORT;
       const t2 = new Tile(2, 1, 0);
@@ -444,7 +468,8 @@ describe('PowerManager', () => {
       expect(pm.getBadgeColor('up', grid)).toBe('warning');
     });
 
-    it('returns info for wind/ice', () => {
+    it('returns info for non-destructive info powers (wind/ice)', () => {
+      // ICE applies a state — always shown regardless of destruction
       const t1 = new Tile(2, 0, 0);
       t1.power = POWER_TYPES.ICE;
       const t2 = new Tile(2, 1, 0);

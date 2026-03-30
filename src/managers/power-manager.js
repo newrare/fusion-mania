@@ -78,7 +78,8 @@ export class PowerManager {
   #tryAssignPower(grid) {
     if (this.#selectedTypes.length === 0) return null;
 
-    const candidates = grid.getAllTiles().filter((t) => !t.power);
+    // Only assign to tiles in normal state (no active effect like ice, blind, ghost…)
+    const candidates = grid.getAllTiles().filter((t) => !t.power && !t.state);
     if (candidates.length === 0) return null;
 
     const tile = candidates[Math.floor(Math.random() * candidates.length)];
@@ -335,10 +336,18 @@ export class PowerManager {
    */
   getBadgeColor(direction, grid) {
     const predictions = this.predictForDirection(direction, grid);
-    if (predictions.length === 0) return null;
+    // Danger powers only count if they would actually destroy tiles;
+    // warning/info powers always count (they apply states or reposition tiles).
+    const visible = predictions.filter((p) => {
+      if (getPowerCategory(p.powerType) === 'danger') {
+        return p.destroyedValues && p.destroyedValues.length > 0;
+      }
+      return true;
+    });
+    if (visible.length === 0) return null;
 
     let highest = 'info';
-    for (const p of predictions) {
+    for (const p of visible) {
       const cat = getPowerCategory(p.powerType);
       if (cat === 'danger') return 'danger'; // Can't go higher
       if (cat === 'warning') highest = 'warning';

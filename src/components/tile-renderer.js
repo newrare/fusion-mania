@@ -5,12 +5,13 @@
  * gets a clean, self-contained CSS class set. When the state changes the element
  * is rebuilt from a deterministic template — no leftover classes.
  *
- * Powered tiles use a flip-card structure (front = tile, back = power face)
- * with a periodic flipY animation that pauses during moves.
+ * Powered tiles use a heartbeat-toggle animation: the tile value and the power
+ * icon alternate on a 3-second cycle via CSS cross-fade (fm-hb-val / fm-hb-ico).
+ * Small sparkle copies of the power icon float around the tile background as an
+ * ambient indicator, coloured by category (danger / warning / info).
  */
 
 import { POWER_META, getPowerCategory } from '../configs/constants.js';
-import { i18n } from '../managers/i18n-manager.js';
 
 /** All state-related CSS classes that may appear on a tile element. */
 const STATE_CLASSES = [
@@ -24,6 +25,23 @@ const STATE_CLASSES = [
   'fm-state-wind-down',
   'fm-state-wind-left',
   'fm-state-wind-right',
+];
+
+/** Category → sparkle colour (uses category colour, not the tile value colour). */
+const SPARKLE_COLOR = { danger: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
+
+/**
+ * Deterministic spread of sparkle positions across the tile.
+ * Values are percentages (kept 12–80 to stay inside the rounded tile).
+ * 6 particles gives good coverage without clutter.
+ */
+const SPARKLE_LAYOUT = [
+  { left: 12, top: 10, size: 9,  dur: 2.1, dl: 0    },
+  { left: 72, top: 14, size: 11, dur: 3.4, dl: -1.1 },
+  { left: 28, top: 68, size: 8,  dur: 2.7, dl: -0.5 },
+  { left: 60, top: 55, size: 13, dur: 3.9, dl: -2.0 },
+  { left: 80, top: 38, size: 10, dur: 2.4, dl: -1.6 },
+  { left: 18, top: 40, size: 12, dur: 4.2, dl: -3.0 },
 ];
 
 export class TileRenderer {
@@ -94,8 +112,8 @@ export class TileRenderer {
     // 5. Ensure the value class (fm-tN) matches the tile value (must be before #syncPowerFlip)
     TileRenderer.syncValueClass(el, tile.value);
 
-    // 6. Handle power flip-card
-    TileRenderer.#syncPowerFlip(el, tile);
+    // 6. Handle power heartbeat-toggle
+    TileRenderer.#syncPowerAnim(el, tile);
 
     // 7. Ensure the displayed value is correct
     const valEl = el.querySelector('.fm-val');
@@ -135,47 +153,19 @@ export class TileRenderer {
   }
 
   /**
-   * Pause flip animations on all powered tiles (call before a move).
-   * @param {Map<string, HTMLElement>} tileElements
-   */
-  static pauseFlips(tileElements) {
-    for (const el of tileElements.values()) {
-      const card = el.querySelector('.fm-flip-card');
-      if (card) {
-        card.style.animationPlayState = 'paused';
-        card.style.transform = 'rotateY(0deg)';
-      }
-    }
-  }
-
-  /**
-   * Resume flip animations on powered tiles (call after a move completes).
-   * @param {Map<string, HTMLElement>} tileElements
-   */
-  static resumeFlips(tileElements) {
-    for (const el of tileElements.values()) {
-      const card = el.querySelector('.fm-flip-card');
-      if (card) {
-        card.style.animationPlayState = '';
-        card.style.transform = '';
-      }
-    }
-  }
-
-  /**
-   * Sync the flip-card structure for a powered tile.
-   * If the tile has a power, build/update the flip structure.
+   * Sync the heartbeat-toggle structure for a powered tile.
+   * If the tile has a power, build/update the structure.
    * If no power, strip it and restore the simple layout.
    * @param {HTMLElement} el
    * @param {import('../entities/tile.js').Tile} tile
    */
-  static #syncPowerFlip(el, tile) {
-    const hasFlip = el.classList.contains('fm-tile-powered');
+  static #syncPowerAnim(el, tile) {
+    const hasPower = el.classList.contains('fm-tile-powered');
+    // Also detect stale .fm-pw-face left behind when processMerges resets el.className
+    const hasStaleFace = !hasPower && !!el.querySelector('.fm-pw-face');
 
     if (!tile.power) {
-      if (hasFlip) {
-        TileRenderer.#removeFlipStructure(el, tile);
-      }
+      if (hasPower || hasStaleFace) TileRenderer.#removePowerStructure(el, tile);
       return;
     }
 
@@ -184,88 +174,79 @@ export class TileRenderer {
 
     const category = getPowerCategory(tile.power);
 
-    if (hasFlip) {
-      // Update existing flip structure
-      TileRenderer.#updateFlipStructure(el, tile, meta, category);
+    if (hasPower) {
+      TileRenderer.#updatePowerStructure(el, tile, meta, category);
     } else {
-      // Build flip structure
-      TileRenderer.#buildFlipStructure(el, tile, meta, category);
+      TileRenderer.#buildPowerStructure(el, tile, meta, category);
     }
   }
 
   /**
-   * Build the flip-card DOM structure inside the tile element.
+   * Build the heartbeat-toggle DOM structure inside the tile element.
+   * Injects sparkle particles (small power icons) as ambient category indicator.
    * @param {HTMLElement} el
    * @param {import('../entities/tile.js').Tile} tile
-   * @param {{ svgId: string, nameKey: string }} meta
+   * @param {{ svgId: string }} meta
    * @param {'danger' | 'warning' | 'info'} category
    */
-  static #buildFlipStructure(el, tile, meta, category) {
-    // Read computed colors BEFORE adding fm-tile-powered (which forces background: transparent)
-    const cs = window.getComputedStyle(el);
-    el.style.setProperty('--fm-tile-bg', cs.backgroundColor);
-    el.style.setProperty('--fm-tile-color', cs.color);
-    el.style.setProperty('--fm-tile-border', cs.borderColor);
-
+  static #buildPowerStructure(el, tile, meta, category) {
     el.classList.add('fm-tile-powered');
-
     const valText = tile.state === 'blind' ? '?' : String(tile.value);
-    const powerName = i18n.t(meta.nameKey);
-
     el.innerHTML = `
-      <div class="fm-flip-card">
-        <div class="fm-flip-front">
-          <span class="fm-val">${valText}</span>
-          <div class="fm-pwr-hint">
-            <svg><use href="#${meta.svgId}"/></svg>
-            <span>${powerName}</span>
-            <svg><use href="#${meta.svgId}"/></svg>
-          </div>
-        </div>
-        <div class="fm-flip-back fm-pw-${category}">
-          <div class="fm-back-ico"><svg><use href="#${meta.svgId}"/></svg></div>
-          <div class="fm-bval">${tile.value}</div>
-        </div>
+      ${TileRenderer.#sparklesHtml(meta.svgId, category)}
+      <span class="fm-val">${valText}</span>
+      <div class="fm-pw-face fm-pw-${category}">
+        <svg><use href="#${meta.svgId}"/></svg>
       </div>`;
   }
 
   /**
-   * Update an existing flip structure (e.g. when value changes after merge).
+   * Update an existing power structure (e.g. when value changes after merge).
+   * Re-colours sparkles if the category has changed.
    * @param {HTMLElement} el
    * @param {import('../entities/tile.js').Tile} tile
-   * @param {{ svgId: string, nameKey: string }} meta
+   * @param {{ svgId: string }} meta
    * @param {'danger' | 'warning' | 'info'} category
    */
-  static #updateFlipStructure(el, tile, meta, category) {
-    const valEl = el.querySelector('.fm-flip-front .fm-val');
+  static #updatePowerStructure(el, tile, meta, category) {
+    const valEl = el.querySelector('.fm-val');
     if (valEl) valEl.textContent = tile.state === 'blind' ? '?' : String(tile.value);
 
-    const bvalEl = el.querySelector('.fm-bval');
-    if (bvalEl) bvalEl.textContent = String(tile.value);
-
-    const back = el.querySelector('.fm-flip-back');
-    if (back) {
-      back.classList.remove('fm-pw-danger', 'fm-pw-warning', 'fm-pw-info');
-      back.classList.add(`fm-pw-${category}`);
+    const face = el.querySelector('.fm-pw-face');
+    if (face) {
+      face.classList.remove('fm-pw-danger', 'fm-pw-warning', 'fm-pw-info');
+      face.classList.add(`fm-pw-${category}`);
     }
 
-    // Re-read colors: fm-tile-powered forces background:transparent, so temporarily remove it
-    el.classList.remove('fm-tile-powered');
-    const cs = window.getComputedStyle(el);
-    el.style.setProperty('--fm-tile-bg', cs.backgroundColor);
-    el.style.setProperty('--fm-tile-color', cs.color);
-    el.style.setProperty('--fm-tile-border', cs.borderColor);
-    el.classList.add('fm-tile-powered');
+    // Re-colour sparkles if category changed
+    const color = SPARKLE_COLOR[category] ?? '#888';
+    for (const sp of el.querySelectorAll('.fm-pw-sparkle')) {
+      sp.style.color = color;
+    }
   }
 
   /**
-   * Remove the flip structure and restore the simple tile layout.
+   * Remove the power structure and restore the simple tile layout.
    * @param {HTMLElement} el
    * @param {import('../entities/tile.js').Tile} tile
    */
-  static #removeFlipStructure(el, tile) {
+  static #removePowerStructure(el, tile) {
     el.classList.remove('fm-tile-powered');
     el.innerHTML = `<span class="fm-val">${tile.state === 'blind' ? '?' : String(tile.value)}</span>`;
+  }
+
+  /**
+   * Build HTML for the sparkle particles (small power icons, one per layout slot).
+   * Uses deterministic positions so layout is stable across re-renders.
+   * @param {string} svgId
+   * @param {'danger' | 'warning' | 'info'} category
+   * @returns {string}
+   */
+  static #sparklesHtml(svgId, category) {
+    const color = SPARKLE_COLOR[category] ?? '#888';
+    return SPARKLE_LAYOUT.map(({ left, top, size, dur, dl }) =>
+      `<svg class="fm-pw-sparkle" style="left:${left}%;top:${top}%;width:${size}px;height:${size}px;color:${color};--fm-sp-dur:${dur}s;--fm-sp-dl:${dl}s"><use href="#${svgId}"/></svg>`
+    ).join('');
   }
 
   /**

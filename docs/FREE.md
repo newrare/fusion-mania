@@ -32,12 +32,12 @@ A power triggers when its carrier tile **merges** (fuses) with another tile:
 
 ### Merge Scenarios
 
-| Scenario | Behaviour |
-|----------|-----------|
-| One tile has a power, the other doesn't | Power triggers immediately |
-| Both tiles have the **same** power | Power triggers **once** |
-| Both tiles have **different** powers | **Choice modal** appears — player picks which power to activate |
-| Multiple powered tiles merge in the same move | Powers execute **in sequence** |
+| Scenario                                      | Behaviour                                                       |
+|-----------------------------------------------|-----------------------------------------------------------------|
+| One tile has a power, the other doesn't       | Power triggers immediately                                      |
+| Both tiles have the **same** power            | Power triggers **once**                                         |
+| Both tiles have **different** powers          | **Choice modal** appears — player picks which power to activate |
+| Multiple powered tiles merge in the same move | Powers execute **in sequence**                                  |
 
 ### Power Choice Modal
 
@@ -47,11 +47,11 @@ When two tiles with different powers merge, the game pauses and displays a modal
 
 The 4 grid edges display color-coded `!` indicators predicting what would happen if the player moves in that direction:
 
-| Color     | Power Types                                       |
-|-----------|---------------------------------------------------|
-| `danger`  | fire, bomb, nuclear, lightning (destroys tiles)    |
-| `warning` | teleport, expel, blind (disruptive effects)        |
-| `info`    | wind, ice (passive effects)                        |
+| Color     | Power Types                                     |
+|-----------|-------------------------------------------------|
+| `danger`  | fire, bomb, nuclear, lightning (destroys tiles) |
+| `warning` | teleport, expel, blind (disruptive effects)     |
+| `info`    | wind, ice (passive effects)                     |
 
 Priority: **danger > warning > info**. Only shown when a powered tile would actually merge.
 
@@ -65,19 +65,6 @@ Move Down:  [Power Name] — [tile value]
 Move Left:  [Power Name] — [tile value]
 Move Right: [Power Name] — [tile value]
 ```
-
-Lines only appear if a powered tile would merge in the corresponding direction.
-
-## Powered Tile Visual
-
-Reference: `docs/preview-powers.html`
-
-Tiles carrying a power use a flip-card effect:
-
-- **Front face**: Normal tile appearance + small power hint at the bottom (icon + name)
-- **Back face**: Full-color face (danger=red, warning=amber, info=blue) with large power icon and value reminder
-
-The flip animation cycles every 8 seconds. It **pauses** when the player initiates a move and **resumes** after.
 
 ## Tile States
 

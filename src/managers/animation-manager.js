@@ -234,8 +234,8 @@ export class AnimationManager {
       const el = this.#tileElements.get(tile.id);
       if (!el) continue;
       el.className = `fm-tile fm-t${tile.value} fm-tile--merge`;
-      // Remove snowflakes that were on the tile (e.g. from ice state)
-      for (const child of el.querySelectorAll('.fm-snowflake')) child.remove();
+      // Remove snowflakes (ice state) and power face overlay (powered tile) left from before merge
+      for (const child of el.querySelectorAll('.fm-snowflake, .fm-pw-face')) child.remove();
       const valEl = el.querySelector('.fm-val');
       if (valEl) valEl.textContent = String(tile.value);
       el.addEventListener('animationend', () => el.classList.remove('fm-tile--merge'), { once: true });
