@@ -588,6 +588,95 @@ describe('PowerManager', () => {
     });
   });
 
+  describe('predictForDirection — LIGHTNING lightningRange', () => {
+    it('includes lightningRange on a LIGHTNING prediction', () => {
+      const t1 = new Tile(2, 0, 0);
+      t1.power = POWER_TYPES.LIGHTNING;
+      const t2 = new Tile(2, 1, 0);
+      grid.cells[0][0] = t1;
+      grid.cells[1][0] = t2;
+      grid.cells[0][1] = new Tile(4, 0, 1);
+      grid.cells[0][2] = new Tile(8, 0, 2);
+
+      const pm2 = new PowerManager([POWER_TYPES.LIGHTNING]);
+      const preds = pm2.predictForDirection('up', grid);
+      const lightPred = preds.find((p) => p.powerType === POWER_TYPES.LIGHTNING);
+      expect(lightPred).toBeDefined();
+      expect(lightPred.lightningRange).toBeDefined();
+      expect(Array.isArray(lightPred.lightningRange.min)).toBe(true);
+      expect(Array.isArray(lightPred.lightningRange.max)).toBe(true);
+    });
+
+    it('min has 1 value when all 4 columns have tiles (no empty column)', () => {
+      const t1 = new Tile(2, 0, 0);
+      t1.power = POWER_TYPES.LIGHTNING;
+      const t2 = new Tile(2, 1, 0);
+      grid.cells[0][0] = t1;
+      grid.cells[1][0] = t2;
+      grid.cells[0][1] = new Tile(4, 0, 1);
+      grid.cells[0][2] = new Tile(8, 0, 2);
+      grid.cells[0][3] = new Tile(16, 0, 3);
+
+      const pm2 = new PowerManager([POWER_TYPES.LIGHTNING]);
+      const preds = pm2.predictForDirection('up', grid);
+      const lightPred = preds.find((p) => p.powerType === POWER_TYPES.LIGHTNING);
+      // All 4 columns filled → min = [lowest top-tile], not empty
+      expect(lightPred.lightningRange.min.length).toBe(1);
+      expect(lightPred.lightningRange.max.length).toBeLessThanOrEqual(3);
+      expect(lightPred.lightningRange.max.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('min is empty when some columns are empty (strike can land on an empty col)', () => {
+      const t1 = new Tile(2, 0, 0);
+      t1.power = POWER_TYPES.LIGHTNING;
+      const t2 = new Tile(2, 1, 0);
+      grid.cells[0][0] = t1;
+      grid.cells[1][0] = t2;
+      // columns 1, 2, 3 are empty after merge
+
+      const pm2 = new PowerManager([POWER_TYPES.LIGHTNING]);
+      const preds = pm2.predictForDirection('up', grid);
+      const lightPred = preds.find((p) => p.powerType === POWER_TYPES.LIGHTNING);
+      // Only column 0 has a tile (merged), columns 1-3 are empty → min = ∅
+      expect(lightPred.lightningRange.min).toEqual([]);
+    });
+
+    it('min is empty when only 1 column has tiles (user-reported case: min ≠ 8)', () => {
+      // Exactly the reported bug: 1 column with tile value 8, rest empty
+      grid.cells[0][2] = new Tile(8, 0, 2);
+      const t1 = new Tile(4, 1, 2);
+      t1.power = POWER_TYPES.LIGHTNING;
+      const t2 = new Tile(4, 2, 2);
+      grid.cells[1][2] = t1;
+      grid.cells[2][2] = t2;
+
+      const pm2 = new PowerManager([POWER_TYPES.LIGHTNING]);
+      const preds = pm2.predictForDirection('up', grid);
+      const lightPred = preds.find((p) => p.powerType === POWER_TYPES.LIGHTNING);
+      // 3 columns empty → a strike can always miss → min must be []
+      expect(lightPred.lightningRange.min).toEqual([]);
+    });
+
+    it('max values are sorted descending', () => {
+      const t1 = new Tile(2, 0, 0);
+      t1.power = POWER_TYPES.LIGHTNING;
+      const t2 = new Tile(2, 1, 0);
+      grid.cells[0][0] = t1;
+      grid.cells[1][0] = t2;
+      grid.cells[0][1] = new Tile(4, 0, 1);
+      grid.cells[0][2] = new Tile(16, 0, 2);
+      grid.cells[0][3] = new Tile(8, 0, 3);
+
+      const pm2 = new PowerManager([POWER_TYPES.LIGHTNING]);
+      const preds = pm2.predictForDirection('up', grid);
+      const lightPred = preds.find((p) => p.powerType === POWER_TYPES.LIGHTNING);
+      const max = lightPred.lightningRange.max;
+      for (let i = 1; i < max.length; i++) {
+        expect(max[i - 1]).toBeGreaterThanOrEqual(max[i]);
+      }
+    });
+  });
+
   describe('predictForDirection', () => {
     it('returns empty when no powered tiles would merge', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);

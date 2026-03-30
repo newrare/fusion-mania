@@ -294,11 +294,19 @@ export class GridManager {
    */
   removeTiles(tiles) {
     for (const tile of tiles) {
-      const el = this.#tileElements.get(tile.id);
-      if (el) {
-        el.remove();
-        this.#tileElements.delete(tile.id);
-      }
+      this.removeTileById(tile.id);
+    }
+  }
+
+  /**
+   * Remove a single tile DOM element by its id.
+   * @param {string} id
+   */
+  removeTileById(id) {
+    const el = this.#tileElements.get(id);
+    if (el) {
+      el.remove();
+      this.#tileElements.delete(id);
     }
   }
 

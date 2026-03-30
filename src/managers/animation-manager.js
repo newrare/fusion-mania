@@ -144,6 +144,10 @@ export class AnimationManager {
       if (!el) continue;
       el.style.transition = 'none';
       el.classList.remove('fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed', 'fm-tile--lightning');
+      // If the tile lost its power mid-animation (e.g. cut during merge), strip leftover power children
+      if (!el.classList.contains('fm-tile-powered')) {
+        for (const child of el.querySelectorAll('.fm-pw-face, .fm-pw-sparkle')) child.remove();
+      }
 
       // Sync value class (e.g. fm-t512 → fm-t1024) to match grid data.
       // This handles the case where grid.move() doubled a tile's value but
@@ -247,8 +251,8 @@ export class AnimationManager {
       const el = this.#tileElements.get(tile.id);
       if (!el) continue;
       el.className = `fm-tile fm-t${tile.value} fm-tile--merge`;
-      // Remove snowflakes (ice state) and power face overlay (powered tile) left from before merge
-      for (const child of el.querySelectorAll('.fm-snowflake, .fm-pw-face')) child.remove();
+      // Remove all state/power children left from before merge
+      for (const child of el.querySelectorAll('.fm-snowflake, .fm-pw-face, .fm-pw-sparkle, .fm-wind-line')) child.remove();
       const valEl = el.querySelector('.fm-val');
       if (valEl) valEl.textContent = String(tile.value);
       el.addEventListener('animationend', () => el.classList.remove('fm-tile--merge'), { once: true });

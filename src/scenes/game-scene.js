@@ -98,6 +98,15 @@ export class GameScene extends Phaser.Scene {
   /** @type {string[] | null} Pending selected power types (from modal) */
   #pendingPowerTypes = null;
 
+  /**
+   * Tiles currently being animated for destruction by a power effect.
+   * Map of tileId → tile value (for display in the info panel).
+   * Populated when an effect starts, cleared when removeTiles is called or at the
+   * start of the next move (safety flush).
+   * @type {Map<string, number>}
+   */
+  #pendingDestructionTiles = new Map();
+
   constructor() {
     super({ key: SCENE_KEYS.GRID });
     this.#gm = new GridManager();
@@ -123,6 +132,7 @@ export class GameScene extends Phaser.Scene {
     this.#powerInfoDom = null;
     this.#pendingPowerTypes = data?.selectedPowers ?? null;
     this.#skipNextPointerUp = false;
+    this.#pendingDestructionTiles = new Map();
   }
 
   create() {
@@ -302,6 +312,14 @@ export class GameScene extends Phaser.Scene {
    */
   async #executeMove(direction) {
     this.#gm.clearFusionIndicators();
+    // Safety flush: if a previous animation was cut, forcibly remove any DOM elements
+    // that were scheduled for destruction but never cleaned up.
+    if (this.#pendingDestructionTiles.size > 0) {
+      for (const id of this.#pendingDestructionTiles.keys()) {
+        this.#gm.removeTileById(id);
+      }
+      this.#pendingDestructionTiles.clear();
+    }
 
     // Wind blocks this direction — input is accepted but no tiles move
     if (this.#powerManager?.windDirection === direction) {
@@ -324,7 +342,26 @@ export class GameScene extends Phaser.Scene {
       this.#powerManager.tickMove(this.#gm.grid);
     }
 
-    if (moveResult.cancelled) return;
+    if (moveResult.cancelled) {
+      // Grid move happened but animations were cut short.
+      // Power triggers MUST still execute so grid.cells stays correct.
+      if (this.#powerManager && moveResult.merges.length > 0) {
+        const triggers = this.#powerManager.checkMergeTriggers(moveResult.merges, this.#gm.grid);
+        for (const trigger of triggers) {
+          const chosenPower = trigger.needsChoice ? trigger.powerType : trigger.powerType;
+          const effectResult = this.#powerManager.executeEffect(
+            chosenPower, this.#gm.grid, trigger.tile,
+          );
+          // Remove destroyed tiles from DOM immediately (no animation)
+          for (const tile of effectResult.destroyed) {
+            this.#pendingDestructionTiles.delete(tile.id);
+            this.#gm.removeTileById(tile.id);
+          }
+        }
+        this.#powerManager.onMove(this.#gm.grid);
+      }
+      return;
+    }
 
     const { merges, hasMergePossible, scoreBefore } = moveResult;
 
@@ -381,6 +418,15 @@ export class GameScene extends Phaser.Scene {
 
     const effectResult = this.#powerManager.executeEffect(powerType, this.#gm.grid, target);
 
+    // Track tiles being destroyed so the info panel can warn the player,
+    // and so a safety flush at the next move can clean up unfinished animations.
+    for (const tile of effectResult.destroyed) {
+      this.#pendingDestructionTiles.set(tile.id, tile.value);
+    }
+    if (effectResult.destroyed.length > 0) {
+      this.#updatePowerVisuals();
+    }
+
     if (isFirePower && target && effectResult.destroyed.length > 0) {
       this.#gm.playFireAnimation(powerType, target, effectResult.destroyed);
       await this.#wait(ANIM.FIRE_BALL_DURATION + ANIM.FIRE_ZAP_DURATION);
@@ -400,6 +446,11 @@ export class GameScene extends Phaser.Scene {
         await this.#wait(400);
         this.#gm.removeTiles(effectResult.destroyed);
       }
+    }
+
+    // Animation done: clear tracked tiles from the pending map
+    for (const tile of effectResult.destroyed) {
+      this.#pendingDestructionTiles.delete(tile.id);
     }
   }
 
@@ -625,17 +676,18 @@ export class GameScene extends Phaser.Scene {
   #updatePowerInfoPanel() {
     if (!this.#powerInfoEl || !this.#powerManager) return;
 
-    if (!this.#powerManager.hasPoweredTiles(this.#gm.grid)) {
+    if (!this.#powerManager.hasPoweredTiles(this.#gm.grid) && this.#pendingDestructionTiles.size === 0) {
       this.#powerInfoEl.style.display = 'none';
       return;
     }
 
     const directions = /** @type {const} */ (['up', 'down', 'left', 'right']);
-    const dirLabels = {
-      up: i18n.t('free.move_up'),
-      down: i18n.t('free.move_down'),
-      left: i18n.t('free.move_left'),
-      right: i18n.t('free.move_right'),
+    // Thick SVG arrow per direction
+    const dirArrows = {
+      up:    `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 1 L11 7 H8 V13 H4 V7 H1 Z" fill="currentColor"/></svg>`,
+      down:  `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 13 L11 7 H8 V1 H4 V7 H1 Z" fill="currentColor"/></svg>`,
+      left:  `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 6 L7 1 V4 H13 V8 H7 V11 Z" fill="currentColor"/></svg>`,
+      right: `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M13 6 L7 1 V4 H1 V8 H7 V11 Z" fill="currentColor"/></svg>`,
     };
 
     let html = '';
@@ -644,17 +696,34 @@ export class GameScene extends Phaser.Scene {
       if (predictions.length === 0) continue;
 
       for (const pred of predictions) {
+        const cat = getPowerCategory(pred.powerType);
         // Danger powers: skip if no tiles would be destroyed (e.g. fire on an empty row)
         if (
-          getPowerCategory(pred.powerType) === 'danger' &&
+          cat === 'danger' &&
+          pred.powerType !== POWER_TYPES.LIGHTNING &&
           (!pred.destroyedValues || pred.destroyedValues.length === 0)
         ) continue;
 
         const meta = POWER_META[pred.powerType];
         const powerName = i18n.t(meta.nameKey);
+        const badgeHtml = `<span class="fm-info-badge ${cat}">!</span>`;
 
         let tilesHtml = '';
-        if (pred.destroyedValues && pred.destroyedValues.length > 0) {
+
+        if (pred.powerType === POWER_TYPES.LIGHTNING && pred.lightningRange) {
+          const { min, max } = pred.lightningRange;
+          const minPills = min.length > 0
+            ? min.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('')
+            : `<span class="fm-range-empty">∅</span>`;
+          const maxPills = max.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('');
+          tilesHtml = `<div class="fm-power-info-range">
+              <span class="fm-range-label">min</span>
+              <div class="fm-power-info-tiles">${minPills}</div>
+              <span class="fm-range-sep">–</span>
+              <span class="fm-range-label">max</span>
+              <div class="fm-power-info-tiles">${maxPills}</div>
+             </div>`;
+        } else if (pred.destroyedValues && pred.destroyedValues.length > 0) {
           const pills = pred.destroyedValues
             .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
             .join('');
@@ -663,11 +732,24 @@ export class GameScene extends Phaser.Scene {
 
         html += `
           <div class="fm-power-info-line">
-            <span class="fm-power-info-dir">${dirLabels[dir]}</span>
-            <span>${powerName}</span>
+            <span class="fm-power-info-dir">${dirArrows[dir]}</span>
+            ${badgeHtml}
+            <span class="fm-power-info-name">${powerName}</span>
             ${tilesHtml}
           </div>`;
       }
+    }
+
+    // Pending destruction row: tiles whose animation was cut mid-flight
+    if (this.#pendingDestructionTiles.size > 0) {
+      const pills = [...this.#pendingDestructionTiles.values()]
+        .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
+        .join('');
+      html += `
+        <div class="fm-power-info-line fm-power-info-destroying">
+          <span class="fm-info-destroy-icon">🗑</span>
+          <div class="fm-power-info-tiles">${pills}</div>
+        </div>`;
     }
 
     if (html) {

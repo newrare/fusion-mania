@@ -213,7 +213,7 @@ export class PowerManager {
       if (!survivorPower && !consumedPower) continue;
 
       const addPrediction = (powerType) => {
-        predictions.push({
+        const pred = {
           powerType,
           tileId: merge.tileId,
           tileValue: merge.value,
@@ -224,7 +224,11 @@ export class PowerManager {
             merge.tileId,
             simGrid,
           ),
-        });
+        };
+        if (powerType === POWER_TYPES.LIGHTNING) {
+          pred.lightningRange = this.#predictLightningRange(simGrid);
+        }
+        predictions.push(pred);
       };
 
       if (survivorPower && consumedPower && survivorPower === consumedPower) {
@@ -238,6 +242,52 @@ export class PowerManager {
     }
 
     return predictions;
+  }
+
+  /**
+   * Compute the min/max range of tiles that lightning could destroy.
+   *
+   * Lightning picks 1–3 random columns from all GRID_SIZE columns, including empty ones.
+   *
+   * Min (best case for the player):
+   *   - If ANY column is empty → a strike can land on it and destroy nothing → min = []
+   *   - Otherwise → at least 1 tile is guaranteed destroyed → min = [lowest top-tile value]
+   *
+   * Max (worst case):
+   *   - 3 strikes, each hitting a different non-empty column.
+   *   - Returns values of the top 3 most valuable columns, sorted descending.
+   *
+   * @param {({ id: string, value: number } | null)[][]} simGrid
+   * @returns {{ min: number[], max: number[] }}
+   */
+  #predictLightningRange(simGrid) {
+    // Collect top tile values for non-empty columns only
+    const topValues = [];
+    let nonEmptyCols = 0;
+    for (let c = 0; c < GRID_SIZE; c++) {
+      let found = false;
+      for (let r = 0; r < GRID_SIZE; r++) {
+        const cell = simGrid[r]?.[c];
+        if (cell) {
+          topValues.push(cell.value);
+          found = true;
+          break;
+        }
+      }
+      if (found) nonEmptyCols++;
+    }
+
+    if (topValues.length === 0) return { min: [], max: [] };
+
+    // Sort descending — max = 3 highest-value top tiles
+    topValues.sort((a, b) => b - a);
+    const max = topValues.slice(0, 3);
+
+    // If any column is empty a strike can miss all tiles → best case = ∅
+    const hasEmptyCol = nonEmptyCols < GRID_SIZE;
+    const min = hasEmptyCol ? [] : [topValues[topValues.length - 1]];
+
+    return { min, max };
   }
 
   /**
@@ -314,14 +364,16 @@ export class PowerManager {
         }
         break;
       case POWER_TYPES.LIGHTNING: {
-        // Strikes 1–3 random columns — all column tops are at risk
-        for (let c = 0; c < GRID_SIZE; c++) {
+        // Worst case: 3 columns struck, each loses its top tile
+        let count = 0;
+        for (let c = 0; c < GRID_SIZE && count < 3; c++) {
           for (let r = 0; r < GRID_SIZE; r++) {
             const cell = simGrid[r]?.[c];
-            if (cell && cell.id !== targetId && !seenIds.has(cell.id)) {
+            if (cell && !seenIds.has(cell.id)) {
               seenIds.add(cell.id);
               destroyed.push(cell.value);
-              break; // only the top tile per column
+              count++;
+              break;
             }
           }
         }
