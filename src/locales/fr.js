@@ -61,4 +61,6 @@ export const fr = {
   'power.nuclear': 'Nucléaire',
   'power.blind': 'Aveugle',
   'power.ads': 'Pub',
+  'game.hp': 'PV',
+  'gameover.hp_depleted': 'Grille détruite !',
 };

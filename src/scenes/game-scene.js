@@ -18,6 +18,7 @@ import { GameOverModal } from '../components/game-over-modal.js';
 import { PowerSelectModal } from '../components/power-select-modal.js';
 import { PowerChoiceModal } from '../components/power-choice-modal.js';
 import { AdminModal } from '../components/admin-modal.js';
+import { GridLife } from '../entities/grid-life.js';
 import { addBackground } from '../utils/background.js';
 
 /**
@@ -107,6 +108,15 @@ export class GameScene extends Phaser.Scene {
    */
   #pendingDestructionTiles = new Map();
 
+  /** @type {GridLife | null} HP system (Free mode only) */
+  #gridLife = null;
+
+  /** @type {HTMLElement | null} Liquid fill inside the grid */
+  #liquidEl = null;
+
+  /** @type {HTMLElement | null} Critical red vignette overlay */
+  #criticalOverlay = null;
+
   constructor() {
     super({ key: SCENE_KEYS.GRID });
     this.#gm = new GridManager();
@@ -133,6 +143,9 @@ export class GameScene extends Phaser.Scene {
     this.#pendingPowerTypes = data?.selectedPowers ?? null;
     this.#skipNextPointerUp = false;
     this.#pendingDestructionTiles = new Map();
+    this.#gridLife = null;
+    this.#liquidEl = null;
+    this.#criticalOverlay = null;
   }
 
   create() {
@@ -161,6 +174,13 @@ export class GameScene extends Phaser.Scene {
 
   // ─── HUD ─────────────────────────────────────────
   #createHUD() {
+    const hpBox = this.#mode === 'free'
+      ? `<div class="fm-score-box fm-hp-box">
+            <span class="fm-score-label">${i18n.t('game.hp')}</span>
+            <span class="fm-score-value" id="fm-hp"></span>
+          </div>`
+      : '';
+
     const html = `
       <div class="fm-hud">
         <div class="fm-hud-row">
@@ -172,6 +192,7 @@ export class GameScene extends Phaser.Scene {
             <span class="fm-score-label">${i18n.t('game.fusions')}</span>
             <span class="fm-score-value" id="fm-fusions">0</span>
           </div>
+          ${hpBox}
           <div class="fm-score-wrap">
             <div class="fm-score-box">
               <span class="fm-score-label">${i18n.t('game.score')}</span>
@@ -246,6 +267,14 @@ export class GameScene extends Phaser.Scene {
       this.#scoreBonusEl.classList.remove('fm-bonus-active');
     }
     this.#gm.startNewGame();
+
+    // Grid Life system (Free mode only)
+    if (this.#mode === 'free') {
+      this.#gridLife = new GridLife();
+      this.#createLiquidOverlay();
+      this.#updateLifeVisual();
+    }
+
     this.#updateHUD();
     this.#gm.updateFusionIndicators();
   }
@@ -360,13 +389,26 @@ export class GameScene extends Phaser.Scene {
             this.#pendingDestructionTiles.delete(tile.id);
             this.#gm.removeTileById(tile.id);
           }
+          // Grid Life: damage from cancelled power effects
+          if (this.#gridLife && effectResult.destroyed.length > 0) {
+            const values = effectResult.destroyed.map((t) => t.value);
+            const damage = this.#gridLife.takeDamage(values);
+            this.#onGridLifeDamage(damage);
+          }
         }
         this.#powerManager.onMove(this.#gm.grid);
       }
       return;
     }
 
-    const { merges, hasMergePossible, scoreBefore } = moveResult;
+    const { merges, expelled, hasMergePossible, scoreBefore } = moveResult;
+
+    // Grid Life: damage from expelled tiles
+    if (this.#gridLife && expelled.length > 0) {
+      const values = expelled.map((t) => t.value);
+      const damage = this.#gridLife.takeDamage(values);
+      this.#onGridLifeDamage(damage);
+    }
 
     // ── Combo logic ──
     if (merges.length > 0) {
@@ -404,7 +446,7 @@ export class GameScene extends Phaser.Scene {
     this.#gm.updateFusionIndicators();
     this.#gm.animating = false;
 
-    if (!this.#gm.grid.canMove()) {
+    if (this.#gridLife?.isDead || !this.#gm.grid.canMove()) {
       this.#onGameOver();
     }
   }
@@ -455,6 +497,13 @@ export class GameScene extends Phaser.Scene {
     for (const tile of effectResult.destroyed) {
       this.#pendingDestructionTiles.delete(tile.id);
     }
+
+    // Grid Life: apply damage from destroyed tiles
+    if (this.#gridLife && effectResult.destroyed.length > 0) {
+      const values = effectResult.destroyed.map((t) => t.value);
+      const damage = this.#gridLife.takeDamage(values);
+      this.#onGridLifeDamage(damage);
+    }
   }
 
   /**
@@ -492,6 +541,10 @@ export class GameScene extends Phaser.Scene {
       bestEl.textContent = String(best);
     }
     if (fusionsEl) fusionsEl.textContent = String(this.#fusions);
+    const hpEl = this.#hudEl?.querySelector('#fm-hp');
+    if (hpEl && this.#gridLife) {
+      hpEl.textContent = `${Math.ceil(this.#gridLife.currentHp)}/${this.#gridLife.maxHp}`;
+    }
   }
 
   // ─── COMBO ───────────────────────────────────────
@@ -628,6 +681,8 @@ export class GameScene extends Phaser.Scene {
     this.#gameOver = true;
     saveManager.addRanking(this.#mode, this.#gm.grid.score);
     saveManager.clearGame();
+
+    this.#criticalOverlay?.classList.add('fm-critical-overlay--stopped');
 
     this.#gameOverModal = new GameOverModal(this, {
       score: this.#gm.grid.score,
@@ -787,6 +842,102 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // ─── GRID LIFE ────────────────────────────────────
+
+  /** Create (or reset) the liquid fill element inside the grid container. */
+  #createLiquidOverlay() {
+    if (this.#liquidEl) this.#liquidEl.remove();
+    const gridEl = this.#gm.gridEl;
+    if (!gridEl) return;
+
+    // Ensure grid is a positioning context for the liquid
+    if (getComputedStyle(gridEl).position === 'static') {
+      gridEl.style.position = 'relative';
+    }
+
+    this.#liquidEl = document.createElement('div');
+    this.#liquidEl.className = 'fm-grid-life-liquid fm-hp-full';
+    gridEl.prepend(this.#liquidEl);
+  }
+
+  /**
+   * Called after damage is dealt to GridLife.
+   * Plays hurt flash, shows damage popup, updates liquid, checks critical overlay.
+   * @param {number} damage
+   */
+  #onGridLifeDamage(damage) {
+    if (!this.#gridLife || damage <= 0) return;
+
+    // Hurt flash on the grid
+    const gridEl = this.#gm.gridEl;
+    if (gridEl) {
+      gridEl.classList.remove('fm-grid--hurt');
+      void gridEl.offsetWidth;
+      gridEl.classList.add('fm-grid--hurt');
+    }
+
+    // Floating damage number
+    this.#showDamagePopup(damage);
+
+    // Update liquid visual
+    this.#updateLifeVisual();
+
+    // Update HUD HP display
+    this.#updateHUD();
+  }
+
+  /** Update liquid height + colour based on current HP percentage. */
+  #updateLifeVisual() {
+    if (!this.#gridLife || !this.#liquidEl) return;
+
+    const pct = this.#gridLife.percent;
+    this.#liquidEl.style.setProperty('--fm-hp-pct', `${(pct * 100).toFixed(1)}%`);
+
+    // Colour by category
+    const cat = this.#gridLife.getColorCategory();
+    const colors = {
+      info: 'rgba(100, 180, 255, 0.22)',
+      warning: 'rgba(255, 180, 60, 0.28)',
+      danger: 'rgba(255, 60, 60, 0.32)',
+    };
+    this.#liquidEl.style.setProperty('--fm-hp-color', colors[cat]);
+
+    // Full-height class (round all corners)
+    this.#liquidEl.classList.toggle('fm-hp-full', pct > 0.98);
+
+    // Critical overlay
+    if (this.#gridLife.isCritical && !this.#criticalOverlay) {
+      this.#criticalOverlay = document.createElement('div');
+      this.#criticalOverlay.className = 'fm-critical-overlay';
+      document.body.appendChild(this.#criticalOverlay);
+    } else if (!this.#gridLife.isCritical && this.#criticalOverlay) {
+      this.#criticalOverlay.remove();
+      this.#criticalOverlay = null;
+    }
+  }
+
+  /**
+   * Show a floating "-N" damage number on the right side of the grid.
+   * @param {number} damage
+   */
+  #showDamagePopup(damage) {
+    const gridEl = this.#gm.gridEl;
+    if (!gridEl || !this.#gridLife) return;
+
+    const popup = document.createElement('div');
+    popup.className = 'fm-grid-damage';
+    popup.textContent = `-${damage}`;
+
+    // Position at the current liquid level
+    const pct = this.#gridLife.percent;
+    popup.style.bottom = `${(pct * 100).toFixed(0)}%`;
+
+    gridEl.appendChild(popup);
+
+    // Self-remove after animation
+    popup.addEventListener('animationend', () => popup.remove());
+  }
+
   shutdown() {
     this.#cancelComboTimer();
     this.#gm.shutdown();
@@ -796,6 +947,8 @@ export class GameScene extends Phaser.Scene {
     this.#powerChoiceModal?.destroy();
     this.#adminModal?.destroy();
     this.#powerInfoDom?.destroy();
+    this.#criticalOverlay?.remove();
+    this.#criticalOverlay = null;
     this.input.keyboard.off('keydown', this.#handleKey, this);
     this.input.off('pointerdown', this.#onPointerDown, this);
     this.input.off('pointerup', this.#onPointerUp, this);

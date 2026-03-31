@@ -145,6 +145,22 @@ export const POWER_DURATIONS = {
 };
 
 /**
+ * Grid Life system — HP bar for Free mode.
+ * When destructive powers or expel effects remove tiles, the grid takes damage.
+ * Damage formula: sum(log2(tileValue)) × DAMAGE_MULTIPLIER × (1 + totalDestroyed × SCALING_FACTOR)
+ */
+export const GRID_LIFE = {
+  /** Starting HP — tune this for desired game length */
+  MAX_HP: 50,
+  /** Base damage multiplier — lower = easier, higher = harder */
+  DAMAGE_MULTIPLIER: 1.0,
+  /** Extra damage per tile previously destroyed (+0.5% each) */
+  SCALING_FACTOR: 0.005,
+  /** HP percentage below which the critical screen overlay appears */
+  CRITICAL_THRESHOLD: 0.10,
+};
+
+/**
  * Combo hit label colors — pale red at level 1, escalating to vivid red.
  * Index 0 = first hit (x1), wraps around after the last entry.
  */

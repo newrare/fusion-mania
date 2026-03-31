@@ -1,0 +1,77 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+npm run dev          # Dev server at http://localhost:3000 (Vite HMR)
+npm run build        # Production build → dist/
+npm run preview      # Preview the production build
+npm test             # Run all unit tests once (Vitest)
+npm run test:watch   # Run tests in watch mode
+```
+
+To run a single test file:
+```bash
+npx vitest run tests/managers/animation-manager.test.js
+```
+
+Mobile builds (after `npm run build`):
+```bash
+npx cap sync         # Sync web assets to native projects
+npx cap open android # Open Android Studio
+npx cap open ios     # Open Xcode
+```
+
+## Architecture
+
+Fusion Mania is a 2048-style puzzle game (mobile-first, vertical orientation) built with **Phaser 3** + **Vite**. The game renders the board as **DOM elements with CSS animations**, not Phaser sprites — this is intentional and keeps the animation system fully testable in happy-dom.
+
+### Scene flow
+
+`BootScene` → `PreloadScene` → `TitleScene` → `GameScene`
+
+Scenes are thin and delegate everything to managers. The main gameplay scene is `src/scenes/game-scene.js`.
+
+### Layer separation
+
+| Layer          | Location          | Rule                                                                |
+|----------------|-------------------|---------------------------------------------------------------------|
+| **Entities**   | `src/entities/`   | Pure data/logic, **zero** Phaser or DOM dependency                  |
+| **Managers**   | `src/managers/`   | Singletons for cross-cutting concerns                               |
+| **Components** | `src/components/` | DOM-based UI overlays (modals)                                      |
+| **Scenes**     | `src/scenes/`     | Thin Phaser.Scene subclasses                                        |
+| **Utils**      | `src/utils/`      | Pure functions, no side effects                                     |
+| **Configs**    | `src/configs/`    | All constants live in `constants.js` — never hardcode magic numbers |
+
+### Animation system
+
+`AnimationManager` (`src/managers/animation-manager.js`) owns all tile animations and has **no Phaser dependency**. It uses 6 layers: CSS slide, merge bounce, consumed fade, spawn pop, canvas particles, and fusion glow. All durations are constants under the `ANIM` object in `constants.js`.
+
+**Interruption model**: when a move arrives mid-animation, `snapToFinalState()` instantly reconciles DOM with grid state, a forced reflow commits the snap, `restoreTransitions()` re-enables CSS, and `nextGen()` increments the generation counter. Every `await` in an animation coroutine is followed by an `isCurrent(gen)` guard — stale coroutines exit silently. See `docs/ANIMATION.md` for the full API.
+
+To add a new animation: add a keyframe to `src/styles/main.css`, add a method to `AnimationManager`, call it from `GameScene.#executeMove` with an `isCurrent` guard, and write a test.
+
+### Power system (Free Mode)
+
+16 power types across 3 categories — destructive (fire H/V/X, bomb, lightning, nuclear), status (blind, expel H/V, teleport), and passive (ice, wind ×4). Powers are assigned to tiles every 2 moves. When a powered tile merges, its power activates; if two tiles with different powers merge, a choice modal appears. See `docs/POWER.md` for activation flow, tile states, and CSS classes.
+
+### Layout & responsiveness
+
+`LayoutManager` computes all dimensions from the viewport at runtime and pushes CSS custom properties (e.g. `--fm-tile-size`, `--fm-grid-gap`) to `#game-container`. Grid width is 87% of safe width, capped at 400px. All safe-zone insets (notch, home bar) are respected.
+
+### Save & i18n
+
+- `SaveManager` — `localStorage` persistence for game state and per-mode rankings (top 10).
+- `I18nManager` — English/French via `src/locales/`. Keys are dot-separated (`menu.play`). Never hardcode user-facing strings; always use `i18n.t('key')`.
+
+## Code conventions
+
+- **JavaScript only** — no TypeScript. Use JSDoc (`@param`, `@returns`, `@typedef`) for types.
+- **File names**: always kebab-case (`game-scene.js`). Exported class names stay PascalCase.
+- `const` over `let`, never `var`. ES2022+ features (optional chaining, nullish coalescing, private class fields).
+- Each module folder has an `index.js` barrel export.
+- Tests live in `tests/` mirroring `src/`. Test files are named `<FileName>.test.js`.
+- CSS comments: single-line only (`/* --- Section title --- */`), no multi-line block comments.
+- All code, comments, and documentation must be in English.

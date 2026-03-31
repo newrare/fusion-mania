@@ -61,4 +61,6 @@ export const en = {
   'power.nuclear': 'Nuclear',
   'power.blind': 'Blind',
   'power.ads': 'Ads',
+  'game.hp': 'HP',
+  'gameover.hp_depleted': 'Grid destroyed!',
 };
