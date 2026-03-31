@@ -773,6 +773,7 @@ html, body {
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
+  clip-path: inset(0 0 0 0 round 0 0 18px 18px);
   background-color: var(--fm-hp-color, rgba(100, 180, 255, 0.22));
   transition: height 0.8s ease-out, background-color 0.8s ease-out;
 }
@@ -813,6 +814,7 @@ html, body {
 /* Full-height liquid: round all corners like the grid */
 .fm-grid-life-liquid.fm-hp-full {
   border-radius: 18px;
+  clip-path: inset(0 0 0 0 round 18px);
 }
 
 /* --- Grid hurt flash when taking damage --- */
