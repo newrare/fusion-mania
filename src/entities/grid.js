@@ -90,7 +90,12 @@ export class Grid {
   /**
    * Move all tiles in a direction. Returns move result for animations.
    * @param {'up' | 'down' | 'left' | 'right'} direction
-   * @returns {{ moved: boolean, merges: { tile: Tile, fromRow: number, fromCol: number }[], movements: { tile: Tile, fromRow: number, fromCol: number }[] }}
+   * @returns {{
+   *   moved: boolean,
+   *   merges: { tile: Tile, fromRow: number, fromCol: number, consumedId: string, consumedPower: string | null }[],
+   *   movements: { tile: Tile, fromRow: number, fromCol: number }[],
+   *   expelled: Tile[]
+   * }}
    */
   move(direction) {
     // Reset merged flags
@@ -102,6 +107,7 @@ export class Grid {
 
     const merges = [];
     const movements = [];
+    const expelled = [];
     let moved = false;
 
     const traversals = this.#getTraversals(direction);
@@ -113,9 +119,15 @@ export class Grid {
         // Iced tiles cannot move
         if (tile.state === 'ice') continue;
 
-        const { targetRow, targetCol, mergeTile } = this.#findTarget(tile, direction);
+        const { targetRow, targetCol, mergeTile, exits } = this.#findTarget(tile, direction);
 
-        if (mergeTile) {
+        if (exits) {
+          // Expel: tile exits the grid — AnimationManager will fly it to the screen edge
+          this.cells[tile.row][tile.col] = null;
+          expelled.push(tile);
+          // Do NOT add to movements — slideExpelledToEdge handles the animation
+          moved = true;
+        } else if (mergeTile) {
           // Merge
           const fromRow = tile.row;
           const fromCol = tile.col;
@@ -153,7 +165,7 @@ export class Grid {
       this.moves++;
     }
 
-    return { moved, merges, movements };
+    return { moved, merges, movements, expelled };
   }
 
   /**
@@ -251,30 +263,47 @@ export class Grid {
 
   /**
    * Find the farthest available position and potential merge target.
+   * Ghost tiles (expel state) bypass the border in their sensitive axis and
+   * exit the grid when nothing blocks them.
+   *
    * @param {Tile} tile
    * @param {'up' | 'down' | 'left' | 'right'} direction
-   * @returns {{ targetRow: number, targetCol: number, mergeTile: Tile | null }}
+   * @returns {{ targetRow: number, targetCol: number, mergeTile: Tile | null, exits: boolean }}
    */
   #findTarget(tile, direction) {
     const delta = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
     const [dr, dc] = delta[direction];
+
+    // A ghost-v tile is insensitive to top/bottom borders; ghost-h to left/right.
+    const canExit =
+      (tile.state === 'ghost-v' && (direction === 'up' || direction === 'down')) ||
+      (tile.state === 'ghost-h' && (direction === 'left' || direction === 'right'));
 
     let prevRow = tile.row;
     let prevCol = tile.col;
     let nextRow = tile.row + dr;
     let nextCol = tile.col + dc;
 
-    while (
-      nextRow >= 0 && nextRow < GRID_SIZE &&
-      nextCol >= 0 && nextCol < GRID_SIZE
-    ) {
+    while (true) {
+      const outOfBounds =
+        nextRow < 0 || nextRow >= GRID_SIZE ||
+        nextCol < 0 || nextCol >= GRID_SIZE;
+
+      if (outOfBounds) {
+        if (canExit) {
+          // Tile exits the grid — targetRow/Col unused (AnimationManager handles screen-exit)
+          return { targetRow: prevRow, targetCol: prevCol, mergeTile: null, exits: true };
+        }
+        break;
+      }
+
       const target = this.cells[nextRow][nextCol];
       if (target) {
-        // Can merge if same value and not yet merged (iced tiles CAN be merged into — the merge clears the ice).
+        // Can merge if same value and not yet merged (iced tiles CAN be merged into).
         if (target.value === tile.value && !target.merged) {
-          return { targetRow: nextRow, targetCol: nextCol, mergeTile: target };
+          return { targetRow: nextRow, targetCol: nextCol, mergeTile: target, exits: false };
         }
-        // Blocked by different tile (or already-merged tile)
+        // Blocked by a different tile (or already-merged tile) — expel stops here too
         break;
       }
       prevRow = nextRow;
@@ -283,7 +312,7 @@ export class Grid {
       nextCol += dc;
     }
 
-    return { targetRow: prevRow, targetCol: prevCol, mergeTile: null };
+    return { targetRow: prevRow, targetCol: prevCol, mergeTile: null, exits: false };
   }
 
   /**

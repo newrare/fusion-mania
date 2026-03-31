@@ -184,64 +184,102 @@ export class PowerManager {
 
   /**
    * Predict which powers would trigger for a given direction.
-   * Used for edge badge coloring and info panel.
+   * Includes both merge-triggered powers AND expel-state tiles that would exit the grid.
    * @param {'up' | 'down' | 'left' | 'right'} direction
    * @param {import('../entities/grid.js').Grid} grid
-   * @returns {{ powerType: string, tileId: string, tileValue: number, destroyedValues: number[] }[]}
+   * @returns {{ powerType: string, tileId: string, tileValue: number, destroyedValues: number[], mergeSourceValue?: number, exits?: boolean }[]}
    */
   predictForDirection(direction, grid) {
+    const predictions = [];
+
+    // ── Merge-triggered powers ──────────────────────
     const iceIds = this.#getIceIds(grid);
     const simResult = grid.simulateMove(direction, {
       iceIds,
       windBlock: this.#windDirection,
     });
 
-    if (!simResult.moved || simResult.merges.length === 0) return [];
+    if (simResult.moved && simResult.merges.length > 0) {
+      const simGrid = this.#buildSimGrid(grid, simResult);
 
-    // Build a post-move grid snapshot for destruction prediction
-    const simGrid = this.#buildSimGrid(grid, simResult);
+      for (const merge of simResult.merges) {
+        const survivorTile = grid.getAllTiles().find((t) => t.id === merge.tileId);
+        const consumedTile = grid.getAllTiles().find((t) => t.id === merge.consumedId);
 
-    const predictions = [];
+        const survivorPower = survivorTile?.power ?? null;
+        const consumedPower = consumedTile?.power ?? null;
 
-    for (const merge of simResult.merges) {
-      const survivorTile = grid.getAllTiles().find((t) => t.id === merge.tileId);
-      const consumedTile = grid.getAllTiles().find((t) => t.id === merge.consumedId);
+        if (!survivorPower && !consumedPower) continue;
 
-      const survivorPower = survivorTile?.power ?? null;
-      const consumedPower = consumedTile?.power ?? null;
-
-      if (!survivorPower && !consumedPower) continue;
-
-      const addPrediction = (powerType) => {
-        const pred = {
-          powerType,
-          tileId: merge.tileId,
-          tileValue: merge.value,
-          destroyedValues: this.#predictDestroyed(
+        const addPrediction = (powerType) => {
+          const pred = {
             powerType,
-            merge.row,
-            merge.col,
-            merge.tileId,
-            simGrid,
-          ),
+            tileId: merge.tileId,
+            tileValue: merge.value,
+            // Both source tiles had value = result / 2 (2048 merge rule)
+            mergeSourceValue: merge.value / 2,
+            destroyedValues: this.#predictDestroyed(
+              powerType,
+              merge.row,
+              merge.col,
+              merge.tileId,
+              simGrid,
+            ),
+          };
+          if (powerType === POWER_TYPES.LIGHTNING) {
+            pred.lightningRange = this.#predictLightningRange(simGrid);
+          }
+          predictions.push(pred);
         };
-        if (powerType === POWER_TYPES.LIGHTNING) {
-          pred.lightningRange = this.#predictLightningRange(simGrid);
-        }
-        predictions.push(pred);
-      };
 
-      if (survivorPower && consumedPower && survivorPower === consumedPower) {
-        addPrediction(survivorPower);
-      } else if (survivorPower && consumedPower) {
-        addPrediction(survivorPower);
-        addPrediction(consumedPower);
-      } else {
-        addPrediction(survivorPower || consumedPower);
+        if (survivorPower && consumedPower && survivorPower === consumedPower) {
+          addPrediction(survivorPower);
+        } else if (survivorPower && consumedPower) {
+          addPrediction(survivorPower);
+          addPrediction(consumedPower);
+        } else {
+          addPrediction(survivorPower || consumedPower);
+        }
+      }
+    }
+
+    // ── Expel exits: tiles already in ghost state that would leave the grid ──
+    for (const tile of grid.getAllTiles()) {
+      const isExpelV = tile.state === 'ghost-v' && (direction === 'up' || direction === 'down');
+      const isExpelH = tile.state === 'ghost-h' && (direction === 'left' || direction === 'right');
+      if (!isExpelV && !isExpelH) continue;
+
+      if (this.#isExpelPathClear(tile, direction, grid)) {
+        predictions.push({
+          powerType: isExpelV ? POWER_TYPES.EXPEL_V : POWER_TYPES.EXPEL_H,
+          tileId: tile.id,
+          tileValue: tile.value,
+          destroyedValues: [tile.value],
+          exits: true,
+        });
       }
     }
 
     return predictions;
+  }
+
+  /**
+   * Return true if the expel tile has a clear path to the border (no tile blocking it).
+   * @param {import('../entities/tile.js').Tile} tile
+   * @param {'up'|'down'|'left'|'right'} direction
+   * @param {import('../entities/grid.js').Grid} grid
+   */
+  #isExpelPathClear(tile, direction, grid) {
+    const delta = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
+    const [dr, dc] = delta[direction];
+    let r = tile.row + dr;
+    let c = tile.col + dc;
+    while (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+      if (grid.cells[r][c]) return false;
+      r += dr;
+      c += dc;
+    }
+    return true;
   }
 
   /**
@@ -398,7 +436,9 @@ export class PowerManager {
     const predictions = this.predictForDirection(direction, grid);
     // Danger powers only count if they would actually destroy tiles;
     // warning/info powers always count (they apply states or reposition tiles).
+    // Expel exits always count as danger regardless of their base category.
     const visible = predictions.filter((p) => {
+      if (p.exits) return true;
       if (getPowerCategory(p.powerType) === 'danger') {
         return p.destroyedValues && p.destroyedValues.length > 0;
       }
@@ -408,8 +448,9 @@ export class PowerManager {
 
     let highest = 'info';
     for (const p of visible) {
+      if (p.exits) return 'danger';
       const cat = getPowerCategory(p.powerType);
-      if (cat === 'danger') return 'danger'; // Can't go higher
+      if (cat === 'danger') return 'danger';
       if (cat === 'warning') highest = 'warning';
     }
     return highest;
@@ -422,6 +463,16 @@ export class PowerManager {
    */
   hasPoweredTiles(grid) {
     return grid.getAllTiles().some((t) => t.power);
+  }
+
+  /**
+   * Check if any tile on the grid is in an active expel state (ghost-v or ghost-h).
+   * Used to keep the info panel visible even when no power is loaded on a tile.
+   * @param {import('../entities/grid.js').Grid} grid
+   * @returns {boolean}
+   */
+  hasActiveExpelTiles(grid) {
+    return grid.getAllTiles().some((t) => t.state === 'ghost-v' || t.state === 'ghost-h');
   }
 
   // ─── Private: Effects ────────────────────────────

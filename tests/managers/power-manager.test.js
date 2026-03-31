@@ -586,6 +586,98 @@ describe('PowerManager', () => {
       grid.cells[1][1] = t4;
       expect(pm.getBadgeColor('up', grid)).toBe('danger');
     });
+
+    describe('expel exit predictions', () => {
+      it('returns danger for a ghost-v tile with clear path going up', () => {
+        const ghost = new Tile(8, 2, 1);
+        ghost.applyState('ghost-v', 3);
+        grid.cells[2][1] = ghost;
+        // No blocker in rows 0 and 1 of col 1
+        expect(pm.getBadgeColor('up', grid)).toBe('danger');
+      });
+
+      it('returns danger for a ghost-v tile with clear path going down', () => {
+        const ghost = new Tile(8, 1, 1);
+        ghost.applyState('ghost-v', 3);
+        grid.cells[1][1] = ghost;
+        expect(pm.getBadgeColor('down', grid)).toBe('danger');
+      });
+
+      it('returns danger for a ghost-h tile with clear path going left', () => {
+        const ghost = new Tile(8, 1, 2);
+        ghost.applyState('ghost-h', 3);
+        grid.cells[1][2] = ghost;
+        expect(pm.getBadgeColor('left', grid)).toBe('danger');
+      });
+
+      it('returns danger for a ghost-h tile with clear path going right', () => {
+        const ghost = new Tile(8, 1, 1);
+        ghost.applyState('ghost-h', 3);
+        grid.cells[1][1] = ghost;
+        expect(pm.getBadgeColor('right', grid)).toBe('danger');
+      });
+
+      it('returns null when ghost-v tile is blocked going up', () => {
+        const ghost = new Tile(8, 2, 1);
+        ghost.applyState('ghost-v', 3);
+        grid.cells[2][1] = ghost;
+        grid.cells[0][1] = new Tile(4, 0, 1); // blocker
+        expect(pm.getBadgeColor('up', grid)).toBeNull();
+      });
+
+      it('returns null for ghost-v on wrong direction (left/right)', () => {
+        const ghost = new Tile(8, 2, 1);
+        ghost.applyState('ghost-v', 3);
+        grid.cells[2][1] = ghost;
+        expect(pm.getBadgeColor('left', grid)).toBeNull();
+        expect(pm.getBadgeColor('right', grid)).toBeNull();
+      });
+
+      it('includes exits:true and destroyedValues in prediction', () => {
+        const ghost = new Tile(8, 2, 1);
+        ghost.applyState('ghost-v', 3);
+        grid.cells[2][1] = ghost;
+        const preds = pm.predictForDirection('up', grid);
+        expect(preds.length).toBe(1);
+        expect(preds[0].exits).toBe(true);
+        expect(preds[0].tileValue).toBe(8);
+        expect(preds[0].destroyedValues).toEqual([8]);
+      });
+
+      it('expel merge trigger includes mergeSourceValue', () => {
+        const t1 = new Tile(8, 0, 0);
+        t1.power = POWER_TYPES.EXPEL_V;
+        const t2 = new Tile(8, 1, 0);
+        grid.cells[0][0] = t1;
+        grid.cells[1][0] = t2;
+        const preds = pm.predictForDirection('up', grid);
+        expect(preds.length).toBe(1);
+        expect(preds[0].mergeSourceValue).toBe(8);
+        expect(preds[0].tileValue).toBe(16);
+        expect(preds[0].exits).toBeFalsy();
+      });
+    });
+  });
+
+  describe('hasActiveExpelTiles', () => {
+    it('returns false when no ghost tiles exist', () => {
+      grid.cells[0][0] = new Tile(2, 0, 0);
+      expect(pm.hasActiveExpelTiles(grid)).toBe(false);
+    });
+
+    it('returns true when a ghost-v tile exists', () => {
+      const t = new Tile(2, 0, 0);
+      t.applyState('ghost-v', 3);
+      grid.cells[0][0] = t;
+      expect(pm.hasActiveExpelTiles(grid)).toBe(true);
+    });
+
+    it('returns true when a ghost-h tile exists', () => {
+      const t = new Tile(2, 0, 0);
+      t.applyState('ghost-h', 3);
+      grid.cells[0][0] = t;
+      expect(pm.hasActiveExpelTiles(grid)).toBe(true);
+    });
   });
 
   describe('predictForDirection — LIGHTNING lightningRange', () => {

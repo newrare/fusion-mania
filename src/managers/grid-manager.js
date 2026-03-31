@@ -157,6 +157,7 @@ export class GridManager {
    * @returns {Promise<{
    *   moved: boolean,
    *   merges: object[],
+   *   expelled: Tile[],
    *   newTile: Tile | null,
    *   hasMergePossible: boolean,
    *   scoreBefore: number,
@@ -178,16 +179,21 @@ export class GridManager {
 
     if (!result.moved) {
       this.#animating = false;
-      return { moved: false, merges: [], newTile: null, hasMergePossible, scoreBefore, cancelled: false };
+      return { moved: false, merges: [], expelled: [], newTile: null, hasMergePossible, scoreBefore, cancelled: false };
     }
 
     // Spawn new tile in grid data before animations
     const newTile = this.#grid.spawnTile();
 
-    // Phase 1 — slide
+    // Phase 1 — slide + expel-to-edge (run concurrently, same duration)
+    this.#animator.slideExpelledToEdge(result.expelled, direction, layout.grid.tileSize);
     this.#animator.slidePositions(result, (r, c) => this.cellPosition(r, c));
     await waitFn(ANIM.SLIDE_DURATION);
-    if (!this.#animator.isCurrent(gen)) return { moved: true, merges: result.merges, newTile, hasMergePossible, scoreBefore, cancelled: true };
+    // Remove expelled tiles after their screen-exit animation completes
+    for (const tile of result.expelled) {
+      this.removeTileById(tile.id);
+    }
+    if (!this.#animator.isCurrent(gen)) return { moved: true, merges: result.merges, expelled: result.expelled, newTile, hasMergePossible, scoreBefore, cancelled: true };
 
     // Phase 2 — merge particles + bounce
     if (result.merges.length > 0) {
@@ -197,7 +203,7 @@ export class GridManager {
         layout.grid.tileSize,
       );
       await waitFn(ANIM.MERGE_PARTICLES_DURATION);
-      if (!this.#animator.isCurrent(gen)) return { moved: true, merges: result.merges, newTile, hasMergePossible, scoreBefore, cancelled: true };
+      if (!this.#animator.isCurrent(gen)) return { moved: true, merges: result.merges, expelled: result.expelled, newTile, hasMergePossible, scoreBefore, cancelled: true };
     }
     this.#animator.processMerges(result.merges, this.#grid.getAllTiles());
     if (result.merges.length > 0) {
@@ -205,7 +211,7 @@ export class GridManager {
       // Explicitly remove consumed elements — animationend is not reliable enough
       // when a spawn animation is concurrently running on the same element.
       this.#animator.clearConsumedElements();
-      if (!this.#animator.isCurrent(gen)) return { moved: true, merges: result.merges, newTile, hasMergePossible, scoreBefore, cancelled: true };
+      if (!this.#animator.isCurrent(gen)) return { moved: true, merges: result.merges, expelled: result.expelled, newTile, hasMergePossible, scoreBefore, cancelled: true };
     }
 
     // Phase 3 — spawn new tile
@@ -217,10 +223,10 @@ export class GridManager {
         ANIM.SLIDE_DURATION,
       );
       await waitFn(ANIM.SPAWN_DURATION);
-      if (!this.#animator.isCurrent(gen)) return { moved: true, merges: result.merges, newTile, hasMergePossible, scoreBefore, cancelled: true };
+      if (!this.#animator.isCurrent(gen)) return { moved: true, merges: result.merges, expelled: result.expelled, newTile, hasMergePossible, scoreBefore, cancelled: true };
     }
 
-    return { moved: true, merges: result.merges, newTile, hasMergePossible, scoreBefore, cancelled: false };
+    return { moved: true, merges: result.merges, expelled: result.expelled, newTile, hasMergePossible, scoreBefore, cancelled: false };
   }
 
   // ─── Power destruction helpers ───────────────────

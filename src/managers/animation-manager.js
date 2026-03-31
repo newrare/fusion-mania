@@ -227,6 +227,44 @@ export class AnimationManager {
   }
 
   /**
+   * Animate expelled (expel-power) tiles flying to the screen edge.
+   * Uses the same duration as the regular tile slide (ANIM.SLIDE_DURATION) with
+   * ease-in-out so the exit feels like a natural continuation of the grid movement.
+   *
+   * @param {import('../entities/tile.js').Tile[]} expelled  Tiles that exited the grid
+   * @param {'up'|'down'|'left'|'right'} direction  Move direction that caused the exit
+   * @param {number} tileSize  Width/height of a tile in px
+   */
+  slideExpelledToEdge(expelled, direction, tileSize) {
+    if (!expelled.length || !this.#gridEl) return;
+
+    const rect = this.#gridEl.getBoundingClientRect();
+    const dur  = ANIM.SLIDE_DURATION;
+
+    for (const tile of expelled) {
+      const el = this.#tileElements.get(tile.id);
+      if (!el) continue;
+
+      const startLeft = parseFloat(el.style.left) || 0;
+      const startTop  = parseFloat(el.style.top)  || 0;
+      let   endLeft   = startLeft;
+      let   endTop    = startTop;
+
+      switch (direction) {
+        case 'up':    endTop  = -(rect.top + tileSize + 20);                       break;
+        case 'down':  endTop  = window.innerHeight - rect.top + tileSize + 20;    break;
+        case 'left':  endLeft = -(rect.left + tileSize + 20);                     break;
+        case 'right': endLeft = window.innerWidth - rect.left + tileSize + 20;    break;
+      }
+
+      el.style.transition = `left ${dur}ms ease-in-out, top ${dur}ms ease-in-out`;
+      void el.offsetWidth; // force reflow so start position commits before animation
+      el.style.left = `${endLeft}px`;
+      el.style.top  = `${endTop}px`;
+    }
+  }
+
+  /**
    * Apply post-slide merge visuals:
    * - Fade out consumed tiles (adds `.fm-tile--consumed`, removes element on `animationend`).
    * - Update surviving tile value and play bounce (adds `.fm-tile--merge`).

@@ -334,6 +334,9 @@ export class GameScene extends Phaser.Scene {
     if (!moveResult.moved) {
       this.#gm.updateFusionIndicators();
       this.#updatePowerVisuals();
+      if (!this.#gm.grid.canMove()) {
+        this.#onGameOver();
+      }
       return;
     }
 
@@ -676,7 +679,11 @@ export class GameScene extends Phaser.Scene {
   #updatePowerInfoPanel() {
     if (!this.#powerInfoEl || !this.#powerManager) return;
 
-    if (!this.#powerManager.hasPoweredTiles(this.#gm.grid) && this.#pendingDestructionTiles.size === 0) {
+    if (
+      !this.#powerManager.hasPoweredTiles(this.#gm.grid) &&
+      !this.#powerManager.hasActiveExpelTiles(this.#gm.grid) &&
+      this.#pendingDestructionTiles.size === 0
+    ) {
       this.#powerInfoEl.style.display = 'none';
       return;
     }
@@ -696,9 +703,10 @@ export class GameScene extends Phaser.Scene {
       if (predictions.length === 0) continue;
 
       for (const pred of predictions) {
-        const cat = getPowerCategory(pred.powerType);
+        const cat = pred.exits ? 'danger' : getPowerCategory(pred.powerType);
         // Danger powers: skip if no tiles would be destroyed (e.g. fire on an empty row)
         if (
+          !pred.exits &&
           cat === 'danger' &&
           pred.powerType !== POWER_TYPES.LIGHTNING &&
           (!pred.destroyedValues || pred.destroyedValues.length === 0)
@@ -706,11 +714,30 @@ export class GameScene extends Phaser.Scene {
 
         const meta = POWER_META[pred.powerType];
         const powerName = i18n.t(meta.nameKey);
-        const badgeHtml = `<span class="fm-info-badge ${cat}">!</span>`;
+        // Badge matches the edge indicator style exactly
+        const badgeHtml = `<div class="fm-power-dot tiny ${cat}"><span class="fm-edge-warn">!</span></div>`;
 
         let tilesHtml = '';
 
-        if (pred.powerType === POWER_TYPES.LIGHTNING && pred.lightningRange) {
+        if (pred.exits) {
+          // Expel exit: show the tile value that will leave the grid
+          const pill = `<span class="fm-power-info-tile fm-t${pred.tileValue}">${pred.tileValue}</span>`;
+          tilesHtml = `<div class="fm-power-info-tiles">${pill}<span class="fm-range-sep">✕</span></div>`;
+        } else if (
+          (pred.powerType === POWER_TYPES.EXPEL_V || pred.powerType === POWER_TYPES.EXPEL_H) &&
+          pred.mergeSourceValue
+        ) {
+          // Expel merge trigger: show source → source = result
+          const src = pred.mergeSourceValue;
+          const res = pred.tileValue;
+          tilesHtml = `<div class="fm-power-info-tiles">
+            <span class="fm-power-info-tile fm-t${src}">${src}</span>
+            <span class="fm-range-sep">→</span>
+            <span class="fm-power-info-tile fm-t${src}">${src}</span>
+            <span class="fm-range-sep">=</span>
+            <span class="fm-power-info-tile fm-t${res}">${res}</span>
+          </div>`;
+        } else if (pred.powerType === POWER_TYPES.LIGHTNING && pred.lightningRange) {
           const { min, max } = pred.lightningRange;
           const minPills = min.length > 0
             ? min.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('')

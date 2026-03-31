@@ -174,6 +174,107 @@ describe('Grid', () => {
       const result = grid.move('left');
       expect(result.moved).toBe(false);
     });
+
+    it('returns expelled: [] when no expel tiles', () => {
+      grid.cells[0][3] = new Tile(2, 0, 3);
+      const result = grid.move('left');
+      expect(result.expelled).toEqual([]);
+    });
+  });
+
+  describe('expel mechanic (ghost-v / ghost-h)', () => {
+    it('ghost-v tile exits grid when moving up with no blocker', () => {
+      const tile = new Tile(2, 2, 1);
+      tile.applyState('ghost-v', 5);
+      grid.cells[2][1] = tile;
+      const result = grid.move('up');
+      expect(result.expelled).toContain(tile);
+      expect(grid.cells[2][1]).toBeNull();
+      expect(result.moved).toBe(true);
+    });
+
+    it('ghost-v tile exits grid when moving down with no blocker', () => {
+      const tile = new Tile(2, 1, 1);
+      tile.applyState('ghost-v', 5);
+      grid.cells[1][1] = tile;
+      const result = grid.move('down');
+      expect(result.expelled).toContain(tile);
+      expect(grid.cells[1][1]).toBeNull();
+    });
+
+    it('ghost-h tile exits grid when moving left with no blocker', () => {
+      const tile = new Tile(2, 1, 2);
+      tile.applyState('ghost-h', 5);
+      grid.cells[1][2] = tile;
+      const result = grid.move('left');
+      expect(result.expelled).toContain(tile);
+      expect(grid.cells[1][2]).toBeNull();
+    });
+
+    it('ghost-h tile exits grid when moving right with no blocker', () => {
+      const tile = new Tile(2, 1, 1);
+      tile.applyState('ghost-h', 5);
+      grid.cells[1][1] = tile;
+      const result = grid.move('right');
+      expect(result.expelled).toContain(tile);
+      expect(grid.cells[1][1]).toBeNull();
+    });
+
+    it('ghost-v tile is stopped by another tile (not expelled)', () => {
+      const tile = new Tile(4, 2, 1);
+      tile.applyState('ghost-v', 5);
+      grid.cells[2][1] = tile;
+      grid.cells[0][1] = new Tile(8, 0, 1); // blocker at the top
+      const result = grid.move('up');
+      expect(result.expelled).toEqual([]);
+      expect(grid.cells[1][1]).toBe(tile); // stopped behind blocker
+    });
+
+    it('ghost-v tile merges with equal tile instead of exiting', () => {
+      const tile = new Tile(4, 2, 1);
+      tile.applyState('ghost-v', 5);
+      grid.cells[2][1] = tile;
+      grid.cells[0][1] = new Tile(4, 0, 1); // same value at top
+      const result = grid.move('up');
+      expect(result.expelled).toEqual([]);
+      expect(result.merges.length).toBe(1);
+    });
+
+    it('ghost-v does NOT exit on left/right moves (only vertical)', () => {
+      const tile = new Tile(2, 1, 1);
+      tile.applyState('ghost-v', 5);
+      grid.cells[1][1] = tile;
+      const result = grid.move('left');
+      expect(result.expelled).toEqual([]);
+      expect(grid.cells[1][0]).toBe(tile); // slides normally to left edge
+    });
+
+    it('ghost-h does NOT exit on up/down moves (only horizontal)', () => {
+      const tile = new Tile(2, 2, 1);
+      tile.applyState('ghost-h', 5);
+      grid.cells[2][1] = tile;
+      const result = grid.move('up');
+      expect(result.expelled).toEqual([]);
+      expect(grid.cells[0][1]).toBe(tile); // slides normally to top edge
+    });
+
+    it('expelled tile is NOT in movements (AnimationManager handles screen-exit separately)', () => {
+      const tile = new Tile(2, 2, 1);
+      tile.applyState('ghost-v', 5);
+      grid.cells[2][1] = tile;
+      const result = grid.move('up');
+      const movement = result.movements.find((m) => m.tile === tile);
+      expect(movement).toBeUndefined();
+      expect(result.expelled).toContain(tile);
+    });
+
+    it('normal tile is not expelled (border still blocks it)', () => {
+      const tile = new Tile(2, 0, 1);
+      grid.cells[0][1] = tile;
+      const result = grid.move('up');
+      expect(result.expelled).toEqual([]);
+      expect(result.moved).toBe(false);
+    });
   });
 
   describe('canMove', () => {

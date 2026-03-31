@@ -23,8 +23,8 @@ Powers are special abilities that interact with the game grid during **Free Mode
 | Power         | Icon SVG     | Duration | Effect                                                                              |
 |---------------|--------------|----------|-------------------------------------------------------------------------------------|
 | **Blind**     | `s-blind`    | 5 moves  | All tiles on the grid become mysterious (hidden value/color). New tiles are normal. |
-| **Expel → ←** | `s-exp-r`    | 5 moves  | Target tile ignores left/right borders — can exit the grid and be destroyed.        |
-| **Expel ↓ ↑** | `s-exp-d`    | 5 moves  | Target tile ignores top/bottom borders — can exit the grid and be destroyed.        |
+| **Expel → ←** | `s-exp-r`    | 5 moves  | Target tile ignores left/right borders — slides out of grid if the path is clear, then is destroyed. Blocked by other tiles. |
+| **Expel ↓ ↑** | `s-exp-d`    | 5 moves  | Target tile ignores top/bottom borders — slides out of grid if the path is clear, then is destroyed. Blocked by other tiles. |
 | **Teleport**  | `s-teleport` | -        | Swaps the target tile's position with a random other tile.                          |
 
 ### Passive Powers (info)
@@ -102,7 +102,9 @@ All power icons are inline SVG `<symbol>` elements embedded in the game DOM. Ref
 - States with durations (ice, blind, expel, wind) decrement each player move.
 - When a state expires (turns reach 0), the tile returns to normal.
 - Frozen tiles cannot move but can be destroyed by other powers.
-- Ghost (expel) tiles can exit the grid — if they do, they are destroyed and the power ends.
+- **Expel-v** (`ghost-v`) tiles bypass top and bottom grid borders: on an up/down move they slide off the grid and are destroyed — unless another tile blocks their path first.
+- **Expel-h** (`ghost-h`) tiles bypass left and right grid borders: on a left/right move they slide off the grid and are destroyed — unless another tile blocks their path first.
+- An expelled tile can still merge normally with an equal tile it reaches before the border.
 - Blind tiles display as gray with `?` instead of their value.
 
 ## Powered Tile Visual
@@ -144,7 +146,8 @@ The flip animation pauses during player moves and resumes after.
 ```
 .fm-state-active       — Targeted tile (sun rays + gold glow)
 .fm-state-freeze       — Frozen tile (ice shimmer + snowflakes)
-.fm-state-ghost        — Ghost tile (30% opacity, expel)
+.fm-state-ghost-v      — Vertical expel tile: top/bottom edge ghost fade via CSS mask
+.fm-state-ghost-h      — Horizontal expel tile: left/right edge ghost fade via CSS mask
 .fm-state-blind        — Blind tile (hidden value, grey)
 .fm-state-wind         — Base wind state (overflow visible)
 .fm-state-wind-up      — Wind blocking down
@@ -153,3 +156,10 @@ The flip animation pauses during player moves and resumes after.
 .fm-state-wind-right   — Wind blocking left
 .fm-state-danger       — Danger tile (lava glow, pre-destruction)
 ```
+
+### Expel Icon Construction
+
+Both expel SVG symbols are built by superimposing two copies of `power-expulsion.svg` (a single down-pointing arrow):
+
+- **`s-exp-d`** (vertical ↕): one arrow at 0° (down) + one rotated 180° around center (up), creating a ↕ bidirectional indicator.
+- **`s-exp-r`** (horizontal ↔): one arrow rotated -90° (right) + one rotated +90° (left), creating a ↔ bidirectional indicator.

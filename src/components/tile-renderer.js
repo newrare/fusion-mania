@@ -17,7 +17,8 @@ import { POWER_META, getPowerCategory } from '../configs/constants.js';
 const STATE_CLASSES = [
   'fm-state-active',
   'fm-state-ice',
-  'fm-state-ghost',
+  'fm-state-ghost-v',
+  'fm-state-ghost-h',
   'fm-state-blind',
   'fm-state-danger',
   'fm-state-wind',
@@ -78,9 +79,11 @@ export class TileRenderer {
       case 'ice':
         classes.push('fm-state-ice');
         break;
-      case 'ghost-h':
       case 'ghost-v':
-        classes.push('fm-state-ghost');
+        classes.push('fm-state-ghost-v');
+        break;
+      case 'ghost-h':
+        classes.push('fm-state-ghost-h');
         break;
       case 'blind':
         classes.push('fm-state-blind');

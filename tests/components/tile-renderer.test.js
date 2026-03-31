@@ -34,9 +34,16 @@ describe('TileRenderer', () => {
       expect(TileRenderer.stateClasses(tile)).toContain('fm-state-ice');
     });
 
-    it('includes fm-state-ghost for ghost states', () => {
+    it('includes fm-state-ghost-h for ghost-h state', () => {
       tile.applyState('ghost-h', 3);
-      expect(TileRenderer.stateClasses(tile)).toContain('fm-state-ghost');
+      expect(TileRenderer.stateClasses(tile)).toContain('fm-state-ghost-h');
+      expect(TileRenderer.stateClasses(tile)).not.toContain('fm-state-ghost-v');
+    });
+
+    it('includes fm-state-ghost-v for ghost-v state', () => {
+      tile.applyState('ghost-v', 3);
+      expect(TileRenderer.stateClasses(tile)).toContain('fm-state-ghost-v');
+      expect(TileRenderer.stateClasses(tile)).not.toContain('fm-state-ghost-h');
     });
 
     it('includes fm-state-blind for blind state', () => {
