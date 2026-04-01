@@ -129,6 +129,9 @@ export class GameScene extends Phaser.Scene {
   /** @type {Phaser.Time.TimerEvent | null} Safety timer: spawn a tile if grid stays empty 5 s (free mode) */
   #emptyGridTimer = null;
 
+  /** @type {HTMLElement | null} Ads modal overlay currently displayed */
+  #adsOverlay = null;
+
   /** @type {Function | null} Unsubscribe from i18n locale changes */
   #unsubI18n = null;
 
@@ -165,6 +168,7 @@ export class GameScene extends Phaser.Scene {
     this.#liquidEl = null;
     this.#criticalOverlay = null;
     this.#emptyGridTimer = null;
+    this.#adsOverlay = null;
   }
 
   create() {
@@ -564,6 +568,23 @@ export class GameScene extends Phaser.Scene {
       const totalDuration = (numStrikes - 1) * ANIM.LIGHTNING_STRIKE_DELAY + ANIM.LIGHTNING_ANIM_DURATION;
       await this.#wait(totalDuration);
       this.#gm.removeTiles(effectResult.destroyed);
+    } else if (powerType === POWER_TYPES.BOMB) {
+      if (effectResult.destroyed.length > 0) {
+        this.#gm.playBombAnimation(target, effectResult.destroyed);
+        await this.#wait(ANIM.BOMB_DURATION);
+        this.#gm.removeTiles(effectResult.destroyed);
+      }
+    } else if (powerType === POWER_TYPES.NUCLEAR) {
+      if (effectResult.destroyed.length > 0) {
+        this.#gm.playNuclearAnimation(effectResult.destroyed);
+        // Wait for tiles to become visually invisible, then remove DOM nodes
+        await this.#wait(ANIM.NUCLEAR_TILE_REMOVE_AT);
+        this.#gm.removeTiles(effectResult.destroyed);
+        // Wait for the blast overlay to finish fading out
+        await this.#wait(ANIM.NUCLEAR_DURATION - ANIM.NUCLEAR_TILE_REMOVE_AT);
+      }
+    } else if (powerType === POWER_TYPES.ADS) {
+      await this.#showAdsModal();
     } else {
       this.#gm.applyDangerOverlay(effectResult.destroyed);
       if (effectResult.destroyed.length > 0) {
@@ -602,6 +623,45 @@ export class GameScene extends Phaser.Scene {
           this.#skipNextPointerUp = true;
           resolve(chosenType);
         },
+      });
+    });
+  }
+
+  /**
+   * Display a non-dismissible ads modal for ADS_DURATION ms, then resolve.
+   * @returns {Promise<void>}
+   */
+  #showAdsModal() {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'fm-ads-overlay';
+      overlay.innerHTML = `
+        <div class="fm-ads-container">
+          <div class="fm-ads-label">${i18n.t('ads.label')}</div>
+          <div class="fm-ads-placeholder">📱</div>
+          <div class="fm-ads-timer" id="fm-ads-timer">3</div>
+        </div>`;
+      document.body.appendChild(overlay);
+      this.#adsOverlay = overlay;
+
+      let remaining = Math.ceil(ANIM.ADS_DURATION / 1000);
+      const timerEl = overlay.querySelector('#fm-ads-timer');
+
+      // Countdown ticker (every second)
+      const tick = this.time.addEvent({
+        delay: 1000,
+        repeat: remaining - 1,
+        callback: () => {
+          remaining--;
+          if (timerEl) timerEl.textContent = String(remaining);
+        },
+      });
+
+      this.time.delayedCall(ANIM.ADS_DURATION, () => {
+        tick.remove(false);
+        overlay.remove();
+        this.#adsOverlay = null;
+        resolve();
       });
     });
   }
@@ -1107,6 +1167,8 @@ export class GameScene extends Phaser.Scene {
     this.#powerInfoAllDom?.destroy();
     this.#criticalOverlay?.remove();
     this.#criticalOverlay = null;
+    this.#adsOverlay?.remove();
+    this.#adsOverlay = null;
     this.input.keyboard.off('keydown', this.#handleKey, this);
     this.input.off('pointerdown', this.#onPointerDown, this);
     this.input.off('pointerup', this.#onPointerUp, this);

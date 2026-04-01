@@ -276,6 +276,28 @@ export class GridManager {
   }
 
   /**
+   * Play the bomb explosion scene and tile destruction animations.
+   * @param {import('../entities/tile.js').Tile} targetTile  Emitter tile
+   * @param {import('../entities/tile.js').Tile[]} destroyedTiles  All tiles being destroyed
+   */
+  playBombAnimation(targetTile, destroyedTiles) {
+    this.#animator?.playBombAnimation(
+      targetTile,
+      destroyedTiles,
+      (r, c) => this.cellPosition(r, c),
+      layout.grid.tileSize,
+    );
+  }
+
+  /**
+   * Play the nuclear full-screen blast and tile fly-out animations.
+   * @param {import('../entities/tile.js').Tile[]} destroyedTiles
+   */
+  playNuclearAnimation(destroyedTiles) {
+    this.#animator?.playNuclearAnimation(destroyedTiles);
+  }
+
+  /**
    * Animate a cross-arc swap for the Teleport power.
    * DOM elements must still be at their pre-swap CSS positions when called.
    *

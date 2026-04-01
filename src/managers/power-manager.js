@@ -385,9 +385,20 @@ export class PowerManager {
         for (let r = 0; r < GRID_SIZE; r++) addCell(r, targetCol);
         break;
       case POWER_TYPES.BOMB: {
-        // Bomb destroys the target tile itself
-        const cell = simGrid[targetRow]?.[targetCol];
-        if (cell) destroyed.push(cell.value);
+        // Bomb destroys the emitter tile + 4 orthogonal neighbors
+        const centerCell = simGrid[targetRow]?.[targetCol];
+        if (centerCell && !seenIds.has(centerCell.id)) {
+          seenIds.add(centerCell.id);
+          destroyed.push(centerCell.value);
+        }
+        const bombNeighbors = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+        for (const [dr, dc] of bombNeighbors) {
+          const cell = simGrid[targetRow + dr]?.[targetCol + dc];
+          if (cell && !seenIds.has(cell.id)) {
+            seenIds.add(cell.id);
+            destroyed.push(cell.value);
+          }
+        }
         break;
       }
       case POWER_TYPES.NUCLEAR:
@@ -504,8 +515,24 @@ export class PowerManager {
 
   #executeBomb(grid, target) {
     if (!target) return { destroyed: [], stateApplied: null };
+    const destroyed = [];
+    // Destroy the 4 orthogonal neighbors first
+    const neighbors = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    for (const [dr, dc] of neighbors) {
+      const r = target.row + dr;
+      const c = target.col + dc;
+      if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+        const neighbor = grid.cells[r][c];
+        if (neighbor) {
+          destroyed.push(neighbor);
+          grid.cells[r][c] = null;
+        }
+      }
+    }
+    // Destroy the emitter tile itself
     grid.cells[target.row][target.col] = null;
-    return { destroyed: [target], stateApplied: null };
+    destroyed.push(target);
+    return { destroyed, stateApplied: null };
   }
 
   #executeIce(target) {

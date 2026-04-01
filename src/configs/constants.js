@@ -33,6 +33,14 @@ export const ANIM = {
   LIGHTNING_ANIM_DURATION: 1500,
   /** Delay between consecutive lightning strikes when multiple columns are hit (ms) */
   LIGHTNING_STRIKE_DELAY: 350,
+  /** Duration of bomb explosion animation (ms) */
+  BOMB_DURATION: 700,
+  /** Duration of nuclear blast animation (ms); tiles are removed at NUCLEAR_TILE_REMOVE_AT */
+  NUCLEAR_DURATION: 1900,
+  /** Delay inside NUCLEAR_DURATION before tile DOM nodes are removed (ms) */
+  NUCLEAR_TILE_REMOVE_AT: 820,
+  /** Duration of ads modal display (ms) */
+  ADS_DURATION: 3000,
 };
 
 /** Swipe detection */

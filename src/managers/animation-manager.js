@@ -1,4 +1,4 @@
-import { ANIM, POWER_TYPES } from '../configs/constants.js';
+import { ANIM, POWER_TYPES, GRID_SIZE } from '../configs/constants.js';
 
 /**
  * Manages all DOM-based tile animations for the game grid.
@@ -55,6 +55,18 @@ export class AnimationManager {
    * @type {Set<HTMLElement>}
    */
   #pendingLightningScenes = new Set();
+
+  /**
+   * Bomb scene DOM elements currently in flight.
+   * @type {Set<HTMLElement>}
+   */
+  #pendingBombScenes = new Set();
+
+  /**
+   * Nuclear blast overlay element (appended to document.body).
+   * @type {Set<HTMLElement>}
+   */
+  #pendingNuclearElements = new Set();
 
   /**
    * Consumed tile DOM elements waiting to be removed from the DOM.
@@ -124,6 +136,18 @@ export class AnimationManager {
     }
     this.#pendingLightningScenes.clear();
 
+    // Remove any in-flight bomb scenes
+    for (const el of this.#pendingBombScenes) {
+      if (el.isConnected) el.remove();
+    }
+    this.#pendingBombScenes.clear();
+
+    // Remove nuclear blast overlay (appended to document.body)
+    for (const el of this.#pendingNuclearElements) {
+      if (el.isConnected) el.remove();
+    }
+    this.#pendingNuclearElements.clear();
+
     // Force-remove any consumed elements that animationend didn't clean up
     this.clearConsumedElements();
 
@@ -143,7 +167,10 @@ export class AnimationManager {
       const el = this.#tileElements.get(tile.id);
       if (!el) continue;
       el.style.transition = 'none';
-      el.classList.remove('fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed', 'fm-tile--lightning');
+      el.classList.remove(
+        'fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed',
+        'fm-tile--lightning', 'fm-tile--bomb', 'fm-tile--nuclear',
+      );
       // If the tile lost its power mid-animation (e.g. cut during merge), strip leftover power children
       if (!el.classList.contains('fm-tile-powered')) {
         for (const child of el.querySelectorAll('.fm-pw-face, .fm-pw-sparkle')) child.remove();
@@ -490,6 +517,122 @@ export class AnimationManager {
   }
 
   // ─── Fire Animation ─────────────────────────────
+
+  /**
+   * Play the bomb explosion for the emitter tile and all its destroyed neighbors.
+   *
+   * A shockwave ring + cross arms are spawned at the emitter center.
+   * All destroyed tiles receive the `fm-tile--bomb` destruction animation.
+   *
+   * @param {import('../entities/tile.js').Tile} targetTile  The bomb emitter (also destroyed)
+   * @param {import('../entities/tile.js').Tile[]} destroyedTiles  All tiles being destroyed (incl. target)
+   * @param {(row: number, col: number) => { x: number, y: number }} cellPosFn
+   * @param {number} tileSize  Width/height of a tile in px
+   */
+  playBombAnimation(targetTile, destroyedTiles, cellPosFn, tileSize) {
+    if (!this.#gridEl || !targetTile) return;
+
+    const pos = cellPosFn(targetTile.row, targetTile.col);
+
+    // Scene anchor: center of the emitter tile
+    const sceneX = pos.x + tileSize / 2;
+    const sceneY = pos.y + tileSize / 2;
+
+    const ringSize = Math.round(tileSize * 1.05);
+    const coreSize = Math.round(tileSize * 0.65);
+    // Arms cover the 4 neighbors' distance
+    const armW = Math.round(tileSize * 2.8);  // horizontal arm width
+    const armH = Math.round(tileSize * 0.45); // arm height (narrow)
+    const armHW = Math.round(tileSize * 0.45); // vertical arm width
+    const armHH = Math.round(tileSize * 2.8);  // vertical arm height
+
+    const scene = document.createElement('div');
+    scene.className = 'fm-bomb-scene';
+    scene.style.left = `${sceneX}px`;
+    scene.style.top  = `${sceneY}px`;
+
+    scene.innerHTML = [
+      // Shockwave rings
+      `<div class="fm-br" style="width:${ringSize}px;height:${ringSize}px;"></div>`,
+      `<div class="fm-br2" style="width:${ringSize}px;height:${ringSize}px;"></div>`,
+      // Core flash
+      `<div class="fm-bc" style="width:${coreSize}px;height:${coreSize}px;"></div>`,
+      // Cross arms
+      `<div class="fm-ba-h" style="width:${armW}px;height:${armH}px;"></div>`,
+      `<div class="fm-ba-v" style="width:${armHW}px;height:${armHH}px;"></div>`,
+    ].join('');
+
+    this.#gridEl.appendChild(scene);
+    this.#pendingBombScenes.add(scene);
+
+    // Apply destruction animation to every tile being destroyed (including emitter)
+    for (const tile of destroyedTiles) {
+      const el = this.#tileElements.get(tile.id);
+      if (!el) continue;
+      el.classList.remove('fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed');
+      el.classList.add('fm-tile--bomb');
+    }
+
+    // Auto-remove scene after animation ends
+    setTimeout(() => {
+      if (scene.isConnected) scene.remove();
+      this.#pendingBombScenes.delete(scene);
+    }, ANIM.BOMB_DURATION + 50);
+  }
+
+  /**
+   * Play the nuclear full-screen blast and per-tile fly-out animation.
+   *
+   * A fixed overlay is appended to document.body with cross arms, core, and rings.
+   * Each tile receives the `fm-tile--nuclear` animation with radial fly-out vars.
+   *
+   * @param {import('../entities/tile.js').Tile[]} destroyedTiles
+   */
+  playNuclearAnimation(destroyedTiles) {
+    // Full-screen blast overlay appended to document.body
+    const blast = document.createElement('div');
+    blast.className = 'fm-nuclear-blast';
+    blast.innerHTML = [
+      '<div class="fm-nuc-flash"></div>',
+      '<div class="fm-nuc-arm-h"></div>',
+      '<div class="fm-nuc-arm-v"></div>',
+      '<div class="fm-nuc-core"></div>',
+      '<div class="fm-nuc-ring-inner"></div>',
+      '<div class="fm-nuc-ring-outer"></div>',
+    ].join('');
+    document.body.appendChild(blast);
+    this.#pendingNuclearElements.add(blast);
+
+    const CENTER = (GRID_SIZE - 1) / 2; // 1.5 for a 4×4 grid
+
+    for (const tile of destroyedTiles) {
+      const el = this.#tileElements.get(tile.id);
+      if (!el) continue;
+
+      const dx   = tile.col - CENTER;
+      const dy   = tile.row - CENTER;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+      const spin = ((Math.random() - 0.5) * 520).toFixed(1);
+      // Inner tiles fly first (small dist = small delay), outer tiles slightly later
+      const delay = (dist * 0.08).toFixed(3);
+
+      el.style.setProperty('--nuc-dx',    (dx / dist).toFixed(4));
+      el.style.setProperty('--nuc-dy',    (dy / dist).toFixed(4));
+      el.style.setProperty('--nuc-spin',  `${spin}deg`);
+      el.style.setProperty('--nuc-delay', `${delay}s`);
+
+      el.classList.remove('fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed');
+      el.classList.add('fm-tile--nuclear');
+    }
+
+    // Auto-remove blast overlay after animation ends
+    setTimeout(() => {
+      if (blast.isConnected) blast.remove();
+      this.#pendingNuclearElements.delete(blast);
+    }, ANIM.NUCLEAR_DURATION + 100);
+  }
+
+  // ─── Fire Animation (existing) ───────────────────
 
   /**
    * Launch the FUSEAU fireball(s) for a fire power and apply staggered ZAP

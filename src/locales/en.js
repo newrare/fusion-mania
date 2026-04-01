@@ -73,6 +73,7 @@ export const en = {
   'power.nuclear': 'Nuclear',
   'power.blind': 'Blind',
   'power.ads': 'Ads',
+  'ads.label': 'Advertisement',
   'game.hp': 'HP',
   'gameover.hp_depleted': 'Grid destroyed!',
   'power.predictions': 'Predictions',

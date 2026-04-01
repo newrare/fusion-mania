@@ -73,6 +73,7 @@ export const fr = {
   'power.nuclear': 'Nucléaire',
   'power.blind': 'Aveugle',
   'power.ads': 'Pub',
+  'ads.label': 'Publicité',
   'game.hp': 'PV',
   'gameover.hp_depleted': 'Grille détruite !',
   'power.predictions': 'Prédictions',
