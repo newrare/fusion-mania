@@ -20,6 +20,7 @@ export class OptionsModal {
     this.#scene = scene;
 
     const themeLabel = i18n.t(`options.theme_${themeManager.current}`);
+    const langLabel = i18n.t(`options.lang_${i18n.locale}`);
 
     const html = `
       <div class="fm-modal-overlay" id="fm-options-overlay">
@@ -29,6 +30,10 @@ export class OptionsModal {
             <div class="fm-option-row">
               <span class="fm-option-label">${i18n.t('options.theme')}</span>
               <button class="fm-theme-btn" data-action="theme" id="fm-theme-label">${themeLabel}</button>
+            </div>
+            <div class="fm-option-row">
+              <span class="fm-option-label">${i18n.t('options.language')}</span>
+              <button class="fm-theme-btn" data-action="language" id="fm-lang-label">${langLabel}</button>
             </div>
             <button class="fm-btn" data-action="close">${i18n.t('options.close')}</button>
           </div>
@@ -52,6 +57,14 @@ export class OptionsModal {
           const newTheme = themeManager.toggle();
           const label = this.#domElement?.node.querySelector('#fm-theme-label');
           if (label) label.textContent = i18n.t(`options.theme_${newTheme}`);
+          break;
+        }
+        case 'language': {
+          const locales = i18n.availableLocales;
+          const next = locales[(locales.indexOf(i18n.locale) + 1) % locales.length];
+          i18n.setLocale(next);
+          const langEl = this.#domElement?.node.querySelector('#fm-lang-label');
+          if (langEl) langEl.textContent = i18n.t(`options.lang_${next}`);
           break;
         }
         case 'close':

@@ -246,7 +246,8 @@ export class GameScene extends Phaser.Scene {
   #createPowerInfoPanel() {
     const html = `<div class="fm-power-info" id="fm-power-info" style="display:none"></div>`;
     const gridBottom = layout.grid.y + layout.grid.totalWidth / 2;
-    this.#powerInfoDom = this.add.dom(layout.safe.left, gridBottom + 10).createFromHTML(html);
+    const gridLeft = layout.safe.cx - layout.grid.totalWidth / 2;
+    this.#powerInfoDom = this.add.dom(gridLeft, gridBottom + 20).createFromHTML(html);
     this.#powerInfoDom.setOrigin(0, 0);
     this.#powerInfoEl = this.#powerInfoDom.node.querySelector('#fm-power-info');
   }

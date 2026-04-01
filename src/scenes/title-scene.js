@@ -22,8 +22,7 @@ export class TitleScene extends Phaser.Scene {
 
     const html = `
       <div class="fm-title-screen">
-        <div class="fm-title-logo">${i18n.t('title.name')}</div>
-        <div class="fm-title-sub">${i18n.t('title.subtitle')}</div>
+        <img class="fm-title-logo-img" src="/images/logo.png" alt="Fusion Mania" />
         <div class="fm-title-prompt">${i18n.t('title.prompt')}</div>
       </div>
     `;
