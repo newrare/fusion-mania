@@ -66,4 +66,5 @@ export const en = {
   'power.ads': 'Ads',
   'game.hp': 'HP',
   'gameover.hp_depleted': 'Grid destroyed!',
+  'power.predictions': 'Predictions',
 };

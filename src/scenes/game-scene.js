@@ -96,6 +96,9 @@ export class GameScene extends Phaser.Scene {
   /** @type {Phaser.GameObjects.DOMElement | null} */
   #powerInfoDom = null;
 
+  /** @type {Phaser.GameObjects.DOMElement | null} Full-list overlay DOM element */
+  #powerInfoAllDom = null;
+
   /** @type {string[] | null} Pending selected power types (from modal) */
   #pendingPowerTypes = null;
 
@@ -140,6 +143,7 @@ export class GameScene extends Phaser.Scene {
     this.#adminModal = null;
     this.#powerInfoEl = null;
     this.#powerInfoDom = null;
+    this.#powerInfoAllDom = null;
     this.#pendingPowerTypes = data?.selectedPowers ?? null;
     this.#skipNextPointerUp = false;
     this.#pendingDestructionTiles = new Map();
@@ -247,9 +251,29 @@ export class GameScene extends Phaser.Scene {
     const html = `<div class="fm-power-info" id="fm-power-info" style="display:none"></div>`;
     const gridBottom = layout.grid.y + layout.grid.totalWidth / 2;
     const gridLeft = layout.safe.cx - layout.grid.totalWidth / 2;
-    this.#powerInfoDom = this.add.dom(gridLeft, gridBottom + 20).createFromHTML(html);
+    const panelTop = gridBottom + 20;
+    this.#powerInfoDom = this.add.dom(gridLeft, panelTop).createFromHTML(html);
     this.#powerInfoDom.setOrigin(0, 0);
     this.#powerInfoEl = this.#powerInfoDom.node.querySelector('#fm-power-info');
+
+    // Full-list overlay (hidden by default, shown when "…" is tapped)
+    const overlayHtml = `
+      <div class="fm-modal-overlay" id="fm-power-info-all-overlay" style="display:none">
+        <div class="fm-modal fm-power-info-all-modal">
+          <div class="fm-modal-title" id="fm-power-info-all-title"></div>
+          <div class="fm-power-info-all-lines" id="fm-power-info-all-lines"></div>
+          <div style="display:flex;justify-content:center">
+            <button class="fm-btn fm-btn--primary" id="fm-power-info-all-close">${i18n.t('menu.close')}</button>
+          </div>
+        </div>
+      </div>`;
+    this.#powerInfoAllDom = this.add.dom(0, 0).createFromHTML(overlayHtml);
+    this.#powerInfoAllDom.setOrigin(0, 0);
+    this.#powerInfoAllDom.setDepth(200);
+    const overlayEl = this.#powerInfoAllDom.node.querySelector('#fm-power-info-all-overlay');
+    overlayEl?.querySelector('#fm-power-info-all-close')?.addEventListener('pointerdown', () => {
+      overlayEl.style.display = 'none';
+    });
   }
 
   // ─── GAME FLOW ───────────────────────────────────
@@ -753,7 +777,9 @@ export class GameScene extends Phaser.Scene {
       right: `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M13 6 L7 1 V4 H1 V8 H7 V11 Z" fill="currentColor"/></svg>`,
     };
 
-    let html = '';
+    /** @type {string[]} */
+    const lines = [];
+
     for (const dir of directions) {
       const predictions = this.#powerManager.predictForDirection(dir, this.#gm.grid);
       if (predictions.length === 0) continue;
@@ -813,13 +839,13 @@ export class GameScene extends Phaser.Scene {
           tilesHtml = `<div class="fm-power-info-tiles">${pills}</div>`;
         }
 
-        html += `
+        lines.push(`
           <div class="fm-power-info-line">
             <span class="fm-power-info-dir">${dirArrows[dir]}</span>
             ${badgeHtml}
             <span class="fm-power-info-name">${powerName}</span>
             ${tilesHtml}
-          </div>`;
+          </div>`);
       }
     }
 
@@ -828,18 +854,42 @@ export class GameScene extends Phaser.Scene {
       const pills = [...this.#pendingDestructionTiles.values()]
         .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
         .join('');
-      html += `
+      lines.push(`
         <div class="fm-power-info-line fm-power-info-destroying">
           <span class="fm-info-destroy-icon">🗑</span>
           <div class="fm-power-info-tiles">${pills}</div>
-        </div>`;
+        </div>`);
     }
 
-    if (html) {
-      this.#powerInfoEl.style.display = 'flex';
-      this.#powerInfoEl.innerHTML = html;
-    } else {
+    if (lines.length === 0) {
       this.#powerInfoEl.style.display = 'none';
+      return;
+    }
+
+    const MAX_VISIBLE = 4;
+    const visible = lines.slice(0, MAX_VISIBLE);
+    const hidden = lines.slice(MAX_VISIBLE);
+
+    let html = visible.join('');
+
+    if (hidden.length > 0) {
+      html += `<button class="fm-power-info-more-btn" id="fm-power-info-more">…</button>`;
+    }
+
+    this.#powerInfoEl.style.display = 'flex';
+    this.#powerInfoEl.innerHTML = html;
+
+    if (hidden.length > 0) {
+      const moreBtn = this.#powerInfoEl.querySelector('#fm-power-info-more');
+      const overlayEl = this.#powerInfoAllDom?.node.querySelector('#fm-power-info-all-overlay');
+      const titleEl = this.#powerInfoAllDom?.node.querySelector('#fm-power-info-all-title');
+      const linesEl = this.#powerInfoAllDom?.node.querySelector('#fm-power-info-all-lines');
+      moreBtn?.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        if (titleEl) titleEl.textContent = i18n.t('power.predictions');
+        if (linesEl) linesEl.innerHTML = lines.join('');
+        if (overlayEl) overlayEl.style.display = 'flex';
+      });
     }
   }
 
@@ -948,6 +998,7 @@ export class GameScene extends Phaser.Scene {
     this.#powerChoiceModal?.destroy();
     this.#adminModal?.destroy();
     this.#powerInfoDom?.destroy();
+    this.#powerInfoAllDom?.destroy();
     this.#criticalOverlay?.remove();
     this.#criticalOverlay = null;
     this.input.keyboard.off('keydown', this.#handleKey, this);

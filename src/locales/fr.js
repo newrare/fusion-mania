@@ -66,4 +66,5 @@ export const fr = {
   'power.ads': 'Pub',
   'game.hp': 'PV',
   'gameover.hp_depleted': 'Grille détruite !',
+  'power.predictions': 'Prédictions',
 };

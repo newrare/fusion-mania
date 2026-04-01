@@ -580,30 +580,29 @@
 .fm-power-info {
   width: var(--fm-grid-width, 340px);
   font-family: 'Westernic', cursive, sans-serif;
-  font-size: 0.68rem;
-  color: rgba(255,255,255,0.75);
-  padding: 10px 0 4px;
+  font-size: 0.95rem;
+  color: rgba(255,255,255,0.88);
+  padding: 8px 0 6px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
-  gap: 3px;
+  gap: 6px;
   text-align: left;
-  max-height: calc(6 * 1.6em + 10px);
-  overflow: hidden;
 }
 
 .fm-power-info-line {
   display: flex;
   align-items: center;
-  gap: 5px;
-  flex-wrap: nowrap;
+  gap: 6px;
+  flex-wrap: wrap;
+  row-gap: 3px;
 }
 
 /* SVG arrow icon for move direction */
 .fm-info-arrow {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
   opacity: 0.85;
   vertical-align: middle;
@@ -620,10 +619,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   font-weight: 900;
   line-height: 1;
   flex-shrink: 0;
@@ -647,15 +646,15 @@
 }
 
 .fm-range-label {
-  font-size: 0.55rem;
-  opacity: 0.55;
+  font-size: 0.75rem;
+  opacity: 0.6;
   letter-spacing: 0.3px;
   flex-shrink: 0;
 }
 
 .fm-range-sep {
-  opacity: 0.45;
-  font-size: 0.65rem;
+  opacity: 0.6;
+  font-size: 0.88rem;
   flex-shrink: 0;
 }
 
@@ -667,17 +666,17 @@
 
 .fm-power-info-tile {
   display: inline-block;
-  padding: 1px 4px;
+  padding: 2px 6px;
   border-radius: 4px;
-  font-size: 0.6rem;
+  font-size: 0.82rem;
   font-weight: 900;
   border: 1px solid transparent;
 }
 
 /* ∅ placeholder when lightning min is 0 tiles */
 .fm-range-empty {
-  font-size: 0.65rem;
-  opacity: 0.45;
+  font-size: 0.85rem;
+  opacity: 0.5;
 }
 
 /* Pending destruction row */
@@ -692,9 +691,60 @@
 }
 
 .fm-info-destroy-icon {
-  font-size: 0.75rem;
+  font-size: 1rem;
   flex-shrink: 0;
   line-height: 1;
+}
+
+/* --- Power info "show more" button --- */
+.fm-power-info-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--fm-hud-box-height, 46px);
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--fm-hud-border, rgba(255,255,255,0.2));
+  background: var(--fm-hud-box-bg, #2a1050);
+  box-shadow: 0 3px 0 var(--fm-hud-shadow, rgba(10,4,30,0.8)), 0 4px 12px var(--fm-hud-glow, rgba(140,80,200,0.15));
+  color: var(--fm-hud-accent, #fff);
+  font-family: 'Westernic', cursive, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: filter 0.15s;
+  margin-top: 2px;
+}
+
+.fm-power-info-more-btn:hover {
+  filter: brightness(1.25);
+}
+
+.fm-power-info-more-btn:active {
+  filter: brightness(0.85);
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--fm-hud-shadow, rgba(10,4,30,0.8));
+}
+
+/* --- Power info full-list modal --- */
+/* Width matches 90% of the safe zone; no scroll needed — all lines visible */
+.fm-power-info-all-modal {
+  width: calc(var(--fm-safe-width, 360px) * 0.9);
+  max-width: calc(var(--fm-safe-width, 360px) * 0.9);
+}
+
+.fm-power-info-all-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+}
+
+.fm-power-info-all-lines .fm-power-info-line {
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 /* ─── Fire Ball (Fuseau projectile) ─────────────────
