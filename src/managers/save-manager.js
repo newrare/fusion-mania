@@ -37,11 +37,17 @@ class SaveManager {
    * Add a score to rankings for a given mode.
    * @param {string} mode - 'classic' | 'battle' | 'free'
    * @param {number} score
+   * @param {{ maxTile?: number, moves?: number, fusions?: number, powers?: string[] }} extra
    */
-  addRanking(mode, score) {
+  addRanking(mode, score, extra = {}) {
     const rankings = this.#loadRankings();
     if (!rankings[mode]) rankings[mode] = [];
-    rankings[mode].push({ score, date: Date.now() });
+    const entry = { score, date: Date.now() };
+    if (extra.maxTile != null) entry.maxTile = extra.maxTile;
+    if (extra.moves != null) entry.moves = extra.moves;
+    if (extra.fusions != null) entry.fusions = extra.fusions;
+    if (extra.powers) entry.powers = extra.powers;
+    rankings[mode].push(entry);
     rankings[mode].sort((a, b) => b.score - a.score);
     rankings[mode] = rankings[mode].slice(0, 10);
     localStorage.setItem(STORAGE_KEYS.RANKINGS, JSON.stringify(rankings));
@@ -70,6 +76,20 @@ class SaveManager {
   getBestScore(mode) {
     const list = this.getRankings(mode);
     return list.length > 0 ? list[0].score : 0;
+  }
+
+  /**
+   * Get best max tile across all rankings for a mode.
+   * @param {string} mode
+   * @returns {number}
+   */
+  getBestMaxTile(mode) {
+    const list = this.getRankings(mode);
+    let best = 0;
+    for (const entry of list) {
+      if (entry.maxTile > best) best = entry.maxTile;
+    }
+    return best;
   }
 
   /** @returns {Record<string, { score: number, date: number }[]>} */

@@ -1,6 +1,7 @@
 import { layout } from '../managers/layout-manager.js';
 import { i18n } from '../managers/i18n-manager.js';
 import { themeManager } from '../managers/theme-manager.js';
+import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /**
  * Options modal — theme toggle, music/sound toggles, reset ranking.
@@ -11,6 +12,12 @@ export class OptionsModal {
 
   /** @type {Phaser.Scene} */
   #scene;
+
+  /** @type {{ destroy: () => void } | null} */
+  #keyNav = null;
+
+  /** @type {Function | null} */
+  #unsubI18n = null;
 
   /**
    * @param {Phaser.Scene} scene
@@ -72,9 +79,35 @@ export class OptionsModal {
           break;
       }
     });
+
+    this.#keyNav = enableKeyboardNav(overlay, scene.input.keyboard, {
+      onEscape: () => options.onClose?.(),
+    });
+
+    this.#unsubI18n = i18n.onChange(() => this.#refresh());
+  }
+
+  #refresh() {
+    const overlay = this.#domElement?.node;
+    if (!overlay) return;
+    const title = overlay.querySelector('.fm-modal-title');
+    if (title) title.textContent = i18n.t('options.title');
+    const labels = overlay.querySelectorAll('.fm-option-label');
+    const labelKeys = ['options.theme', 'options.language'];
+    labels.forEach((el, i) => { if (labelKeys[i]) el.textContent = i18n.t(labelKeys[i]); });
+    const closeBtn = overlay.querySelector('[data-action="close"]');
+    if (closeBtn) closeBtn.textContent = i18n.t('options.close');
+    const themeEl = overlay.querySelector('#fm-theme-label');
+    if (themeEl) themeEl.textContent = i18n.t(`options.theme_${themeManager.current}`);
+    const langEl = overlay.querySelector('#fm-lang-label');
+    if (langEl) langEl.textContent = i18n.t(`options.lang_${i18n.locale}`);
   }
 
   destroy() {
+    this.#unsubI18n?.();
+    this.#unsubI18n = null;
+    this.#keyNav?.destroy();
+    this.#keyNav = null;
     this.#domElement?.destroy();
     this.#domElement = null;
   }

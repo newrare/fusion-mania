@@ -1,6 +1,8 @@
 import { layout } from '../managers/layout-manager.js';
 import { i18n } from '../managers/i18n-manager.js';
 import { OptionsModal } from './options-modal.js';
+import { RankingModal } from './ranking-modal.js';
+import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /**
  * Menu modal component — overlay with game mode buttons.
@@ -15,31 +17,27 @@ export class MenuModal {
   /** @type {OptionsModal | null} */
   #optionsModal = null;
 
+  /** @type {RankingModal | null} */
+  #rankingModal = null;
+
+  /** @type {{ destroy: () => void } | null} */
+  #keyNav = null;
+
+  /** @type {Function | null} Unsubscribe from i18n changes */
+  #unsubI18n = null;
+
+  /** @type {object} Constructor options (kept to rebuild buttons on locale change) */
+  #options = {};
+
   /**
    * @param {Phaser.Scene} scene
    * @param {{ showResume?: boolean, onResume?: Function, onClassic?: Function, onFree?: Function, onClose?: Function, onQuit?: Function, onAdmin?: Function }} options
    */
   constructor(scene, options = {}) {
     this.#scene = scene;
+    this.#options = options;
 
-    let buttonsHtml = '';
-
-    if (options.showResume) {
-      buttonsHtml += `<button class="fm-btn fm-btn--primary" data-action="resume">${i18n.t('menu.resume')}</button>`;
-    }
-
-    buttonsHtml += `<button class="fm-btn" data-action="classic">${i18n.t('menu.classic')}</button>`;
-    buttonsHtml += `<button class="fm-btn" data-action="free">${i18n.t('menu.free')}</button>`;
-    buttonsHtml += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;
-    buttonsHtml += `<button class="fm-btn" data-action="close">${i18n.t('menu.close')}</button>`;
-
-    if (options.onQuit) {
-      buttonsHtml += `<button class="fm-btn" data-action="quit">${i18n.t('menu.quit')}</button>`;
-    }
-
-    if (import.meta.env.DEV && options.onAdmin) {
-      buttonsHtml += `<button class="fm-btn fm-btn--admin" data-action="admin">⚙ Admin</button>`;
-    }
+    let buttonsHtml = this.#buildButtonsHtml();
 
     const html = `
       <div class="fm-modal-overlay" id="fm-menu-overlay">
@@ -71,6 +69,9 @@ export class MenuModal {
         case 'free':
           options.onFree?.();
           break;
+        case 'ranking':
+          this.#openRanking();
+          break;
         case 'options':
           this.#openOptions();
           break;
@@ -85,6 +86,42 @@ export class MenuModal {
           break;
       }
     });
+
+    this.#keyNav = enableKeyboardNav(overlay, scene.input.keyboard, {
+      onEscape: () => options.onClose?.(),
+    });
+
+    this.#unsubI18n = i18n.onChange(() => this.#refresh());
+  }
+
+  /** Rebuild button labels on locale change. */
+  #buildButtonsHtml() {
+    const opts = this.#options;
+    let html = '';
+    if (opts.showResume) {
+      html += `<button class="fm-btn fm-btn--primary" data-action="resume">${i18n.t('menu.resume')}</button>`;
+    }
+    html += `<button class="fm-btn" data-action="classic">${i18n.t('menu.classic')}</button>`;
+    html += `<button class="fm-btn" data-action="free">${i18n.t('menu.free')}</button>`;
+    html += `<button class="fm-btn" data-action="ranking">${i18n.t('menu.ranking')}</button>`;
+    html += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;
+    html += `<button class="fm-btn" data-action="close">${i18n.t('menu.close')}</button>`;
+    if (opts.onQuit) {
+      html += `<button class="fm-btn" data-action="quit">${i18n.t('menu.quit')}</button>`;
+    }
+    if (import.meta.env.DEV && opts.onAdmin) {
+      html += `<button class="fm-btn fm-btn--admin" data-action="admin">⚙ Admin</button>`;
+    }
+    return html;
+  }
+
+  #refresh() {
+    const overlay = this.#domElement?.node;
+    if (!overlay) return;
+    const titleEl = overlay.querySelector('.fm-modal-title');
+    if (titleEl) titleEl.textContent = i18n.t('menu.title');
+    const buttonsEl = overlay.querySelector('.fm-modal-buttons');
+    if (buttonsEl) buttonsEl.innerHTML = this.#buildButtonsHtml();
   }
 
   #openOptions() {
@@ -97,9 +134,25 @@ export class MenuModal {
     });
   }
 
+  #openRanking() {
+    if (this.#rankingModal) return;
+    this.#rankingModal = new RankingModal(this.#scene, {
+      onClose: () => {
+        this.#rankingModal?.destroy();
+        this.#rankingModal = null;
+      },
+    });
+  }
+
   destroy() {
+    this.#unsubI18n?.();
+    this.#unsubI18n = null;
+    this.#keyNav?.destroy();
+    this.#keyNav = null;
     this.#optionsModal?.destroy();
     this.#optionsModal = null;
+    this.#rankingModal?.destroy();
+    this.#rankingModal = null;
     this.#domElement?.destroy();
     this.#domElement = null;
   }

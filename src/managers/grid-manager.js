@@ -431,6 +431,23 @@ export class GridManager {
   }
 
   /**
+   * Spawn a new tile using the standard weighted-random logic and render it.
+   * Used by the empty-grid safety mechanism.
+   * @returns {Tile | null}
+   */
+  spawnAndRender() {
+    const tile = this.#grid.spawnTile();
+    if (!tile) return null;
+    this.#animator.createTileElement(
+      tile,
+      true,
+      (r, c) => this.cellPosition(r, c),
+      ANIM.SLIDE_DURATION,
+    );
+    return tile;
+  }
+
+  /**
    * Add a tile with a specific state to a random empty cell.
    * @param {string} state
    * @returns {Tile | null}

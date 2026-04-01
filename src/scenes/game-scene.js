@@ -54,6 +54,12 @@ export class GameScene extends Phaser.Scene {
   /** @type {number} Total tile fusions this game */
   #fusions = 0;
 
+  /** @type {number} Highest tile value reached this game */
+  #maxTile = 0;
+
+  /** @type {string[] | null} Selected power types for this free-mode game */
+  #selectedPowers = null;
+
   /** @type {number} Current combo streak level */
   #combo = 0;
 
@@ -120,6 +126,12 @@ export class GameScene extends Phaser.Scene {
   /** @type {HTMLElement | null} Critical red vignette overlay */
   #criticalOverlay = null;
 
+  /** @type {Phaser.Time.TimerEvent | null} Safety timer: spawn a tile if grid stays empty 5 s (free mode) */
+  #emptyGridTimer = null;
+
+  /** @type {Function | null} Unsubscribe from i18n locale changes */
+  #unsubI18n = null;
+
   constructor() {
     super({ key: SCENE_KEYS.GRID });
     this.#gm = new GridManager();
@@ -130,6 +142,8 @@ export class GameScene extends Phaser.Scene {
     this.#mode = data?.mode ?? 'classic';
     this.#gameOver = false;
     this.#fusions = 0;
+    this.#maxTile = 0;
+    this.#selectedPowers = null;
     this.#combo = 0;
     this.#comboMax = 0;
     this.#comboScoreStart = 0;
@@ -150,6 +164,7 @@ export class GameScene extends Phaser.Scene {
     this.#gridLife = null;
     this.#liquidEl = null;
     this.#criticalOverlay = null;
+    this.#emptyGridTimer = null;
   }
 
   create() {
@@ -169,6 +184,7 @@ export class GameScene extends Phaser.Scene {
       this.#showPowerSelectModal();
     } else {
       if (this.#mode === 'free' && this.#pendingPowerTypes) {
+        this.#selectedPowers = this.#pendingPowerTypes;
         this.#powerManager = new PowerManager(this.#pendingPowerTypes);
         this.#pendingPowerTypes = null;
       }
@@ -180,7 +196,7 @@ export class GameScene extends Phaser.Scene {
   #createHUD() {
     const hpBox = this.#mode === 'free'
       ? `<div class="fm-score-box fm-hp-box">
-            <span class="fm-score-label">${i18n.t('game.hp')}</span>
+            <span class="fm-score-label" id="fm-label-hp">${i18n.t('game.hp')}</span>
             <span class="fm-score-value" id="fm-hp"></span>
           </div>`
       : '';
@@ -189,25 +205,33 @@ export class GameScene extends Phaser.Scene {
       <div class="fm-hud">
         <div class="fm-hud-row">
           <div class="fm-score-box">
-            <span class="fm-score-label">${i18n.t('game.moves')}</span>
+            <span class="fm-score-label" id="fm-label-moves">${i18n.t('game.moves')}</span>
             <span class="fm-score-value" id="fm-moves">0</span>
           </div>
           <div class="fm-score-box">
-            <span class="fm-score-label">${i18n.t('game.fusions')}</span>
+            <span class="fm-score-label" id="fm-label-fusions">${i18n.t('game.fusions')}</span>
             <span class="fm-score-value" id="fm-fusions">0</span>
           </div>
           ${hpBox}
+          <div class="fm-score-box">
+            <span class="fm-score-label" id="fm-label-max-tile">${i18n.t('game.max_tile')}</span>
+            <span class="fm-score-value" id="fm-max-tile">0</span>
+          </div>
           <div class="fm-score-wrap">
             <div class="fm-score-box">
-              <span class="fm-score-label">${i18n.t('game.score')}</span>
+              <span class="fm-score-label" id="fm-label-score">${i18n.t('game.score')}</span>
               <span class="fm-score-value" id="fm-score">0</span>
             </div>
             <div class="fm-combo-display" id="fm-combo-display" style="display:none"></div>
             <div class="fm-score-bonus" id="fm-score-bonus"></div>
           </div>
           <div class="fm-score-box">
-            <span class="fm-score-label">${i18n.t('game.best')}</span>
+            <span class="fm-score-label" id="fm-label-best">${i18n.t('game.best')}</span>
             <span class="fm-score-value" id="fm-best">${saveManager.getBestScore(this.#mode)}</span>
+          </div>
+          <div class="fm-score-box">
+            <span class="fm-score-label" id="fm-label-best-tile">${i18n.t('game.best_tile')}</span>
+            <span class="fm-score-value" id="fm-best-max-tile">${saveManager.getBestMaxTile(this.#mode)}</span>
           </div>
           <div class="fm-menu-btn" id="fm-menu-btn">☰</div>
         </div>
@@ -226,6 +250,26 @@ export class GameScene extends Phaser.Scene {
 
     this.#comboEl = this.#hudEl.querySelector('#fm-combo-display');
     this.#scoreBonusEl = this.#hudEl.querySelector('#fm-score-bonus');
+
+    this.#unsubI18n = i18n.onChange(() => this.#refreshHUDLabels());
+  }
+
+  #refreshHUDLabels() {
+    const el = this.#hudEl;
+    if (!el) return;
+    const map = {
+      'fm-label-moves':     'game.moves',
+      'fm-label-fusions':   'game.fusions',
+      'fm-label-max-tile':  'game.max_tile',
+      'fm-label-score':     'game.score',
+      'fm-label-best':      'game.best',
+      'fm-label-best-tile': 'game.best_tile',
+      'fm-label-hp':        'game.hp',
+    };
+    for (const [id, key] of Object.entries(map)) {
+      const node = el.querySelector(`#${id}`);
+      if (node) node.textContent = i18n.t(key);
+    }
   }
 
   // ─── POWER SELECT MODAL ──────────────────────────
@@ -235,6 +279,7 @@ export class GameScene extends Phaser.Scene {
         this.#skipNextPointerUp = true;
         this.#powerSelectModal?.destroy();
         this.#powerSelectModal = null;
+        this.#selectedPowers = selectedTypes;
         this.#powerManager = new PowerManager(selectedTypes);
         this.#startNewGame();
       },
@@ -467,6 +512,15 @@ export class GameScene extends Phaser.Scene {
       this.#updatePowerVisuals();
     }
 
+    // Free mode safety: if powers destroyed every tile, start the empty-grid timer
+    if (this.#mode === 'free') {
+      if (this.#gm.grid.getAllTiles().length === 0) {
+        this.#startEmptyGridTimer();
+      } else {
+        this.#cancelEmptyGridTimer();
+      }
+    }
+
     this.#updateHUD();
     this.#gm.updateFusionIndicators();
     this.#gm.animating = false;
@@ -566,6 +620,19 @@ export class GameScene extends Phaser.Scene {
       bestEl.textContent = String(best);
     }
     if (fusionsEl) fusionsEl.textContent = String(this.#fusions);
+
+    // Track max tile
+    for (const tile of grid.getAllTiles()) {
+      if (tile.value > this.#maxTile) this.#maxTile = tile.value;
+    }
+    const maxTileEl = this.#hudEl?.querySelector('#fm-max-tile');
+    if (maxTileEl) maxTileEl.textContent = String(this.#maxTile);
+    const bestMaxTileEl = this.#hudEl?.querySelector('#fm-best-max-tile');
+    if (bestMaxTileEl) {
+      const bestMax = Math.max(saveManager.getBestMaxTile(this.#mode), this.#maxTile);
+      bestMaxTileEl.textContent = String(bestMax);
+    }
+
     const hpEl = this.#hudEl?.querySelector('#fm-hp');
     if (hpEl && this.#gridLife) {
       hpEl.textContent = `${Math.ceil(this.#gridLife.currentHp)}/${this.#gridLife.maxHp}`;
@@ -702,9 +769,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   #onGameOver() {
+    this.#cancelEmptyGridTimer();
     this.#endCombo();
     this.#gameOver = true;
-    saveManager.addRanking(this.#mode, this.#gm.grid.score);
+    const extra = {
+      maxTile: this.#maxTile,
+      moves: this.#gm.grid.moves,
+      fusions: this.#fusions,
+    };
+    if (this.#selectedPowers) extra.powers = [...this.#selectedPowers];
+    saveManager.addRanking(this.#mode, this.#gm.grid.score, extra);
     saveManager.clearGame();
 
     this.#criticalOverlay?.classList.add('fm-critical-overlay--stopped');
@@ -722,6 +796,35 @@ export class GameScene extends Phaser.Scene {
         this.scene.start(SCENE_KEYS.TITLE);
       },
     });
+  }
+
+  // ─── EMPTY GRID SAFETY (Free mode) ────────────────
+
+  /**
+   * Start a 5-second countdown; if the grid is still empty when it fires,
+   * spawn a rescue tile to unblock the player.
+   */
+  #startEmptyGridTimer() {
+    if (this.#emptyGridTimer) return;
+    this.#emptyGridTimer = this.time.delayedCall(5000, () => {
+      this.#emptyGridTimer = null;
+      if (this.#gameOver) return;
+      if (this.#gm.grid.getAllTiles().length === 0) {
+        const tile = this.#gm.spawnAndRender();
+        if (tile) {
+          this.#updateHUD();
+          this.#gm.updateFusionIndicators();
+        }
+      }
+    });
+  }
+
+  /** Cancel the empty-grid safety timer. */
+  #cancelEmptyGridTimer() {
+    if (this.#emptyGridTimer) {
+      this.#emptyGridTimer.remove(false);
+      this.#emptyGridTimer = null;
+    }
   }
 
   /** @param {number} ms */
@@ -991,6 +1094,9 @@ export class GameScene extends Phaser.Scene {
 
   shutdown() {
     this.#cancelComboTimer();
+    this.#cancelEmptyGridTimer();
+    this.#unsubI18n?.();
+    this.#unsubI18n = null;
     this.#gm.shutdown();
     this.#destroyMenuModal();
     this.#gameOverModal?.destroy();

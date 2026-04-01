@@ -93,5 +93,37 @@ describe('SaveManager', () => {
       saveManager.resetRankings();
       expect(saveManager.getRankings('classic')).toEqual([]);
     });
+
+    it('stores extra data (maxTile, moves, fusions, powers)', () => {
+      saveManager.addRanking('free', 500, {
+        maxTile: 256,
+        moves: 40,
+        fusions: 20,
+        powers: ['fire-h', 'bomb'],
+      });
+      const rankings = saveManager.getRankings('free');
+      expect(rankings.length).toBe(1);
+      expect(rankings[0].score).toBe(500);
+      expect(rankings[0].maxTile).toBe(256);
+      expect(rankings[0].moves).toBe(40);
+      expect(rankings[0].fusions).toBe(20);
+      expect(rankings[0].powers).toEqual(['fire-h', 'bomb']);
+    });
+
+    it('returns best max tile', () => {
+      saveManager.addRanking('classic', 100, { maxTile: 128 });
+      saveManager.addRanking('classic', 500, { maxTile: 512 });
+      saveManager.addRanking('classic', 300, { maxTile: 256 });
+      expect(saveManager.getBestMaxTile('classic')).toBe(512);
+    });
+
+    it('returns 0 for best max tile when no rankings', () => {
+      expect(saveManager.getBestMaxTile('classic')).toBe(0);
+    });
+
+    it('handles rankings without maxTile gracefully', () => {
+      saveManager.addRanking('classic', 100);
+      expect(saveManager.getBestMaxTile('classic')).toBe(0);
+    });
   });
 });

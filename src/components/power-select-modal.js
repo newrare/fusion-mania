@@ -1,5 +1,6 @@
 import { i18n } from '../managers/i18n-manager.js';
 import { POWER_TYPES, POWER_META } from '../configs/constants.js';
+import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /**
  * Modal for selecting powers before starting a Free Mode game.
@@ -20,6 +21,9 @@ export class PowerSelectModal {
   /** @type {Function | null} */
   #onCancel = null;
 
+  /** @type {{ destroy: () => void } | null} */
+  #keyNav = null;
+
   /**
    * @param {Phaser.Scene} scene
    * @param {{ onStart?: (selectedTypes: string[]) => void, onCancel?: () => void }} options
@@ -35,7 +39,7 @@ export class PowerSelectModal {
       const meta = POWER_META[type];
       const name = i18n.t(meta.nameKey);
       powersHtml += `
-        <div class="fm-power-item" data-type="${type}" title="${name}">
+        <div class="fm-power-item" data-type="${type}" title="${name}" tabindex="0">
           <div class="fm-power-dot off" data-dot="${type}">
             <svg class="fm-power-icon" aria-hidden="true"><use href="#${meta.svgId}"/></svg>
           </div>
@@ -79,6 +83,10 @@ export class PowerSelectModal {
         this.#onCancel?.();
       }
     });
+
+    this.#keyNav = enableKeyboardNav(overlay, scene.input.keyboard, {
+      onEscape: () => this.#onCancel?.(),
+    });
   }
 
   /**
@@ -115,6 +123,8 @@ export class PowerSelectModal {
   }
 
   destroy() {
+    this.#keyNav?.destroy();
+    this.#keyNav = null;
     this.#domElement?.destroy();
     this.#domElement = null;
   }
