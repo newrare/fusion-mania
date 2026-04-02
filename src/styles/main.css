@@ -863,62 +863,32 @@ html, body {
 }
 
 /* ─────────────────────────────────────────────────────── */
-/* Grid Life — liquid HP bar (Free mode)                   */
+/* ─────────────────────────────────────────────────────── */
+/* Grid Life — liquid HP bar                               */
 /* ─────────────────────────────────────────────────────── */
 
-/* --- Liquid container filling the grid from bottom --- */
 .fm-grid-life-liquid {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: var(--fm-hp-pct, 100%);
-  border-radius: 0 0 18px 18px;
+  inset: 0;
+  border-radius: 20px;
+  overflow: hidden;
   z-index: 0;
   pointer-events: none;
-  overflow: hidden;
-  clip-path: inset(0 0 0 0 round 0 0 18px 18px);
-  background-color: var(--fm-hp-color, rgba(100, 180, 255, 0.22));
-  transition: height 0.8s ease-out, background-color 0.8s ease-out;
+  transition: opacity 0.5s ease-out;
 }
 
-/* Depth gradient: darker at bottom */
-.fm-grid-life-liquid::before {
-  content: '';
+.fm-grid-life-liquid--out {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+/* Shared canvas style for liquid wave overlays */
+.fm-liquid-canvas {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.06), transparent 70%);
-  border-radius: inherit;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
-}
-
-/* Wavy surface at the top of the liquid */
-.fm-grid-life-liquid::after {
-  content: '';
-  position: absolute;
-  top: -12px;
-  left: -30%;
-  width: 160%;
-  height: 24px;
-  background: var(--fm-hp-color, rgba(100, 180, 255, 0.22));
-  border-radius: 40% 60% 0 0;
-  pointer-events: none;
-  animation: fm-liquid-wave 2.8s ease-in-out infinite;
-}
-
-@keyframes fm-liquid-wave {
-  0%   { border-radius: 35% 65% 0 0; transform: translateX(0) translateY(0); }
-  20%  { border-radius: 62% 38% 0 0; transform: translateX(18px) translateY(-5px); }
-  40%  { border-radius: 50% 50% 0 0; transform: translateX(35px) translateY(-2px); }
-  60%  { border-radius: 40% 60% 0 0; transform: translateX(22px) translateY(-7px); }
-  80%  { border-radius: 65% 35% 0 0; transform: translateX(10px) translateY(-3px); }
-  100% { border-radius: 35% 65% 0 0; transform: translateX(0) translateY(0); }
-}
-
-/* Full-height liquid: round all corners like the grid */
-.fm-grid-life-liquid.fm-hp-full {
-  border-radius: 18px;
-  clip-path: inset(0 0 0 0 round 18px);
 }
 
 /* --- Grid hurt flash when taking damage --- */
@@ -1186,18 +1156,12 @@ html, body {
 /* Enemy HP liquid inside the tile */
 .fm-enemy-hp-liquid {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: var(--fm-enemy-hp-pct, 100%);
-  border-radius: 0 0 12px 12px;
-  transition: height 0.4s ease, background-color 0.4s ease;
+  inset: 0;
+  border-radius: 12px;
+  overflow: hidden;
   z-index: 1;
+  pointer-events: none;
 }
-
-.fm-enemy-hp-info    { background: rgba(100, 180, 255, 0.45); }
-.fm-enemy-hp-warning { background: rgba(255, 180, 60,  0.50); }
-.fm-enemy-hp-danger  { background: rgba(255, 60,  60,  0.55); }
 
 /* HP text below the tile */
 .fm-enemy-hp-text {
@@ -1218,13 +1182,25 @@ html, body {
 
 /* Enemy spawn pop — applied to .fm-enemy-tile wrapper, not the positioned area */
 .fm-enemy-spawn {
-  animation: fm-enemy-spawn 0.4s ease-out;
+  animation: fm-enemy-spawn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 @keyframes fm-enemy-spawn {
-  0%   { transform: scale(0); opacity: 0; }
-  60%  { transform: scale(1.15); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
+  0%   { transform: scale(0.1) translateY(-40px); opacity: 0; }
+  40%  { transform: scale(1.12) translateY(5px);  opacity: 1; }
+  65%  { transform: scale(0.94) translateY(-2px); opacity: 1; }
+  82%  { transform: scale(1.04) translateY(1px);  opacity: 1; }
+  100% { transform: scale(1)    translateY(0);    opacity: 1; }
+}
+
+/* Enemy name fades in from above with a slight delay */
+.fm-enemy-name-appear {
+  animation: fm-enemy-name-appear 0.5s ease-out 0.15s both;
+}
+
+@keyframes fm-enemy-name-appear {
+  0%   { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 /* Enemy floating damage number */
