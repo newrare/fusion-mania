@@ -209,10 +209,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    // Defensive cleanup: remove any dead-enemy DOM nodes that survived a previous
-    // game (e.g. if shutdown() was called while an animation was in flight).
-    document.querySelectorAll('.fm-dead-enemy, .fm-enemy-area, .fm-contaminate-particle')
-      .forEach((el) => el.remove());
+    // Defensive cleanup: remove any DOM nodes from a previous game that may
+    // have survived shutdown (e.g. if an animation was in flight).
+    document.querySelectorAll(
+      '.fm-dead-enemy, .fm-enemy-area, .fm-contaminate-particle, .fm-critical-overlay'
+    ).forEach((el) => el.remove());
 
     this.#gm = new GridManager();
     addBackground(this);
@@ -602,13 +603,11 @@ export class GameScene extends Phaser.Scene {
       this.#updatePowerVisuals();
     }
 
-    // Free mode safety: if powers destroyed every tile, start the empty-grid timer
-    if (this.#mode === 'free') {
-      if (this.#gm.grid.getAllTiles().length === 0) {
-        this.#startEmptyGridTimer();
-      } else {
-        this.#cancelEmptyGridTimer();
-      }
+    // Safety: if powers/effects destroyed every tile, start the empty-grid timer
+    if (this.#gm.grid.getAllTiles().length === 0) {
+      this.#startEmptyGridTimer();
+    } else {
+      this.#cancelEmptyGridTimer();
     }
 
     // ── Battle mode logic ──
@@ -1219,6 +1218,7 @@ export class GameScene extends Phaser.Scene {
     // ── Matter.js physics body ─────────────────────────────────────────────
     // this.matter.add.rectangle() creates a raw Matter Body and adds it to the world.
     const body = this.matter.add.rectangle(cx, cy, tileSize, tileSize, {
+      chamfer    : { radius: 14 }, // match CSS border-radius: 14px
       restitution : 0.30,   // bounciness
       friction    : 0.90,   // floor friction
       frictionAir : 0.008,  // air resistance
@@ -1406,14 +1406,7 @@ export class GameScene extends Phaser.Scene {
     if (this.#emptyGridTimer) return;
     this.#emptyGridTimer = this.time.delayedCall(5000, () => {
       this.#emptyGridTimer = null;
-      if (this.#gameOver) return;
-      if (this.#gm.grid.getAllTiles().length === 0) {
-        const tile = this.#gm.spawnAndRender();
-        if (tile) {
-          this.#updateHUD();
-          this.#gm.updateFusionIndicators();
-        }
-      }
+      this.#rescueIfGridEmpty();
     });
   }
 
@@ -1422,6 +1415,21 @@ export class GameScene extends Phaser.Scene {
     if (this.#emptyGridTimer) {
       this.#emptyGridTimer.remove(false);
       this.#emptyGridTimer = null;
+    }
+  }
+
+  /**
+   * If the grid is empty and the game is not over, spawn a rescue tile.
+   * Called by both the timer and the continuous update() safety check.
+   */
+  #rescueIfGridEmpty() {
+    if (this.#gameOver) return;
+    if (this.#gm.animating) return;
+    if (this.#gm.grid.getAllTiles().length > 0) return;
+    const tile = this.#gm.spawnAndRender();
+    if (tile) {
+      this.#updateHUD();
+      this.#gm.updateFusionIndicators();
     }
   }
 
@@ -1694,6 +1702,11 @@ export class GameScene extends Phaser.Scene {
 
   /** Phaser game loop — called every frame. Syncs dead-enemy DOM elements to their Matter.js body positions. */
   update() {
+    // Continuous empty-grid safety: catch any case the timer missed
+    if (!this.#gameOver && !this.#gm.animating && this.#gm.grid.getAllTiles().length === 0 && !this.#emptyGridTimer) {
+      this.#startEmptyGridTimer();
+    }
+
     if (this.#deadEnemyBodies.length === 0) return;
     const half = this.#tileSizePx / 2;
     for (const { el, body } of this.#deadEnemyBodies) {

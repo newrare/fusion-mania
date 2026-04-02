@@ -91,7 +91,7 @@
 
 /* --- Power select modal --- */
 .fm-power-select-modal {
-  max-width: 420px;
+  /* Uses base .fm-modal sizing */
 }
 
 .fm-power-grid {
@@ -119,7 +119,7 @@
 
 /* --- Power choice modal --- */
 .fm-power-choice-modal {
-  max-width: 320px;
+  /* Uses base .fm-modal sizing */
 }
 
 .fm-power-choice-grid {
@@ -725,8 +725,7 @@
 /* --- Power info full-list modal --- */
 /* Width matches 90% of the safe zone; no scroll needed — all lines visible */
 .fm-power-info-all-modal {
-  width: calc(var(--fm-safe-width, 360px) * 0.9);
-  max-width: calc(var(--fm-safe-width, 360px) * 0.9);
+  /* Uses base .fm-modal sizing */
 }
 
 .fm-power-info-all-lines {
