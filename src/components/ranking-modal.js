@@ -26,11 +26,15 @@ export class RankingModal {
 
   /**
    * @param {Phaser.Scene} scene
-   * @param {{ onClose?: Function }} options
+   * @param {{ onClose?: Function, showResume?: boolean, onResume?: Function }} options
    */
   constructor(scene, options = {}) {
     this.#scene = scene;
     this.#onClose = options.onClose ?? null;
+
+    const resumeBtn = options.showResume
+      ? `<button class="fm-btn fm-btn--primary" data-action="resume">${i18n.t('menu.resume')}</button>`
+      : '';
 
     const html = `
       <div class="fm-modal-overlay" id="fm-ranking-overlay">
@@ -43,6 +47,7 @@ export class RankingModal {
           </div>
           <div class="fm-ranking-table-wrap" id="fm-ranking-table-wrap"></div>
           <div class="fm-modal-buttons">
+            ${resumeBtn}
             <button class="fm-btn" data-action="close">${i18n.t('ranking.close')}</button>
           </div>
         </div>
@@ -66,7 +71,8 @@ export class RankingModal {
       const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
       if (!btn) return;
       e.stopPropagation();
-      if (btn.dataset.action === 'close') this.#onClose?.();
+      if (btn.dataset.action === 'resume') options.onResume?.();
+      else if (btn.dataset.action === 'close') this.#onClose?.();
     });
 
     // Keyboard navigation

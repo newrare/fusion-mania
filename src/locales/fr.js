@@ -12,6 +12,7 @@ export const fr = {
   'menu.close': 'Fermer',
   'menu.quit': 'Quitter',
   'menu.quit_confirm': 'Voulez-vous vraiment quitter ?',
+  'menu.exit': 'Quitter',
   'options.title': 'Options',
   'options.music': 'Musique',
   'options.sound': 'Son',

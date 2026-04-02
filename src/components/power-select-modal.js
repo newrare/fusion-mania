@@ -86,6 +86,7 @@ export class PowerSelectModal {
 
     this.#keyNav = enableKeyboardNav(overlay, scene.input.keyboard, {
       onEscape: () => this.#onCancel?.(),
+      gridColumns: 4,
     });
   }
 

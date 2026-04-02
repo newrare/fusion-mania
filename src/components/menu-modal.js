@@ -87,6 +87,9 @@ export class MenuModal {
         case 'admin':
           options.onAdmin?.();
           break;
+        case 'exit':
+          window.close();
+          break;
       }
     });
 
@@ -102,16 +105,27 @@ export class MenuModal {
     const opts = this.#options;
     let html = '';
     if (opts.showResume) {
+      // Game in progress: only show Resume + Ranking + Options + (Quit) + (Admin)
       html += `<button class="fm-btn fm-btn--primary" data-action="resume">${i18n.t('menu.resume')}</button>`;
-    }
-    html += `<button class="fm-btn" data-action="classic">${i18n.t('menu.classic')}</button>`;
-    html += `<button class="fm-btn" data-action="battle">${i18n.t('menu.battle')}</button>`;
-    html += `<button class="fm-btn" data-action="free">${i18n.t('menu.free')}</button>`;
-    html += `<button class="fm-btn" data-action="ranking">${i18n.t('menu.ranking')}</button>`;
-    html += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;
-    html += `<button class="fm-btn" data-action="close">${i18n.t('menu.close')}</button>`;
-    if (opts.onQuit) {
-      html += `<button class="fm-btn" data-action="quit">${i18n.t('menu.quit')}</button>`;
+      html += `<button class="fm-btn" data-action="ranking">${i18n.t('menu.ranking')}</button>`;
+      html += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;
+      if (opts.onQuit) {
+        html += `<button class="fm-btn" data-action="quit">${i18n.t('menu.quit')}</button>`;
+      }
+    } else {
+      // No game in progress: show mode selection
+      html += `<button class="fm-btn" data-action="classic">${i18n.t('menu.classic')}</button>`;
+      html += `<button class="fm-btn" data-action="battle">${i18n.t('menu.battle')}</button>`;
+      html += `<button class="fm-btn" data-action="free">${i18n.t('menu.free')}</button>`;
+      html += `<button class="fm-btn" data-action="ranking">${i18n.t('menu.ranking')}</button>`;
+      html += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;
+      html += `<button class="fm-btn" data-action="close">${i18n.t('menu.close')}</button>`;
+      if (opts.onQuit) {
+        html += `<button class="fm-btn" data-action="quit">${i18n.t('menu.quit')}</button>`;
+      }
+      if (import.meta.env.DEV || ('ontouchstart' in window || navigator.maxTouchPoints > 0)) {
+        html += `<button class="fm-btn" data-action="exit">${i18n.t('menu.exit')}</button>`;
+      }
     }
     if (import.meta.env.DEV && opts.onAdmin) {
       html += `<button class="fm-btn fm-btn--admin" data-action="admin">⚙ Admin</button>`;
@@ -131,6 +145,12 @@ export class MenuModal {
   #openOptions() {
     if (this.#optionsModal) return;
     this.#optionsModal = new OptionsModal(this.#scene, {
+      showResume: !!this.#options.showResume,
+      onResume: () => {
+        this.#optionsModal?.destroy();
+        this.#optionsModal = null;
+        this.#options.onResume?.();
+      },
       onClose: () => {
         this.#optionsModal?.destroy();
         this.#optionsModal = null;
@@ -141,6 +161,12 @@ export class MenuModal {
   #openRanking() {
     if (this.#rankingModal) return;
     this.#rankingModal = new RankingModal(this.#scene, {
+      showResume: !!this.#options.showResume,
+      onResume: () => {
+        this.#rankingModal?.destroy();
+        this.#rankingModal = null;
+        this.#options.onResume?.();
+      },
       onClose: () => {
         this.#rankingModal?.destroy();
         this.#rankingModal = null;

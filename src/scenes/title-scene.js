@@ -26,20 +26,23 @@ export class TitleScene extends Phaser.Scene {
       '.fm-dead-enemy, .fm-enemy-area, .fm-contaminate-particle, .fm-critical-overlay'
     ).forEach((el) => el.remove());
 
+    // Recalculate layout with real viewport dimensions at the moment create() runs.
+    layout.update(window.innerWidth, window.innerHeight);
+
     addBackground(this);
     layout.drawDebugSafeZone(this);
 
-    // Logo at 20 % from the top of the display
-    const logoY = this.scale.height * 0.20;
+    const { safe } = layout;
+    const logoY   = safe.top + safe.height * 0.20;
+    const promptY = safe.top + safe.height * 0.70;
+
     this.#logoElement = this.add
-      .dom(layout.safe.cx, logoY)
+      .dom(safe.cx, logoY)
       .createFromHTML(`<img class="fm-title-logo-img" src="/images/logo.png" alt="Fusion Mania" />`);
     this.#logoElement.setOrigin(0.5);
 
-    // Prompt at 30 % from the bottom of the safe zone
-    const promptY = layout.safe.top + layout.safe.height * 0.70;
     this.#promptElement = this.add
-      .dom(layout.safe.cx, promptY)
+      .dom(safe.cx, promptY)
       .createFromHTML(`<div class="fm-title-prompt">${i18n.t('title.prompt')}</div>`);
     this.#promptElement.setOrigin(0.5);
 

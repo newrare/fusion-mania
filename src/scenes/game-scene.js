@@ -423,7 +423,7 @@ export class GameScene extends Phaser.Scene {
 
   /** @param {Phaser.Input.Keyboard.Key} event */
   #handleKey = (event) => {
-    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal) return;
+    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal || this.#powerSelectModal) return;
 
     /** @type {'up' | 'down' | 'left' | 'right' | null} */
     let direction = null;
@@ -454,7 +454,7 @@ export class GameScene extends Phaser.Scene {
       this.#pointerStartY = pointer.y;
       return;
     }
-    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal) return;
+    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal || this.#powerSelectModal) return;
 
     const dx = pointer.x - this.#pointerStartX;
     const dy = pointer.y - this.#pointerStartY;
@@ -987,6 +987,7 @@ export class GameScene extends Phaser.Scene {
 
     // Entrance animation on the tile wrapper (not the area itself, which has translate positioning)
     if (this.#enemyAreaEl) {
+      this.#enemyAreaEl.style.visibility = ''; // reset visibility hidden set during death animation
       this.#enemyAreaEl.style.display = 'flex';
       /* Force reflow so the tile has real dimensions before creating the wave canvas */
       void this.#enemyAreaEl.offsetHeight;
@@ -1391,6 +1392,7 @@ export class GameScene extends Phaser.Scene {
         this.#gm.syncTileDom(this.#powerManager?.windDirection ?? null);
         this.#gm.updateFusionIndicators();
       },
+      onResume: () => this.#destroyMenuModal(),
       onClose: () => { this.#adminModal?.destroy(); this.#adminModal = null; },
     });
   }

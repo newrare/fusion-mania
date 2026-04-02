@@ -20,6 +20,7 @@ export class AdminModal {
    *   onAddValue?:   (value: number) => void,
    *   onAddState?:   (state: string) => void,
    *   onClose?:      () => void,
+   *   onResume?:     () => void,
    * }} options
    */
   constructor(scene, options = {}) {
@@ -27,9 +28,13 @@ export class AdminModal {
       (v) => `<button class="fm-btn fm-admin-tile-btn" data-action="add-value" data-value="${v}">${v}</button>`,
     ).join('');
 
-    const stateButtons = TILE_STATE_IDS.map(
+    const stateButtons = TILE_STATE_IDS.filter((id) => id !== 'normal' && id !== 'targeted').map(
       (id) => `<button class="fm-btn fm-admin-tile-btn" data-action="add-state" data-state="${id}">${stateLabel(id)}</button>`,
     ).join('');
+
+    const resumeBtn = options.onResume
+      ? `<button class="fm-btn fm-btn--primary" data-action="resume">Resume</button>`
+      : '';
 
     const html = `
       <div class="fm-modal-overlay" id="fm-admin-overlay">
@@ -37,7 +42,7 @@ export class AdminModal {
           <div class="fm-modal-title">⚙ Admin</div>
 
           <div class="fm-admin-section">
-            <button class="fm-btn fm-btn--danger" data-action="clear">🗑 Clear grid</button>
+            <button class="fm-btn fm-btn--danger" data-action="clear">Clear grid</button>
           </div>
 
           <div class="fm-admin-section">
@@ -50,7 +55,10 @@ export class AdminModal {
             <div class="fm-admin-grid">${stateButtons}</div>
           </div>
 
-          <button class="fm-btn" data-action="close">Close</button>
+          <div class="fm-admin-close-row">
+            ${resumeBtn}
+            <button class="fm-btn" data-action="close">Close</button>
+          </div>
         </div>
       </div>
     `;
@@ -74,6 +82,9 @@ export class AdminModal {
           break;
         case 'add-state':
           options.onAddState?.(btn.dataset.state ?? 'normal');
+          break;
+        case 'resume':
+          options.onResume?.();
           break;
         case 'close':
           options.onClose?.();

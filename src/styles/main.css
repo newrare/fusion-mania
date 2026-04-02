@@ -595,9 +595,11 @@ html, body {
   font-family: 'Westernic', cursive, sans-serif;
   cursor: pointer;
   text-align: center;
+  white-space: nowrap;
   box-shadow: 0 6px 0 var(--fm-btn-shadow, #7c6ff7), 0 8px 16px var(--fm-btn-glow, rgba(178,163,255,.35));
   transition: transform 0.1s, box-shadow 0.1s;
   transform-origin: center bottom;
+  margin: 4px 0;
 }
 
 .fm-btn:hover {
@@ -695,10 +697,6 @@ html, body {
 }
 
 /* --- Admin modal (dev mode only) --- */
-.fm-admin-modal {
-  /* Uses base .fm-modal sizing */
-}
-
 .fm-admin-section {
   margin-bottom: 14px;
 }
@@ -729,24 +727,31 @@ html, body {
 }
 
 .fm-btn--danger {
-  background: rgba(200, 40, 40, 0.45);
-  color: #ff9090;
-  box-shadow: 0 6px 0 rgba(120, 15, 15, 0.8), 0 8px 16px rgba(200,40,40,.25);
+  background: #ffd6f5;
+  color: #aa0f96;
+  box-shadow: 0 6px 0 #7a0a70, 0 8px 16px rgba(170,15,150,.22);
   width: 100%;
 }
 
 .fm-btn--danger:active {
-  box-shadow: 0 2px 0 rgba(120, 15, 15, 0.8), 0 2px 8px rgba(200,40,40,.2);
+  box-shadow: 0 2px 0 #7a0a70, 0 2px 8px rgba(170,15,150,.18);
 }
 
 .fm-btn--admin {
-  background: rgba(40, 140, 60, 0.45);
-  color: #90ff90;
-  box-shadow: 0 6px 0 rgba(15, 80, 30, 0.8), 0 8px 16px rgba(60,180,80,.25);
+  background: #dcc2ff;
+  color: #4400e0;
+  box-shadow: 0 6px 0 #2e0099, 0 8px 16px rgba(68,0,224,.22);
 }
 
 .fm-btn--admin:active {
-  box-shadow: 0 2px 0 rgba(15, 80, 30, 0.8), 0 2px 8px rgba(60,180,80,.2);
+  box-shadow: 0 2px 0 #2e0099, 0 2px 8px rgba(68,0,224,.18);
+}
+
+.fm-admin-close-row {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 /* ─────────────────────────────────────────────────────── */
@@ -970,22 +975,37 @@ html, body {
 .fm-ranking-tab {
   flex: 1;
   padding: 8px 12px;
-  border: 2px solid rgba(255,255,255,0.18);
+  border: none;
   border-radius: 50px;
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.55);
+  background: var(--fm-btn-bg, #b8a3ff);
+  color: var(--fm-btn-color, #2d1a7a);
   font-size: 0.85rem;
   font-weight: 700;
   font-family: 'Westernic', cursive, sans-serif;
   cursor: pointer;
-  transition: all 0.2s;
+  box-shadow: 0 4px 0 var(--fm-btn-shadow, #7c6ff7), 0 6px 12px var(--fm-btn-glow, rgba(178,163,255,.35));
+  transition: transform 0.1s, box-shadow 0.1s;
+  transform-origin: center bottom;
+  margin: 4px 0;
+}
+
+.fm-ranking-tab:hover {
+  animation: fm-btn-wobble 0.5s ease;
+}
+
+.fm-ranking-tab:active {
+  transform: scaleX(1.15) scaleY(0.82);
+  box-shadow: 0 2px 0 var(--fm-btn-shadow, #7c6ff7), 0 2px 8px var(--fm-btn-glow, rgba(178,163,255,.3));
 }
 
 .fm-ranking-tab--active {
   background: var(--fm-btn-primary-bg, #ff6fc8);
   color: var(--fm-btn-primary-color, #fff);
-  border-color: var(--fm-btn-primary-bg, #ff6fc8);
-  box-shadow: 0 3px 0 var(--fm-btn-primary-shadow, #c4429a);
+  box-shadow: 0 4px 0 var(--fm-btn-primary-shadow, #c4429a), 0 6px 12px var(--fm-btn-primary-glow, rgba(255,111,200,.35));
+}
+
+.fm-ranking-tab--active:active {
+  box-shadow: 0 2px 0 var(--fm-btn-primary-shadow, #c4429a), 0 2px 8px var(--fm-btn-primary-glow, rgba(255,111,200,.3));
 }
 
 .fm-ranking-table-wrap {
@@ -1073,12 +1093,19 @@ html, body {
 }
 
 /* --- Button focus for keyboard navigation --- */
-.fm-btn:focus-visible,
-.fm-ranking-tab:focus-visible,
-.fm-power-item:focus-visible,
-.fm-power-choice-item:focus-visible {
+.fm-btn:focus-visible {
+  outline: none;
+  animation: fm-btn-wobble 0.5s ease;
+}
+
+.fm-ranking-tab:focus-visible {
   outline: 3px solid var(--fm-btn-primary-bg, #ff6fc8);
   outline-offset: 3px;
+}
+
+.fm-power-item:focus-visible,
+.fm-power-choice-item:focus-visible {
+  outline: none;
 }
 
 /* ===========================================================================

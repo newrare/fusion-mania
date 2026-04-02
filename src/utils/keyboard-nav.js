@@ -1,14 +1,20 @@
 /**
  * Enable keyboard navigation on focusable elements within a container.
  * Arrow Up/Down cycle through items, Enter/Space activates.
+ * Mouse pointer movement clears keyboard focus so hover animations work
+ * normally; arrow keys re-enable keyboard focus.
  *
  * @param {HTMLElement} container - The container to scope focus within
  * @param {Phaser.Input.Keyboard.KeyboardPlugin} keyboard - Phaser keyboard plugin
- * @param {{ onEscape?: Function }} [options]
+ * @param {{ onEscape?: Function, gridColumns?: number }} [options]
  * @returns {{ destroy: () => void }}
  */
 export function enableKeyboardNav(container, keyboard, options = {}) {
   const SELECTOR = 'button:not([disabled]), [data-action], .fm-power-item, .fm-power-choice-item, .fm-ranking-tab';
+  const { gridColumns } = options;
+
+  /** Whether the last input was the mouse (suppresses auto-focus). */
+  let usingMouse = false;
 
   /** @returns {HTMLElement[]} */
   function getFocusable() {
@@ -22,6 +28,18 @@ export function enableKeyboardNav(container, keyboard, options = {}) {
     items[i]?.focus();
   }
 
+  /** Blur keyboard-focused item so CSS :hover works unobstructed. */
+  const onPointerMove = () => {
+    if (usingMouse) return;
+    usingMouse = true;
+    const items = getFocusable();
+    const active = document.activeElement;
+    if (active && items.includes(/** @type {HTMLElement} */ (active))) {
+      active.blur();
+    }
+  };
+  container.addEventListener('pointermove', onPointerMove, { passive: true });
+
   /** @param {KeyboardEvent} event */
   const handler = (event) => {
     const items = getFocusable();
@@ -31,15 +49,43 @@ export function enableKeyboardNav(container, keyboard, options = {}) {
     const idx = items.indexOf(/** @type {HTMLElement} */ (active));
 
     switch (event.code) {
-      case 'ArrowDown':
+      case 'ArrowDown': {
+        event.preventDefault?.();
+        usingMouse = false;
+        const isGridItemDown = gridColumns && active?.classList?.contains('fm-power-item');
+        if (isGridItemDown) {
+          const powerItems = items.filter((i) => i.classList.contains('fm-power-item'));
+          const pidx = powerItems.indexOf(/** @type {HTMLElement} */ (active));
+          const next = pidx + gridColumns;
+          if (next < powerItems.length) powerItems[next].focus();
+        } else {
+          focusIndex(items, idx + 1);
+        }
+        break;
+      }
       case 'ArrowRight': {
         event.preventDefault?.();
+        usingMouse = false;
         focusIndex(items, idx + 1);
         break;
       }
-      case 'ArrowUp':
+      case 'ArrowUp': {
+        event.preventDefault?.();
+        usingMouse = false;
+        const isGridItemUp = gridColumns && active?.classList?.contains('fm-power-item');
+        if (isGridItemUp) {
+          const powerItems = items.filter((i) => i.classList.contains('fm-power-item'));
+          const pidx = powerItems.indexOf(/** @type {HTMLElement} */ (active));
+          const prev = pidx - gridColumns;
+          if (prev >= 0) powerItems[prev].focus();
+        } else {
+          focusIndex(items, idx <= 0 ? items.length - 1 : idx - 1);
+        }
+        break;
+      }
       case 'ArrowLeft': {
         event.preventDefault?.();
+        usingMouse = false;
         focusIndex(items, idx <= 0 ? items.length - 1 : idx - 1);
         break;
       }
@@ -67,6 +113,7 @@ export function enableKeyboardNav(container, keyboard, options = {}) {
   return {
     destroy() {
       keyboard.off('keydown', handler);
+      container.removeEventListener('pointermove', onPointerMove);
     },
   };
 }

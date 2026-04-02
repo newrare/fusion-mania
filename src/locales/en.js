@@ -12,6 +12,7 @@ export const en = {
   'menu.close': 'Close',
   'menu.quit': 'Quit Game',
   'menu.quit_confirm': 'Are you sure you want to quit?',
+  'menu.exit': 'Exit',
   'options.title': 'Options',
   'options.music': 'Music',
   'options.sound': 'Sound',

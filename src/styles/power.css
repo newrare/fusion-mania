@@ -10,6 +10,7 @@
   border-radius: 50%;
   position: relative;
   background: var(--fm-dot-bg, transparent);
+  transition: transform 0.15s ease;
 }
 
 .fm-power-dot.tiny {
@@ -87,6 +88,20 @@
   animation-play-state: running;
 }
 
+/* Focus state for keyboard navigation — mirrors hover behaviour */
+.fm-power-item:focus-visible .fm-power-dot {
+  transform: scale(1.1);
+}
+
+.fm-power-item:focus-visible .fm-power-dot.off {
+  --fm-dot-ring: #6b7280;
+  --fm-dot-ico: #374151;
+}
+
+.fm-power-item:focus-visible .fm-power-dot.off::before {
+  animation-play-state: running;
+}
+
 @keyframes fm-dot-spin { to { transform: rotate(360deg); } }
 
 /* --- Power select modal --- */
@@ -132,11 +147,15 @@
 .fm-power-choice-item {
   padding: 12px;
   border-radius: 12px;
-  transition: background 0.15s;
 }
 
-.fm-power-choice-item:hover {
-  background: rgba(255,255,255,0.08);
+.fm-power-choice-item .fm-power-dot {
+  transition: transform 0.15s cubic-bezier(.36,1.6,.6,1);
+}
+
+.fm-power-choice-item:hover .fm-power-dot,
+.fm-power-choice-item:focus-visible .fm-power-dot {
+  transform: scale(1.15);
 }
 
 .fm-power-choice-item:active {

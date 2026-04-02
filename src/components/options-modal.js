@@ -19,15 +19,22 @@ export class OptionsModal {
   /** @type {Function | null} */
   #unsubI18n = null;
 
+  /** @type {boolean} */
+  #showResume = false;
+
   /**
    * @param {Phaser.Scene} scene
-   * @param {{ onClose?: Function }} options
+   * @param {{ onClose?: Function, showResume?: boolean, onResume?: Function }} options
    */
   constructor(scene, options = {}) {
     this.#scene = scene;
+    this.#showResume = !!options.showResume;
 
     const themeLabel = i18n.t(`options.theme_${themeManager.current}`);
     const langLabel = i18n.t(`options.lang_${i18n.locale}`);
+    const resumeBtn = options.showResume
+      ? `<button class="fm-btn fm-btn--primary" data-action="resume">${i18n.t('menu.resume')}</button>`
+      : '';
 
     const html = `
       <div class="fm-modal-overlay" id="fm-options-overlay">
@@ -42,6 +49,7 @@ export class OptionsModal {
               <span class="fm-option-label">${i18n.t('options.language')}</span>
               <button class="fm-theme-btn" data-action="language" id="fm-lang-label">${langLabel}</button>
             </div>
+            ${resumeBtn}
             <button class="fm-btn" data-action="close">${i18n.t('options.close')}</button>
           </div>
         </div>
@@ -74,6 +82,9 @@ export class OptionsModal {
           if (langEl) langEl.textContent = i18n.t(`options.lang_${next}`);
           break;
         }
+        case 'resume':
+          options.onResume?.();
+          break;
         case 'close':
           options.onClose?.();
           break;
@@ -95,6 +106,8 @@ export class OptionsModal {
     const labels = overlay.querySelectorAll('.fm-option-label');
     const labelKeys = ['options.theme', 'options.language'];
     labels.forEach((el, i) => { if (labelKeys[i]) el.textContent = i18n.t(labelKeys[i]); });
+    const resumeBtn = overlay.querySelector('[data-action="resume"]');
+    if (resumeBtn) resumeBtn.textContent = i18n.t('menu.resume');
     const closeBtn = overlay.querySelector('[data-action="close"]');
     if (closeBtn) closeBtn.textContent = i18n.t('options.close');
     const themeEl = overlay.querySelector('#fm-theme-label');
