@@ -77,4 +77,10 @@ export const en = {
   'game.hp': 'HP',
   'gameover.hp_depleted': 'Grid destroyed!',
   'power.predictions': 'Predictions',
+  'battle.enemy_appears': 'Enemy appeared!',
+  'battle.enemy_defeated': 'Enemy defeated!',
+  'battle.classic_phase': 'Classic phase',
+  'battle.enemies_defeated': 'Enemies defeated',
+  'ranking.enemies_defeated': 'Enemies',
+  'ranking.enemy_max_level': 'Max lvl',
 };

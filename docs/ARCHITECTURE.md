@@ -27,6 +27,7 @@ fusionMania/
 ├── docs/                      # Project documentation
 │   ├── ARCHITECTURE.md        # ← You are here
 │   ├── ANIMATION.md           # Animation system, interruption model, testing guide
+│   ├── BATTLE.md              # Battle mode system, enemy progression, contamination
 │   ├── TRANSLATE.md           # Localization guide
 │   └── preview-game.html      # Visual reference for tile styles
 │
@@ -63,12 +64,15 @@ fusionMania/
 │   ├── entities/              # Game objects — pure logic, no Phaser dependency
 │   │   ├── index.js           # Barrel export
 │   │   ├── tile.js            # Tile data class (value, row, col, id)
-│   │   └── grid.js            # 4×4 grid logic (move, merge, spawn, canMove)
+│   │   ├── grid.js            # 4×4 grid logic (move, merge, spawn, canMove)
+│   │   ├── grid-life.js       # HP system (Free / Battle modes)
+│   │   └── enemy.js           # Enemy data class (Battle mode)
 │   │
 │   ├── managers/              # Cross-cutting singletons
 │   │   ├── index.js           # Barrel export
 │   │   ├── animation-manager.js # Tile DOM animations + cancellation system
 │   │   ├── audio-manager.js   # Music & SFX settings (persisted)
+│   │   ├── battle-manager.js  # Battle mode logic (enemy spawn, contamination, damage)
 │   │   ├── i18n-manager.js    # Locale switching & translation lookups
 │   │   └── save-manager.js    # Persistent game state + rankings (localStorage)
 │   │
@@ -84,9 +88,11 @@ fusionMania/
 ├── tests/                     # Unit tests (mirrors src/ structure)
 │   ├── entities/
 │   │   ├── tile.test.js
-│   │   └── grid.test.js
+│   │   ├── grid.test.js
+│   │   └── enemy.test.js
 │   ├── managers/
 │   │   ├── animation-manager.test.js
+│   │   ├── battle-manager.test.js
 │   │   ├── i18n-manager.test.js
 │   │   └── save-manager.test.js
 │   └── utils/

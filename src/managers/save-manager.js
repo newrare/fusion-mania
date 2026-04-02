@@ -47,6 +47,8 @@ class SaveManager {
     if (extra.moves != null) entry.moves = extra.moves;
     if (extra.fusions != null) entry.fusions = extra.fusions;
     if (extra.powers) entry.powers = extra.powers;
+    if (extra.enemiesDefeated != null) entry.enemiesDefeated = extra.enemiesDefeated;
+    if (extra.enemyMaxLevel != null) entry.enemyMaxLevel = extra.enemyMaxLevel;
     rankings[mode].push(entry);
     rankings[mode].sort((a, b) => b.score - a.score);
     rankings[mode] = rankings[mode].slice(0, 10);

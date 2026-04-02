@@ -31,7 +31,7 @@ export class MenuModal {
 
   /**
    * @param {Phaser.Scene} scene
-   * @param {{ showResume?: boolean, onResume?: Function, onClassic?: Function, onFree?: Function, onClose?: Function, onQuit?: Function, onAdmin?: Function }} options
+   * @param {{ showResume?: boolean, onResume?: Function, onClassic?: Function, onBattle?: Function, onFree?: Function, onClose?: Function, onQuit?: Function, onAdmin?: Function }} options
    */
   constructor(scene, options = {}) {
     this.#scene = scene;
@@ -65,6 +65,9 @@ export class MenuModal {
           break;
         case 'classic':
           options.onClassic?.();
+          break;
+        case 'battle':
+          options.onBattle?.();
           break;
         case 'free':
           options.onFree?.();
@@ -102,6 +105,7 @@ export class MenuModal {
       html += `<button class="fm-btn fm-btn--primary" data-action="resume">${i18n.t('menu.resume')}</button>`;
     }
     html += `<button class="fm-btn" data-action="classic">${i18n.t('menu.classic')}</button>`;
+    html += `<button class="fm-btn" data-action="battle">${i18n.t('menu.battle')}</button>`;
     html += `<button class="fm-btn" data-action="free">${i18n.t('menu.free')}</button>`;
     html += `<button class="fm-btn" data-action="ranking">${i18n.t('menu.ranking')}</button>`;
     html += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;

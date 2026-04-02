@@ -48,6 +48,10 @@ export class TitleScene extends Phaser.Scene {
         this.#destroyModal();
         this.scene.start(SCENE_KEYS.GRID, { mode: 'classic' });
       },
+      onBattle: () => {
+        this.#destroyModal();
+        this.scene.start(SCENE_KEYS.GRID, { mode: 'battle' });
+      },
       onFree: () => {
         this.#destroyModal();
         this.scene.start(SCENE_KEYS.GRID, { mode: 'free' });

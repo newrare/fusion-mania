@@ -7,7 +7,7 @@ export const THEMES = /** @type {const} */ (['candy', 'chroma']);
  * Manages tile color theme.
  * Applies a `data-theme` attribute on `<html>` so CSS can scope overrides.
  */
-class ThemeManager {
+export class ThemeManager {
   /** @type {string} */
   #current;
 

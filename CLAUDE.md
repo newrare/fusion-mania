@@ -63,12 +63,16 @@ To add a new animation: add a keyframe to `src/styles/main.css`, add a method to
 
 ### Save & i18n
 
-- `SaveManager` — `localStorage` persistence for game state and per-mode rankings (top 10). Rankings store score, date, maxTile, moves, fusions, and (for free mode) selected powers.
+- `SaveManager` — `localStorage` persistence for game state and per-mode rankings (top 10). Rankings store score, date, maxTile, moves, fusions, and (for free mode) selected powers, (for battle mode) enemies defeated.
 - `I18nManager` — English/French via `src/locales/`. Keys are dot-separated (`menu.play`). Never hardcode user-facing strings; always use `i18n.t('key')`.
 
 ### Ranking modal
 
-`RankingModal` (`src/components/ranking-modal.js`) provides a full-safe-zone leaderboard with tabs for Classic and Free modes. Free mode scores display a row of power icons showing which powers were used. Rankings are stored and managed by `SaveManager`.
+`RankingModal` (`src/components/ranking-modal.js`) provides a full-safe-zone leaderboard with tabs for Classic, Battle, and Free modes. Free mode scores display a row of power icons showing which powers were used. Rankings are stored and managed by `SaveManager`.
+
+### Battle mode
+
+`BattleManager` (`src/managers/battle-manager.js`) handles enemy spawn logic, contamination, damage, and level progression. `Enemy` (`src/entities/enemy.js`) is a pure data class with name (100 math-themed names), level, HP (via `GridLife`), and available powers. The game alternates between a classic phase (10 moves) and a battle phase (enemy active). See `docs/BATTLE.md` for the full system.
 
 ### Keyboard navigation
 

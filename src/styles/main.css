@@ -1069,6 +1069,25 @@ html, body {
 .fm-ranking-max { flex: 0 0 42px; }
 .fm-ranking-date-col { flex: 0 0 62px; font-size: 0.72rem; opacity: 0.7; }
 .fm-ranking-powers-col { flex: 0 0 72px; }
+.fm-ranking-enemy-max-col { flex: 0 0 52px; }
+
+/* Enemy level badge inside ranking table */
+.fm-ranking-enemy-lvl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 8px;
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  animation: none !important;
+  transition: none !important;
+  background-image: none !important;
+}
 
 .fm-ranking-powers {
   display: flex;
@@ -1098,4 +1117,192 @@ html, body {
 .fm-power-choice-item:focus-visible {
   outline: 3px solid var(--fm-btn-primary-bg, #ff6fc8);
   outline-offset: 3px;
+}
+
+/* ===========================================================================
+   BATTLE MODE — Enemy area, HP bar, animations
+   =========================================================================== */
+
+/* ─── Enemy area (fixed overlay, positioned by JS between HUD and grid) ──── */
+.fm-enemy-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Enemy name — uses fm-t* class for text color; background stripped */
+.fm-enemy-name {
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  padding: 2px 6px;
+  /* Strip all fm-tile/fm-t* layout side-effects */
+  position: static !important;
+  display: block !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: auto !important;
+  height: auto !important;
+  transition: none !important;
+  overflow: visible !important;
+}
+
+/* Enemy tile wrapper — same size as a grid tile */
+.fm-enemy-tile {
+  position: relative;
+  width: var(--fm-tile-size, 74px);
+  height: var(--fm-tile-size, 74px);
+}
+
+/* Inner tile: same element as .fm-tile but overrides background → transparent */
+.fm-enemy-tile-inner {
+  /* Override fm-tile's grid positioning */
+  position: relative !important;
+  left: 0 !important;
+  top: 0 !important;
+  /* Match wrapper size */
+  width: 100% !important;
+  height: 100% !important;
+  /* Make tile transparent so only the colored border shows */
+  background: transparent !important;
+  background-image: none !important;
+  animation: none !important;
+  /* No slide transitions for enemy */
+  transition: none !important;
+  /* Ensure border is visible (fm-tile has border: 2px solid transparent;
+     fm-t* sets border-color, so together they produce a colored border) */
+  will-change: auto !important;
+}
+
+.fm-enemy-boss .fm-enemy-tile-inner {
+  box-shadow: 0 0 16px 4px rgba(255, 50, 50, 0.5),
+              0 5px 16px rgba(140, 80, 200, 0.13) !important;
+}
+
+/* Enemy HP liquid inside the tile */
+.fm-enemy-hp-liquid {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--fm-enemy-hp-pct, 100%);
+  border-radius: 0 0 12px 12px;
+  transition: height 0.4s ease, background-color 0.4s ease;
+  z-index: 1;
+}
+
+.fm-enemy-hp-info    { background: rgba(100, 180, 255, 0.45); }
+.fm-enemy-hp-warning { background: rgba(255, 180, 60,  0.50); }
+.fm-enemy-hp-danger  { background: rgba(255, 60,  60,  0.55); }
+
+/* HP text below the tile */
+.fm-enemy-hp-text {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+}
+
+/* Enemy hurt flash */
+.fm-enemy--hurt {
+  animation: fm-enemy-hurt 0.3s ease-out !important;
+}
+
+@keyframes fm-enemy-hurt {
+  0%   { filter: brightness(2) saturate(0); }
+  100% { filter: brightness(1) saturate(1); }
+}
+
+/* Enemy spawn pop — applied to .fm-enemy-tile wrapper, not the positioned area */
+.fm-enemy-spawn {
+  animation: fm-enemy-spawn 0.4s ease-out;
+}
+
+@keyframes fm-enemy-spawn {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Enemy floating damage number */
+.fm-enemy-damage {
+  position: absolute;
+  right: -34px;
+  top: 30%;
+  font-size: 16px;
+  font-weight: 800;
+  color: #ff4444;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  animation: fm-enemy-dmg-float 0.8s ease-out forwards;
+  white-space: nowrap;
+}
+
+@keyframes fm-enemy-dmg-float {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-30px); }
+}
+
+/* ─── Contamination particle ──────────────────────── */
+.fm-contaminate-particle {
+  position: fixed;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ff44ff, #aa00ff);
+  box-shadow: 0 0 10px 3px rgba(170, 0, 255, 0.6);
+  pointer-events: none;
+  z-index: 1000;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
+}
+
+.fm-contaminate-fly {
+  opacity: 0.7;
+}
+
+/* ─── Dead enemy tiles (stay at physics-settled position on document.body) ── */
+
+/* Wrapper — position:fixed + size set in JS; transform (rotation) applied here */
+.fm-dead-enemy {
+  will-change: transform;
+}
+
+.fm-dead-enemy-inner {
+  position: relative !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  filter: grayscale(1) brightness(0.55);
+  opacity: 0.75;
+  animation: none !important;
+  transition: none !important;
+  background-image: none !important;
+}
+
+.fm-dead-enemy-inner .fm-val { display: none !important; }
+
+.fm-dead-enemy-label {
+  position: relative;
+  z-index: 5;
+  font-size: 8px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  word-break: break-all;
+  padding: 2px;
+  line-height: 1.1;
+}
+
+/* ─── Hide enemy area when any modal overlay is open ───────────────────── */
+/* Excludes the persistent (always-in-DOM) power-info overlay.               */
+body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
+  visibility: hidden;
+  pointer-events: none;
 }

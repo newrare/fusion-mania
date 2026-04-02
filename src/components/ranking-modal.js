@@ -38,6 +38,7 @@ export class RankingModal {
           <div class="fm-modal-title">${i18n.t('ranking.title')}</div>
           <div class="fm-ranking-tabs">
             <button class="fm-ranking-tab fm-ranking-tab--active" data-tab="classic">${i18n.t('ranking.classic')}</button>
+            <button class="fm-ranking-tab" data-tab="battle">${i18n.t('ranking.battle')}</button>
             <button class="fm-ranking-tab" data-tab="free">${i18n.t('ranking.free')}</button>
           </div>
           <div class="fm-ranking-table-wrap" id="fm-ranking-table-wrap"></div>
@@ -69,17 +70,24 @@ export class RankingModal {
     });
 
     // Keyboard navigation
+    /** @type {string[]} Tab order for keyboard navigation */
+    const tabOrder = ['classic', 'battle', 'free'];
+
     this.#keyHandler = (event) => {
       switch (event.code) {
         case 'Escape':
           this.#onClose?.();
           break;
-        case 'ArrowLeft':
-          this.#switchTab('classic');
+        case 'ArrowLeft': {
+          const idx = tabOrder.indexOf(this.#activeTab);
+          this.#switchTab(tabOrder[(idx - 1 + tabOrder.length) % tabOrder.length]);
           break;
-        case 'ArrowRight':
-          this.#switchTab('free');
+        }
+        case 'ArrowRight': {
+          const idx = tabOrder.indexOf(this.#activeTab);
+          this.#switchTab(tabOrder[(idx + 1) % tabOrder.length]);
           break;
+        }
       }
     };
     scene.input.keyboard.on('keydown', this.#keyHandler);
@@ -122,11 +130,13 @@ export class RankingModal {
     }
 
     const isFree = this.#activeTab === 'free';
+    const isBattle = this.#activeTab === 'battle';
     let headerHtml = `
       <div class="fm-ranking-header">
         <span class="fm-ranking-cell fm-ranking-rank">${i18n.t('ranking.rank')}</span>
         <span class="fm-ranking-cell fm-ranking-score-col">${i18n.t('ranking.score')}</span>
         <span class="fm-ranking-cell fm-ranking-max">${i18n.t('ranking.max_tile')}</span>
+        ${isBattle ? `<span class="fm-ranking-cell fm-ranking-enemy-max-col">${i18n.t('ranking.enemy_max_level')}</span>` : ''}
         <span class="fm-ranking-cell fm-ranking-date-col">${i18n.t('ranking.date')}</span>
         ${isFree ? `<span class="fm-ranking-cell fm-ranking-powers-col">${i18n.t('ranking.powers')}</span>` : ''}
       </div>`;
@@ -137,6 +147,14 @@ export class RankingModal {
       const date = new Date(r.date);
       const dateStr = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
       const maxTile = r.maxTile ?? '-';
+
+      let enemyMaxHtml = '';
+      if (isBattle) {
+        const lvl = r.enemyMaxLevel;
+        enemyMaxHtml = lvl
+          ? `<span class="fm-ranking-cell fm-ranking-enemy-max-col"><span class="fm-tile fm-ranking-enemy-lvl fm-t${lvl}">${lvl}</span></span>`
+          : `<span class="fm-ranking-cell fm-ranking-enemy-max-col">-</span>`;
+      }
 
       let powersHtml = '';
       if (isFree && r.powers?.length > 0) {
@@ -158,6 +176,7 @@ export class RankingModal {
           <span class="fm-ranking-cell fm-ranking-rank">${i + 1}</span>
           <span class="fm-ranking-cell fm-ranking-score-col">${r.score}</span>
           <span class="fm-ranking-cell fm-ranking-max">${maxTile}</span>
+          ${enemyMaxHtml}
           <span class="fm-ranking-cell fm-ranking-date-col">${dateStr}</span>
           ${powersHtml}
         </div>`;

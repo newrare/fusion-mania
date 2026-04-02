@@ -12,6 +12,14 @@ const gameConfig = {
   scale: {
     mode: Phaser.Scale.RESIZE,
   },
+  physics: {
+    default: 'matter',
+    matter: {
+      gravity: { y: 1.5 },
+      debug: false,
+      enableSleeping: true,
+    },
+  },
   dom: {
     createContainer: true,
   },

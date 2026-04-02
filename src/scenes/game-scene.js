@@ -19,6 +19,8 @@ import { PowerSelectModal } from '../components/power-select-modal.js';
 import { PowerChoiceModal } from '../components/power-choice-modal.js';
 import { AdminModal } from '../components/admin-modal.js';
 import { GridLife } from '../entities/grid-life.js';
+import { BattleManager } from '../managers/battle-manager.js';
+import { BATTLE } from '../configs/constants.js';
 import { addBackground } from '../utils/background.js';
 
 /**
@@ -135,6 +137,26 @@ export class GameScene extends Phaser.Scene {
   /** @type {Function | null} Unsubscribe from i18n locale changes */
   #unsubI18n = null;
 
+  // ─── BATTLE MODE FIELDS ──────────────────────────
+
+  /** @type {BattleManager | null} Battle system (Battle mode only) */
+  #battleManager = null;
+
+  /** @type {HTMLElement | null} Enemy area container (appended to document.body) */
+  #enemyAreaEl = null;
+
+  /** @type {PowerManager | null} Power system shared for battle contamination effects */
+  #battlePowerManager = null;
+
+  /** @type {Array<{el: HTMLElement, body: MatterJS.BodyType}>} DOM+physics pairs for dead enemy tiles */
+  #deadEnemyBodies = [];
+
+  /** @type {MatterJS.BodyType | null} Static floor body at viewport bottom */
+  #physicsFloor = null;
+
+  /** Tile size in CSS pixels, cached from --fm-tile-size after create(). */
+  #tileSizePx = 64;
+
   constructor() {
     super({ key: SCENE_KEYS.GRID });
     this.#gm = new GridManager();
@@ -169,9 +191,20 @@ export class GameScene extends Phaser.Scene {
     this.#criticalOverlay = null;
     this.#emptyGridTimer = null;
     this.#adsOverlay = null;
+    // Battle mode
+    this.#battleManager = null;
+    this.#enemyAreaEl = null;
+    this.#battlePowerManager = null;
+    this.#deadEnemyBodies = [];
+    this.#physicsFloor = null;
   }
 
   create() {
+    // Defensive cleanup: remove any dead-enemy DOM nodes that survived a previous
+    // game (e.g. if shutdown() was called while an animation was in flight).
+    document.querySelectorAll('.fm-dead-enemy, .fm-enemy-area, .fm-contaminate-particle')
+      .forEach((el) => el.remove());
+
     this.#gm = new GridManager();
     addBackground(this);
     layout.drawDebugSafeZone(this);
@@ -182,7 +215,20 @@ export class GameScene extends Phaser.Scene {
       this.#createPowerInfoPanel();
     }
 
+    if (this.#mode === 'battle') {
+      this.#createEnemyArea();
+      this.#createPowerInfoPanel();
+    }
+
     this.#bindInput();
+
+    // Cache CSS tile size for physics body sizing (read after container is in DOM)
+    this.events.once('create', () => {
+      this.#tileSizePx = parseInt(
+        getComputedStyle(document.getElementById('game-container') ?? document.body)
+          .getPropertyValue('--fm-tile-size'),
+      ) || 64;
+    });
 
     if (this.#mode === 'free' && !this.#pendingPowerTypes) {
       this.#showPowerSelectModal();
@@ -198,8 +244,8 @@ export class GameScene extends Phaser.Scene {
 
   // ─── HUD ─────────────────────────────────────────
   #createHUD() {
-    const hpBox = this.#mode === 'free'
-      ? `<div class="fm-score-box fm-hp-box">
+    const hpBox = (this.#mode === 'free' || this.#mode === 'battle')
+      ? `<div class="fm-score-box fm-hp-box" id="fm-hp-box" style="${this.#mode === 'battle' ? 'display:none' : ''}">
             <span class="fm-score-label" id="fm-label-hp">${i18n.t('game.hp')}</span>
             <span class="fm-score-value" id="fm-hp"></span>
           </div>`
@@ -349,6 +395,11 @@ export class GameScene extends Phaser.Scene {
       this.#updateLifeVisual();
     }
 
+    // Battle mode initialisation
+    if (this.#mode === 'battle') {
+      this.#battleManager = new BattleManager();
+    }
+
     this.#updateHUD();
     this.#gm.updateFusionIndicators();
   }
@@ -430,6 +481,11 @@ export class GameScene extends Phaser.Scene {
       this.#updatePowerVisuals();
       return;
     }
+    if (this.#battlePowerManager?.windDirection === direction) {
+      this.#gm.updateFusionIndicators();
+      this.#updatePowerVisuals();
+      return;
+    }
 
     const waitFn = (ms) => this.#wait(ms);
     const moveResult = await this.#gm.executeMove(direction, waitFn);
@@ -446,6 +502,9 @@ export class GameScene extends Phaser.Scene {
     // Tick power state for EVERY real grid move
     if (this.#powerManager) {
       this.#powerManager.tickMove(this.#gm.grid);
+    }
+    if (this.#battlePowerManager) {
+      this.#battlePowerManager.tickMove(this.#gm.grid);
     }
 
     if (moveResult.cancelled) {
@@ -516,6 +575,24 @@ export class GameScene extends Phaser.Scene {
       this.#updatePowerVisuals();
     }
 
+    // ── Battle power system (contaminated tile effects) ──
+    if (this.#battlePowerManager && merges.length > 0) {
+      const triggers = this.#battlePowerManager.checkMergeTriggers(merges, this.#gm.grid);
+
+      for (const trigger of triggers) {
+        let chosenPower = trigger.powerType;
+
+        if (trigger.needsChoice) {
+          chosenPower = await this.#showPowerChoiceModal(trigger.powerType, trigger.powerTypeB);
+        }
+
+        await this.#executeBattlePowerEffect(chosenPower, trigger.tile);
+      }
+
+      this.#gm.syncTileDom(this.#battlePowerManager.windDirection);
+      this.#updatePowerVisuals();
+    }
+
     // Free mode safety: if powers destroyed every tile, start the empty-grid timer
     if (this.#mode === 'free') {
       if (this.#gm.grid.getAllTiles().length === 0) {
@@ -523,6 +600,11 @@ export class GameScene extends Phaser.Scene {
       } else {
         this.#cancelEmptyGridTimer();
       }
+    }
+
+    // ── Battle mode logic ──
+    if (this.#mode === 'battle' && this.#battleManager) {
+      await this.#tickBattle(merges);
     }
 
     this.#updateHUD();
@@ -781,6 +863,397 @@ export class GameScene extends Phaser.Scene {
     this.#scoreBonusEl.classList.add('fm-bonus-active');
   }
 
+  // ─── BATTLE MODE ────────────────────────────────
+
+  /** Create the enemy display area — a fixed overlay on document.body. */
+  #createEnemyArea() {
+    this.#enemyAreaEl = document.createElement('div');
+    this.#enemyAreaEl.className = 'fm-enemy-area';
+    this.#enemyAreaEl.style.display = 'none';
+    document.body.appendChild(this.#enemyAreaEl);
+    // Position after HUD and grid are in the DOM
+    requestAnimationFrame(() => this.#positionEnemyArea());
+    // Create the static physics floor for dead-enemy collision
+    this.#createPhysicsFloor();
+  }
+
+  /**
+   * Position the enemy area between the HUD bottom and the grid top using
+   * actual DOM measurements so it works regardless of device size.
+   */
+  #positionEnemyArea() {
+    if (!this.#enemyAreaEl) return;
+    const hudRect = this.#hudEl?.getBoundingClientRect();
+    const gridRect = this.#gm.gridEl?.getBoundingClientRect();
+    if (!hudRect || !gridRect) return;
+    const spaceCenter = hudRect.bottom + (gridRect.top - hudRect.bottom) / 2;
+    this.#enemyAreaEl.style.position = 'fixed';
+    this.#enemyAreaEl.style.left = '50%';
+    this.#enemyAreaEl.style.top = `${spaceCenter}px`;
+    this.#enemyAreaEl.style.transform = 'translate(-50%, -50%)';
+    // z-index 5: visible above grid tiles but deliberately below modal overlays (z-index 100).
+    // The CSS :has(.fm-modal-overlay) rule hides this element entirely when any modal is open.
+    this.#enemyAreaEl.style.zIndex = '5';
+  }
+
+  /**
+   * Create a static Matter.js floor body at the bottom of the viewport.
+   * Dead enemy tiles collide with this floor and with each other.
+   */
+  #createPhysicsFloor() {
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const thickness = 100;
+    // Top edge of the body sits exactly at viewport bottom (H)
+    this.#physicsFloor = this.matter.add.rectangle(
+      W / 2, H + thickness / 2,
+      W * 4, thickness,
+      { isStatic: true, label: 'floor', friction: 1.5, restitution: 0.05 },
+    );
+  }
+
+  /**
+   * Main battle tick — called after every player move.
+   * Handles classic-phase counting, enemy spawn, contamination, and damage.
+   * @param {{ tile: import('../entities/tile.js').Tile }[]} merges
+   */
+  async #tickBattle(merges) {
+    const bm = this.#battleManager;
+    if (!bm) return;
+
+    if (bm.isClassicPhase) {
+      // Classic phase: count moves, check for enemy spawn
+      const enemy = bm.tickClassicPhase(this.#gm.grid);
+      if (enemy) {
+        await this.#onEnemySpawn(enemy);
+      }
+    } else {
+      // Battle phase: apply merge damage, enemy contaminates
+      if (merges.length > 0) {
+        const { damage, killed } = bm.applyMergeDamage(merges);
+        if (damage > 0) {
+          this.#showEnemyDamage(damage);
+          this.#updateEnemyVisual();
+        }
+        if (killed) {
+          await this.#onEnemyDefeated();
+          return;
+        }
+      }
+
+      // Enemy contaminates one tile per move
+      const contamination = bm.contaminate(this.#gm.grid);
+      if (contamination) {
+        // Sync DOM IMMEDIATELY — power is applied to tile data regardless of animation
+        this.#gm.syncTileDom(this.#battlePowerManager?.windDirection ?? null);
+        this.#updatePowerVisuals();
+        await this.#playContaminationAnimation(contamination.tile);
+      }
+    }
+  }
+
+  /**
+   * Called when a new enemy spawns.
+   * @param {import('../entities/enemy.js').Enemy} enemy
+   */
+  async #onEnemySpawn(enemy) {
+    // Create power manager for battle contamination effects using ALL powers from this enemy
+    this.#battlePowerManager = new PowerManager(enemy.availablePowers);
+
+    // Show grid life bar
+    this.#gridLife = new GridLife();
+    this.#createLiquidOverlay();
+    this.#updateLifeVisual();
+
+    // Show HP box in HUD
+    const hpBox = this.#hudEl?.querySelector('#fm-hp-box');
+    if (hpBox) hpBox.style.display = '';
+
+    // Render enemy
+    this.#renderEnemy(enemy);
+
+    // Re-position now that the element is in the DOM
+    this.#positionEnemyArea();
+
+    // Entrance animation on the tile wrapper (not the area itself, which has translate positioning)
+    if (this.#enemyAreaEl) {
+      this.#enemyAreaEl.style.display = 'flex';
+      const tileWrapper = this.#enemyAreaEl.querySelector('.fm-enemy-tile');
+      if (tileWrapper) {
+        tileWrapper.classList.add('fm-enemy-spawn');
+        await this.#wait(400);
+        tileWrapper.classList.remove('fm-enemy-spawn');
+      } else {
+        await this.#wait(400);
+      }
+    }
+  }
+
+  /**
+   * Render the enemy tile + HP bar + name label.
+   * @param {import('../entities/enemy.js').Enemy} enemy
+   */
+  #renderEnemy(enemy) {
+    if (!this.#enemyAreaEl) return;
+
+    const tileClass = `fm-t${enemy.level}`;
+    const bossClass = enemy.isBoss ? ' fm-enemy-boss' : '';
+    const cat = enemy.life.getColorCategory();
+
+    this.#enemyAreaEl.innerHTML = `
+      <div class="fm-enemy-name ${tileClass}">${enemy.name}</div>
+      <div class="fm-enemy-tile${bossClass}">
+        <div class="fm-tile fm-enemy-tile-inner ${tileClass}">
+          <div class="fm-enemy-hp-liquid fm-enemy-hp-${cat}"
+               style="--fm-enemy-hp-pct: ${(enemy.life.percent * 100).toFixed(1)}%"></div>
+        </div>
+      </div>
+      <div class="fm-enemy-hp-text">${Math.ceil(enemy.life.currentHp)}/${enemy.life.maxHp}</div>
+    `;
+  }
+
+  /** Update the enemy HP bar visual. */
+  #updateEnemyVisual() {
+    if (!this.#enemyAreaEl || !this.#battleManager?.enemy) return;
+    const enemy = this.#battleManager.enemy;
+    const cat = enemy.life.getColorCategory();
+    const liquid = this.#enemyAreaEl.querySelector('.fm-enemy-hp-liquid');
+    if (liquid) {
+      liquid.style.setProperty('--fm-enemy-hp-pct', `${(enemy.life.percent * 100).toFixed(1)}%`);
+      liquid.className = `fm-enemy-hp-liquid fm-enemy-hp-${cat}`;
+    }
+    const hpText = this.#enemyAreaEl.querySelector('.fm-enemy-hp-text');
+    if (hpText) {
+      hpText.textContent = `${Math.ceil(enemy.life.currentHp)}/${enemy.life.maxHp}`;
+    }
+    // Hurt flash on enemy tile
+    const tile = this.#enemyAreaEl.querySelector('.fm-enemy-tile-inner');
+    if (tile) {
+      tile.classList.remove('fm-enemy--hurt');
+      void tile.offsetWidth;
+      tile.classList.add('fm-enemy--hurt');
+    }
+  }
+
+  /**
+   * Show floating damage number on the enemy.
+   * @param {number} damage
+   */
+  #showEnemyDamage(damage) {
+    if (!this.#enemyAreaEl) return;
+    const popup = document.createElement('div');
+    popup.className = 'fm-enemy-damage';
+    popup.textContent = `-${damage}`;
+    this.#enemyAreaEl.appendChild(popup);
+    popup.addEventListener('animationend', () => popup.remove());
+  }
+
+  /**
+   * Called when the current enemy is defeated.
+   */
+  async #onEnemyDefeated() {
+    const bm = this.#battleManager;
+    if (!bm) return;
+
+    const dead = bm.defeatEnemy();
+    if (!dead) return;
+
+    // Clear all powers from grid tiles
+    bm.clearGridPowers(this.#gm.grid);
+    this.#gm.syncTileDom(null);
+
+    // Remove grid life
+    this.#gridLife = null;
+    this.#liquidEl?.remove();
+    this.#liquidEl = null;
+    this.#criticalOverlay?.remove();
+    this.#criticalOverlay = null;
+
+    // Hide HP box in HUD
+    const hpBox = this.#hudEl?.querySelector('#fm-hp-box');
+    if (hpBox) hpBox.style.display = 'none';
+
+    // Death animation: gray out, move to graveyard
+    await this.#playEnemyDeathAnimation(dead);
+
+    // Clear enemy display  
+    if (this.#enemyAreaEl) {
+      this.#enemyAreaEl.style.display = 'none';
+      this.#enemyAreaEl.innerHTML = '';
+    }
+
+    // Clear battle power manager
+    this.#battlePowerManager = null;
+
+    // Explicitly remove all edge power indicators and hide info panel
+    if (this.#gm.gridEl) {
+      for (const el of this.#gm.gridEl.querySelectorAll('.fm-edge-power')) {
+        el.remove();
+      }
+    }
+    if (this.#powerInfoEl) {
+      this.#powerInfoEl.style.display = 'none';
+    }
+  }
+
+  /**
+   * Play the contamination animation: particle from enemy to tile.
+   * @param {import('../entities/tile.js').Tile} tile — The freshly contaminated tile
+   */
+  async #playContaminationAnimation(tile) {
+    if (!this.#enemyAreaEl || !this.#gm.gridEl) return;
+
+    const tileEl = this.#gm.tileElements.get(tile.id);
+    if (!tileEl) return;
+
+    const enemyRect = this.#enemyAreaEl.getBoundingClientRect();
+    const tileRect = tileEl.getBoundingClientRect();
+
+    const particle = document.createElement('div');
+    particle.className = 'fm-contaminate-particle';
+    particle.style.left = `${enemyRect.left + enemyRect.width / 2}px`;
+    particle.style.top = `${enemyRect.top + enemyRect.height / 2}px`;
+    document.body.appendChild(particle);
+
+    // Animate to target tile
+    requestAnimationFrame(() => {
+      particle.style.transform = `translate(${tileRect.left + tileRect.width / 2 - (enemyRect.left + enemyRect.width / 2)}px, ${tileRect.top + tileRect.height / 2 - (enemyRect.top + enemyRect.height / 2)}px)`;
+      particle.classList.add('fm-contaminate-fly');
+    });
+
+    await this.#wait(BATTLE.CONTAMINATE_DURATION);
+    particle.remove();
+  }
+
+  /**
+   * Play enemy death animation using Phaser's Matter.js physics engine.
+   * A DOM element provides the visual; a Matter rigid body drives position + rotation.
+   * Bodies collide with the static floor and with each other — no hand-crafted physics.
+   * @param {import('../entities/enemy.js').Enemy} enemy
+   */
+  async #playEnemyDeathAnimation(enemy) {
+    if (!this.#enemyAreaEl) return;
+
+    const tileSize = this.#tileSizePx;
+    const tileClass = `fm-t${enemy.level}`;
+
+    // Find the tile wrapper to get its exact center position
+    const tileWrap = this.#enemyAreaEl.querySelector('.fm-enemy-tile');
+    const srcRect  = (tileWrap ?? this.#enemyAreaEl).getBoundingClientRect();
+    const cx = srcRect.left + srcRect.width  / 2;
+    const cy = srcRect.top  + srcRect.height / 2;
+
+    // ── DOM element (visual only) ──────────────────────────────────────────
+    const deadTile = document.createElement('div');
+    deadTile.className = 'fm-dead-enemy';
+    deadTile.style.cssText = `position:fixed;width:${tileSize}px;height:${tileSize}px;` +
+                             `z-index:3;pointer-events:none;transform-origin:center center;`;
+    deadTile.style.left = `${cx - tileSize / 2}px`;
+    deadTile.style.top  = `${cy - tileSize / 2}px`;
+    deadTile.innerHTML  = `
+      <div class="fm-tile fm-dead-enemy-inner ${tileClass}">
+        <span class="fm-dead-enemy-label">${enemy.name}</span>
+      </div>`;
+    document.body.appendChild(deadTile);
+
+    // ── Matter.js physics body ─────────────────────────────────────────────
+    // this.matter.add.rectangle() creates a raw Matter Body and adds it to the world.
+    const body = this.matter.add.rectangle(cx, cy, tileSize, tileSize, {
+      restitution : 0.30,   // bounciness
+      friction    : 0.90,   // floor friction
+      frictionAir : 0.008,  // air resistance
+      density     : 0.002,
+      label       : 'dead-enemy',
+    });
+
+    // Initial impulse: random horizontal kick + spin
+    const M      = Phaser.Physics.Matter.Matter;
+    const vxDir  = Math.random() > 0.5 ? 1 : -1;
+    M.Body.setVelocity(body, {
+      x: vxDir * (Math.random()),
+      y: 0,
+    });
+    M.Body.setAngularVelocity(body,
+      (Math.random() > 0.5 ? 1 : -1) * (0.08 + Math.random() * 0.18),
+    );
+
+    this.#deadEnemyBodies.push({ el: deadTile, body });
+
+    // Brief pause so the caller waits for the tile to visually separate from
+    // the enemy area before clearing it — physics continues via update().
+    await this.#wait(400);
+  }
+
+  /**
+   * Execute a power effect triggered by a contaminated tile in battle mode.
+   * Same as #executePowerEffect but uses battlePowerManager.
+   * @param {string} powerType
+   * @param {import('../entities/tile.js').Tile} target
+   */
+  async #executeBattlePowerEffect(powerType, target) {
+    if (!this.#battlePowerManager) return;
+
+    const isFirePower = powerType === POWER_TYPES.FIRE_H
+      || powerType === POWER_TYPES.FIRE_V
+      || powerType === POWER_TYPES.FIRE_X;
+
+    const effectResult = this.#battlePowerManager.executeEffect(powerType, this.#gm.grid, target);
+
+    for (const tile of effectResult.destroyed) {
+      this.#pendingDestructionTiles.set(tile.id, tile.value);
+    }
+    if (effectResult.destroyed.length > 0) {
+      this.#updatePowerVisuals();
+    }
+
+    if (isFirePower && target && effectResult.destroyed.length > 0) {
+      this.#gm.playFireAnimation(powerType, target, effectResult.destroyed);
+      await this.#wait(ANIM.FIRE_BALL_DURATION + ANIM.FIRE_ZAP_DURATION);
+      this.#gm.removeTiles(effectResult.destroyed);
+    } else if (effectResult.teleported) {
+      const { tileA, tileB, oldA, oldB } = effectResult.teleported;
+      await this.#gm.playTeleportAnimation(tileA, tileB, oldA, oldB, ANIM.TELEPORT_DURATION);
+    } else if (powerType === POWER_TYPES.LIGHTNING && effectResult.lightningStrikes) {
+      const numStrikes = effectResult.lightningStrikes.length;
+      this.#gm.playLightningAnimation(effectResult.lightningStrikes);
+      const totalDuration = (numStrikes - 1) * ANIM.LIGHTNING_STRIKE_DELAY + ANIM.LIGHTNING_ANIM_DURATION;
+      await this.#wait(totalDuration);
+      this.#gm.removeTiles(effectResult.destroyed);
+    } else if (powerType === POWER_TYPES.BOMB) {
+      if (effectResult.destroyed.length > 0) {
+        this.#gm.playBombAnimation(target, effectResult.destroyed);
+        await this.#wait(ANIM.BOMB_DURATION);
+        this.#gm.removeTiles(effectResult.destroyed);
+      }
+    } else if (powerType === POWER_TYPES.NUCLEAR) {
+      if (effectResult.destroyed.length > 0) {
+        this.#gm.playNuclearAnimation(effectResult.destroyed);
+        await this.#wait(ANIM.NUCLEAR_TILE_REMOVE_AT);
+        this.#gm.removeTiles(effectResult.destroyed);
+        await this.#wait(ANIM.NUCLEAR_DURATION - ANIM.NUCLEAR_TILE_REMOVE_AT);
+      }
+    } else if (powerType === POWER_TYPES.ADS) {
+      await this.#showAdsModal();
+    } else {
+      this.#gm.applyDangerOverlay(effectResult.destroyed);
+      if (effectResult.destroyed.length > 0) {
+        await this.#wait(400);
+        this.#gm.removeTiles(effectResult.destroyed);
+      }
+    }
+
+    for (const tile of effectResult.destroyed) {
+      this.#pendingDestructionTiles.delete(tile.id);
+    }
+
+    // Grid Life: damage from power effects during battle
+    if (this.#gridLife && effectResult.destroyed.length > 0) {
+      const values = effectResult.destroyed.map((t) => t.value);
+      const damage = this.#gridLife.takeDamage(values);
+      this.#onGridLifeDamage(damage);
+    }
+  }
+
   // ─── MODALS ──────────────────────────────────────
   #openMenu() {
     if (this.#menuModal || this.#gameOverModal) return;
@@ -790,6 +1263,7 @@ export class GameScene extends Phaser.Scene {
       showResume: true,
       onResume: () => this.#destroyMenuModal(),
       onClassic: () => { this.#destroyMenuModal(); this.scene.restart({ mode: 'classic' }); },
+      onBattle: () => { this.#destroyMenuModal(); this.scene.restart({ mode: 'battle' }); },
       onFree: () => { this.#destroyMenuModal(); this.scene.restart({ mode: 'free' }); },
       onClose: () => this.#destroyMenuModal(),
       onQuit: () => {
@@ -838,6 +1312,10 @@ export class GameScene extends Phaser.Scene {
       fusions: this.#fusions,
     };
     if (this.#selectedPowers) extra.powers = [...this.#selectedPowers];
+    if (this.#battleManager) {
+      extra.enemiesDefeated = this.#battleManager.enemiesDefeated;
+      extra.enemyMaxLevel = this.#battleManager.maxEnemyLevel;
+    }
     saveManager.addRanking(this.#mode, this.#gm.grid.score, extra);
     saveManager.clearGame();
 
@@ -894,7 +1372,8 @@ export class GameScene extends Phaser.Scene {
 
   // ─── POWER VISUALS ────────────────────────────────
   #updatePowerVisuals() {
-    if (!this.#powerManager || !this.#gm.gridEl) return;
+    const pm = this.#powerManager || this.#battlePowerManager;
+    if (!pm || !this.#gm.gridEl) return;
 
     // Remove old edge indicators
     for (const old of this.#gm.gridEl.querySelectorAll('.fm-edge-power')) {
@@ -906,7 +1385,7 @@ export class GameScene extends Phaser.Scene {
     const dirToSide = { up: 'top', down: 'bottom', left: 'left', right: 'right' };
 
     for (const dir of directions) {
-      const color = this.#powerManager.getBadgeColor(dir, this.#gm.grid);
+      const color = pm.getBadgeColor(dir, this.#gm.grid);
       if (!color) continue;
 
       const side = dirToSide[dir];
@@ -920,11 +1399,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   #updatePowerInfoPanel() {
-    if (!this.#powerInfoEl || !this.#powerManager) return;
+    const pm = this.#powerManager || this.#battlePowerManager;
+    if (!this.#powerInfoEl || !pm) return;
 
     if (
-      !this.#powerManager.hasPoweredTiles(this.#gm.grid) &&
-      !this.#powerManager.hasActiveExpelTiles(this.#gm.grid) &&
+      !pm.hasPoweredTiles(this.#gm.grid) &&
+      !pm.hasActiveExpelTiles(this.#gm.grid) &&
       this.#pendingDestructionTiles.size === 0
     ) {
       this.#powerInfoEl.style.display = 'none';
@@ -944,7 +1424,7 @@ export class GameScene extends Phaser.Scene {
     const lines = [];
 
     for (const dir of directions) {
-      const predictions = this.#powerManager.predictForDirection(dir, this.#gm.grid);
+      const predictions = pm.predictForDirection(dir, this.#gm.grid);
       if (predictions.length === 0) continue;
 
       for (const pred of predictions) {
@@ -1152,6 +1632,18 @@ export class GameScene extends Phaser.Scene {
     popup.addEventListener('animationend', () => popup.remove());
   }
 
+  /** Phaser game loop — called every frame. Syncs dead-enemy DOM elements to their Matter.js body positions. */
+  update() {
+    if (this.#deadEnemyBodies.length === 0) return;
+    const half = this.#tileSizePx / 2;
+    for (const { el, body } of this.#deadEnemyBodies) {
+      if (!el.isConnected) continue;
+      el.style.left      = `${body.position.x - half}px`;
+      el.style.top       = `${body.position.y - half}px`;
+      el.style.transform = `rotate(${body.angle}rad)`;
+    }
+  }
+
   shutdown() {
     this.#cancelComboTimer();
     this.#cancelEmptyGridTimer();
@@ -1169,6 +1661,15 @@ export class GameScene extends Phaser.Scene {
     this.#criticalOverlay = null;
     this.#adsOverlay?.remove();
     this.#adsOverlay = null;
+    this.#enemyAreaEl?.remove();
+    this.#enemyAreaEl = null;
+    // Remove all dead enemy DOM nodes (in-flight or settled)
+    document.querySelectorAll('.fm-dead-enemy').forEach((el) => el.remove());
+    this.#deadEnemyBodies = [];
+    // Physics bodies are destroyed with the Matter world on scene shutdown;
+    // we only need to null our reference.
+    this.#physicsFloor = null;
+    document.querySelectorAll('.fm-contaminate-particle').forEach((el) => el.remove());
     this.input.keyboard.off('keydown', this.#handleKey, this);
     this.input.off('pointerdown', this.#onPointerDown, this);
     this.input.off('pointerup', this.#onPointerUp, this);

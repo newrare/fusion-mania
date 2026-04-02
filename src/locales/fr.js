@@ -77,4 +77,10 @@ export const fr = {
   'game.hp': 'PV',
   'gameover.hp_depleted': 'Grille détruite !',
   'power.predictions': 'Prédictions',
+  'battle.enemy_appears': 'Ennemi apparu !',
+  'battle.enemy_defeated': 'Ennemi vaincu !',
+  'battle.classic_phase': 'Phase classique',
+  'battle.enemies_defeated': 'Ennemis vaincus',
+  'ranking.enemies_defeated': 'Ennemis',
+  'ranking.enemy_max_level': 'Niveau max',
 };
