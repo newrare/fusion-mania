@@ -509,6 +509,9 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    // Nudge dead enemies on every valid player move
+    this.#nudgeDeadEnemies(direction);
+
     // Tick power state for EVERY real grid move
     if (this.#powerManager) {
       this.#powerManager.tickMove(this.#gm.grid);
@@ -1203,6 +1206,10 @@ export class GameScene extends Phaser.Scene {
     const cy = srcRect.top  + srcRect.height / 2;
 
     // ── DOM element (visual only) ──────────────────────────────────────────
+    // Hide the live enemy tile immediately so there is no overlap between the
+    // still-visible live tile and the newly created dead tile.
+    if (this.#enemyAreaEl) this.#enemyAreaEl.style.visibility = 'hidden';
+
     const deadTile = document.createElement('div');
     deadTile.className = 'fm-dead-enemy';
     deadTile.style.cssText = `position:fixed;width:${tileSize}px;height:${tileSize}px;` +
@@ -1242,6 +1249,32 @@ export class GameScene extends Phaser.Scene {
     // Brief pause so the caller waits for the tile to visually separate from
     // the enemy area before clearing it — physics continues via update().
     await this.#wait(400);
+  }
+
+  /**
+   * Apply a small directional impulse to all dead-enemy physics bodies.
+   * Creates a very subtle push effect when the player swipes, making the
+   * graveyard pile feel alive without being distracting.
+   * @param {'up' | 'down' | 'left' | 'right'} direction
+   */
+  #nudgeDeadEnemies(direction) {
+    if (this.#deadEnemyBodies.length === 0) return;
+    const M = Phaser.Physics.Matter.Matter;
+    const BASE   = 1.5; // base velocity delta (pixels/frame) — keep subtle
+    const JITTER = 0.8; // per-body random variation for natural feel
+    const dx = direction === 'right' ? BASE : direction === 'left' ? -BASE : 0;
+    const dy = direction === 'down'  ? BASE : direction === 'up'   ? -BASE : 0;
+    for (const { body } of this.#deadEnemyBodies) {
+      // Wake sleeping bodies first — setVelocity has no effect on sleeping bodies
+      // (enableSleeping is true in the Matter world config).
+      if (body.isSleeping) M.Sleeping.set(body, false);
+      const jx = (Math.random() - 0.5) * JITTER;
+      const jy = (Math.random() - 0.5) * JITTER;
+      M.Body.setVelocity(body, {
+        x: body.velocity.x + dx + jx,
+        y: body.velocity.y + dy + jy,
+      });
+    }
   }
 
   /**
