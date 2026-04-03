@@ -593,7 +593,7 @@
 /* --- Power info panel below grid --- */
 .fm-power-info {
   width: var(--fm-grid-width, 340px);
-  font-family: 'Westernic', cursive, sans-serif;
+  font-family: 'Merkin', cursive, sans-serif;
   font-size: 0.95rem;
   color: rgba(255,255,255,0.88);
   padding: 8px 0 6px;
@@ -722,7 +722,7 @@
   background: var(--fm-hud-box-bg, #2a1050);
   box-shadow: 0 3px 0 var(--fm-hud-shadow, rgba(10,4,30,0.8)), 0 4px 12px var(--fm-hud-glow, rgba(140,80,200,0.15));
   color: var(--fm-hud-accent, #fff);
-  font-family: 'Westernic', cursive, sans-serif;
+  font-family: 'Merkin', cursive, sans-serif;
   font-size: 1.1rem;
   font-weight: 900;
   letter-spacing: 0.05em;
@@ -1181,7 +1181,7 @@
   align-items: center;
   justify-content: center;
   pointer-events: all;
-  font-family: 'Westernic', cursive, sans-serif;
+  font-family: 'Merkin', cursive, sans-serif;
   color: #fff;
   animation: fm-ads-enter var(--fm-ads-open-dur, 1.5s) cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
