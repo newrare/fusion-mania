@@ -138,6 +138,12 @@ export class GameScene extends Phaser.Scene {
   /** @type {HTMLElement | null} Ads modal overlay currently displayed */
   #adsOverlay = null;
 
+  /** @type {boolean} True once the player has seen an ad this game (only one per game) */
+  #adsShown = false;
+
+  /** @type {boolean} True while the ads overlay is visible — blocks all player input */
+  #showingAds = false;
+
   /** @type {Function | null} Unsubscribe from i18n locale changes */
   #unsubI18n = null;
 
@@ -199,6 +205,8 @@ export class GameScene extends Phaser.Scene {
     this.#criticalOverlay = null;
     this.#emptyGridTimer = null;
     this.#adsOverlay = null;
+    this.#adsShown = false;
+    this.#showingAds = false;
     // Battle mode
     this.#battleManager = null;
     this.#enemyAreaEl = null;
@@ -423,7 +431,7 @@ export class GameScene extends Phaser.Scene {
 
   /** @param {Phaser.Input.Keyboard.Key} event */
   #handleKey = (event) => {
-    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal || this.#powerSelectModal) return;
+    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal || this.#powerSelectModal || this.#showingAds) return;
 
     /** @type {'up' | 'down' | 'left' | 'right' | null} */
     let direction = null;
@@ -454,7 +462,7 @@ export class GameScene extends Phaser.Scene {
       this.#pointerStartY = pointer.y;
       return;
     }
-    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal || this.#powerSelectModal) return;
+    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal || this.#powerSelectModal || this.#showingAds) return;
 
     const dx = pointer.x - this.#pointerStartX;
     const dy = pointer.y - this.#pointerStartY;
@@ -677,7 +685,17 @@ export class GameScene extends Phaser.Scene {
         await this.#wait(ANIM.NUCLEAR_DURATION - ANIM.NUCLEAR_TILE_REMOVE_AT);
       }
     } else if (powerType === POWER_TYPES.ADS) {
-      await this.#showAdsModal();
+      if (!this.#adsShown) {
+        await this.#showAdsModal();
+        this.#adsShown = true;
+        // Disable ADS for the rest of this game
+        this.#powerManager?.removePowerType(POWER_TYPES.ADS);
+        // Clear any ADS powers already assigned to tiles
+        for (const tile of this.#gm.grid.getAllTiles()) {
+          if (tile.power === POWER_TYPES.ADS) tile.power = null;
+        }
+        this.#gm.syncTileDom(this.#powerManager?.windDirection ?? null);
+      }
     } else {
       this.#gm.applyDangerOverlay(effectResult.destroyed);
       if (effectResult.destroyed.length > 0) {
@@ -722,17 +740,20 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Display a non-dismissible ads modal for ADS_DURATION ms, then resolve.
+   * Input is blocked for the entire duration via #showingAds.
    * @returns {Promise<void>}
    */
   #showAdsModal() {
+    this.#showingAds = true;
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
       overlay.className = 'fm-ads-overlay';
+      overlay.style.setProperty('--fm-ads-open-dur', `${ANIM.ADS_OPEN_DURATION}ms`);
       overlay.innerHTML = `
         <div class="fm-ads-container">
           <div class="fm-ads-label">${i18n.t('ads.label')}</div>
           <div class="fm-ads-placeholder">📱</div>
-          <div class="fm-ads-timer" id="fm-ads-timer">3</div>
+          <div class="fm-ads-timer" id="fm-ads-timer">${Math.ceil(ANIM.ADS_DURATION / 1000)}</div>
         </div>`;
       document.body.appendChild(overlay);
       this.#adsOverlay = overlay;
@@ -740,21 +761,28 @@ export class GameScene extends Phaser.Scene {
       let remaining = Math.ceil(ANIM.ADS_DURATION / 1000);
       const timerEl = overlay.querySelector('#fm-ads-timer');
 
-      // Countdown ticker (every second)
-      const tick = this.time.addEvent({
-        delay: 1000,
-        repeat: remaining - 1,
-        callback: () => {
-          remaining--;
-          if (timerEl) timerEl.textContent = String(remaining);
-        },
-      });
+      // Delay the countdown start to let the entrance animation play first
+      this.time.delayedCall(ANIM.ADS_OPEN_DURATION, () => {
+        // Countdown ticker (every second)
+        const tick = this.time.addEvent({
+          delay: 1000,
+          repeat: remaining - 1,
+          callback: () => {
+            remaining--;
+            if (timerEl) timerEl.textContent = String(remaining);
+          },
+        });
 
-      this.time.delayedCall(ANIM.ADS_DURATION, () => {
-        tick.remove(false);
-        overlay.remove();
-        this.#adsOverlay = null;
-        resolve();
+        this.time.delayedCall(ANIM.ADS_DURATION, () => {
+          tick.remove(false);
+          overlay.classList.add('fm-ads-overlay--closing');
+          this.time.delayedCall(ANIM.ADS_CLOSE_DURATION, () => {
+            overlay.remove();
+            this.#adsOverlay = null;
+            this.#showingAds = false;
+            resolve();
+          });
+        });
       });
     });
   }
@@ -1335,7 +1363,17 @@ export class GameScene extends Phaser.Scene {
         await this.#wait(ANIM.NUCLEAR_DURATION - ANIM.NUCLEAR_TILE_REMOVE_AT);
       }
     } else if (powerType === POWER_TYPES.ADS) {
-      await this.#showAdsModal();
+      if (!this.#adsShown) {
+        await this.#showAdsModal();
+        this.#adsShown = true;
+        // Disable ADS for the rest of this game
+        this.#battlePowerManager?.removePowerType(POWER_TYPES.ADS);
+        // Clear any ADS powers already assigned to tiles
+        for (const tile of this.#gm.grid.getAllTiles()) {
+          if (tile.power === POWER_TYPES.ADS) tile.power = null;
+        }
+        this.#gm.syncTileDom(this.#battlePowerManager?.windDirection ?? null);
+      }
     } else {
       this.#gm.applyDangerOverlay(effectResult.destroyed);
       if (effectResult.destroyed.length > 0) {

@@ -41,6 +41,10 @@ export const ANIM = {
   NUCLEAR_TILE_REMOVE_AT: 820,
   /** Duration of ads modal display (ms) */
   ADS_DURATION: 3000,
+  /** Duration of the ads overlay entrance animation (ms) — countdown starts after this */
+  ADS_OPEN_DURATION: 1500,
+  /** Duration of the ads overlay exit animation (ms) */
+  ADS_CLOSE_DURATION: 300,
 };
 
 /** Swipe detection */

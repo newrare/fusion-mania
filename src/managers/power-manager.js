@@ -680,6 +680,15 @@ export class PowerManager {
   }
 
   /**
+   * Remove a power type from the selected pool.
+   * Prevents that power from being assigned to any future tile.
+   * @param {string} type — One of POWER_TYPES values
+   */
+  removePowerType(type) {
+    this.#selectedTypes = this.#selectedTypes.filter((t) => t !== type);
+  }
+
+  /**
    * Restore the power manager state from saved data.
    * Tile powers are saved/restored as part of the grid serialization.
    * @param {object} data

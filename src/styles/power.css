@@ -1161,6 +1161,17 @@
 /* Ads modal overlay (full-screen, non-dismissible)        */
 /* ─────────────────────────────────────────────────────── */
 
+@keyframes fm-ads-enter {
+  0%   { opacity: 0; transform: scale(0.05); }
+  65%  { opacity: 1; transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fm-ads-exit {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.05); }
+}
+
 .fm-ads-overlay {
   position: fixed;
   inset: 0;
@@ -1172,6 +1183,11 @@
   pointer-events: all;
   font-family: 'Westernic', cursive, sans-serif;
   color: #fff;
+  animation: fm-ads-enter var(--fm-ads-open-dur, 1.5s) cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.fm-ads-overlay--closing {
+  animation: fm-ads-exit 0.3s ease-in forwards;
 }
 
 .fm-ads-container {
