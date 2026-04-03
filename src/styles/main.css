@@ -460,11 +460,58 @@ html, body {
 }
 
 /* --- Title scene --- */
+.fm-title-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.fm-title-logo-wrapper {
+  padding-top: 22vh;
+}
+
 .fm-title-logo-img {
   width: min(70vw, 280px);
   height: auto;
   filter: drop-shadow(0 4px 20px rgba(180,100,255,0.5));
   display: block;
+}
+
+.fm-title-dev-credit {
+  margin-top: auto;
+  margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fm-title-dev-logo {
+  width: 55px;
+  height: 55px;
+  object-fit: contain;
+}
+
+.fm-title-dev-info {
+  display: flex;
+  flex-direction: column;
+  font-family: 'SuperCrawler', cursive, sans-serif;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.3;
+}
+
+.fm-title-dev-info span:first-child {
+  font-size: 0.8rem;
+}
+
+.fm-title-dev-info span:last-child {
+  font-size: 1rem;
+  opacity: 0.75;
 }
 
 @keyframes fm-blink {
@@ -1120,19 +1167,19 @@ html, body {
   gap: 4px;
 }
 
-/* Enemy name — uses fm-t* class for text color; background stripped */
+/* Enemy name — badge with tile level background + border color */
 .fm-enemy-name {
   font-size: 13px;
   font-weight: 700;
   text-align: center;
   letter-spacing: 0.5px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
-  padding: 2px 6px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  padding: 2px 8px;
+  border-radius: 5px;
+  border: 2px solid;
   /* Strip all fm-tile/fm-t* layout side-effects */
   position: static !important;
   display: block !important;
-  background: transparent !important;
-  border: none !important;
   box-shadow: none !important;
   width: auto !important;
   height: auto !important;
@@ -1165,6 +1212,26 @@ html, body {
   /* Ensure border is visible (fm-tile has border: 2px solid transparent;
      fm-t* sets border-color, so together they produce a colored border) */
   will-change: auto !important;
+  /* Clip face image to tile shape */
+  overflow: hidden !important;
+}
+
+/* Face image (centered inside the tile, above the HP liquid) */
+.fm-enemy-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.fm-enemy-face img {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+  display: block;
 }
 
 .fm-enemy-boss .fm-enemy-tile-inner {
@@ -1180,13 +1247,6 @@ html, body {
   overflow: hidden;
   z-index: 1;
   pointer-events: none;
-}
-
-/* HP text below the tile */
-.fm-enemy-hp-text {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.7);
-  text-align: center;
 }
 
 /* Enemy hurt flash */
@@ -1272,27 +1332,51 @@ html, body {
   width: 100% !important;
   height: 100% !important;
   display: flex !important;
-  align-items: center !important;
+  align-items: flex-start !important;
   justify-content: center !important;
-  filter: grayscale(1) brightness(0.55);
-  opacity: 0.75;
+  /* Gray background; border-color kept from fm-tN (no filter override) */
+  background: #585858 !important;
+  background-image: none !important;
+  opacity: 0.85;
   animation: none !important;
   transition: none !important;
-  background-image: none !important;
+  overflow: hidden !important;
 }
 
 .fm-dead-enemy-inner .fm-val { display: none !important; }
 
 .fm-dead-enemy-label {
-  position: relative;
+  position: absolute;
+  top: 4px;
+  left: 3px;
+  right: 3px;
   z-index: 5;
-  font-size: 8px;
+  font-size: clamp(9px, calc(var(--fm-tile-size, 74px) * 0.145), 13px);
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.9);
   text-align: center;
-  word-break: break-all;
-  padding: 2px;
-  line-height: 1.1;
+  word-break: break-word;
+  line-height: 1.15;
+}
+
+/* Death face image (centered inside dead tile) */
+.fm-dead-enemy-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.fm-dead-enemy-face img {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+  display: block;
+  opacity: 0.75;
+  filter: grayscale(0.6);
 }
 
 /* ─── Hide enemy area when any modal overlay is open ───────────────────── */

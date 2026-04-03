@@ -7,7 +7,7 @@ import { addBackground } from '../utils/background.js';
 
 export class TitleScene extends Phaser.Scene {
   /** @type {Phaser.GameObjects.DOMElement | null} */
-  #logoElement = null;
+  #titleOverlay = null;
 
   /** @type {Phaser.GameObjects.DOMElement | null} */
   #promptElement = null;
@@ -32,14 +32,27 @@ export class TitleScene extends Phaser.Scene {
     addBackground(this);
     layout.drawDebugSafeZone(this);
 
-    const { safe } = layout;
-    const logoY   = safe.top + safe.height * 0.20;
-    const promptY = safe.top + safe.height * 0.70;
+    // Logo + dev credit — full-screen CSS flex overlay, no layout calculations needed
+    this.#titleOverlay = this.add
+      .dom(0, 0)
+      .createFromHTML(`
+        <div class="fm-title-overlay">
+          <div class="fm-title-logo-wrapper">
+            <img class="fm-title-logo-img" src="/images/logo.png" alt="Fusion Mania" />
+          </div>
+          <div class="fm-title-dev-credit">
+            <img class="fm-title-dev-logo" src="/images/newrare.png" alt="Newrare" />
+            <div class="fm-title-dev-info">
+              <span>A Newrare Game</span>
+              <span>v1.0</span>
+            </div>
+          </div>
+        </div>
+      `);
+    this.#titleOverlay.setOrigin(0, 0);
 
-    this.#logoElement = this.add
-      .dom(safe.cx, logoY)
-      .createFromHTML(`<img class="fm-title-logo-img" src="/images/logo.png" alt="Fusion Mania" />`);
-    this.#logoElement.setOrigin(0.5);
+    const { safe } = layout;
+    const promptY = safe.top + safe.height * 0.70;
 
     this.#promptElement = this.add
       .dom(safe.cx, promptY)

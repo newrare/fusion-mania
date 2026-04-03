@@ -20,7 +20,7 @@ import { PowerChoiceModal } from '../components/power-choice-modal.js';
 import { AdminModal } from '../components/admin-modal.js';
 import { GridLife } from '../entities/grid-life.js';
 import { BattleManager } from '../managers/battle-manager.js';
-import { BATTLE } from '../configs/constants.js';
+import { BATTLE, getRandomFaceUrl } from '../configs/constants.js';
 import { addBackground } from '../utils/background.js';
 import { LiquidWave } from '../utils/liquid-wave.js';
 
@@ -1037,9 +1037,11 @@ export class GameScene extends Phaser.Scene {
       <div class="fm-enemy-tile${bossClass}">
         <div class="fm-tile fm-enemy-tile-inner ${tileClass}">
           <div class="fm-enemy-hp-liquid"></div>
+          <div class="fm-enemy-face" data-face-category="${cat}">
+            <img src="${getRandomFaceUrl(cat)}" alt="">
+          </div>
         </div>
       </div>
-      <div class="fm-enemy-hp-text">${Math.ceil(enemy.life.currentHp)}/${enemy.life.maxHp}</div>
     `;
     /* LiquidWave is created in #onEnemySpawn after display:flex + reflow
        so getBoundingClientRect() returns correct tile dimensions. */
@@ -1072,9 +1074,12 @@ export class GameScene extends Phaser.Scene {
       this.#enemyWave.level = enemy.life.percent;
       this.#enemyWave.setCategory(cat);
     }
-    const hpText = this.#enemyAreaEl.querySelector('.fm-enemy-hp-text');
-    if (hpText) {
-      hpText.textContent = `${Math.ceil(enemy.life.currentHp)}/${enemy.life.maxHp}`;
+    // Update face image when HP category changes
+    const faceEl = this.#enemyAreaEl.querySelector('.fm-enemy-face');
+    if (faceEl && faceEl.dataset.faceCategory !== cat) {
+      faceEl.dataset.faceCategory = cat;
+      const img = faceEl.querySelector('img');
+      if (img) img.src = getRandomFaceUrl(cat);
     }
     // Hurt flash on enemy tile
     const tile = this.#enemyAreaEl.querySelector('.fm-enemy-tile-inner');
@@ -1220,6 +1225,9 @@ export class GameScene extends Phaser.Scene {
     deadTile.innerHTML  = `
       <div class="fm-tile fm-dead-enemy-inner ${tileClass}">
         <span class="fm-dead-enemy-label">${enemy.name}</span>
+        <div class="fm-dead-enemy-face">
+          <img src="${getRandomFaceUrl('death')}" alt="">
+        </div>
       </div>`;
     document.body.appendChild(deadTile);
 

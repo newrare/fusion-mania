@@ -226,6 +226,31 @@ export const BATTLE = {
 };
 
 /**
+ * Enemy face image indices per emotion folder.
+ * Matches the files present in public/images/faces/{folder}/.
+ */
+export const ENEMY_FACES = {
+  ok:      [1,2,7,9,13,14,17,22,23,25,27,29,31,34,38,39,41,42,43,45,46,49,54,58,59,63,64,66,69,72,73,83,85,86,91,93,98],
+  warning: [15,18,24,26,32,40,44,47,48,50,51,52,57,62,70,77,78,80,82,89,90,92,94,96,99],
+  danger:  [3,5,8,10,16,20,21,28,30,33,35,36,37,55,60,61,65,71,74,76,81,84,88,95,100],
+  death:   [6,11,12,19,56,67,68,75,87],
+};
+
+const LIFE_CAT_TO_FACE_FOLDER = { info: 'ok', warning: 'warning', danger: 'danger' };
+
+/**
+ * Returns a random face image URL for the given life category.
+ * @param {'info' | 'warning' | 'danger' | 'death'} category
+ * @returns {string}
+ */
+export function getRandomFaceUrl(category) {
+  const folder = category === 'death' ? 'death' : (LIFE_CAT_TO_FACE_FOLDER[category] ?? 'ok');
+  const nums = ENEMY_FACES[folder];
+  const num = nums[Math.floor(Math.random() * nums.length)];
+  return `images/faces/${folder}/${num}.png`;
+}
+
+/**
  * Combo hit label colors — pale red at level 1, escalating to vivid red.
  * Index 0 = first hit (x1), wraps around after the last entry.
  */
