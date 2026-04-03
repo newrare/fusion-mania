@@ -392,12 +392,30 @@ html, body {
   to   { transform: translateX(0);     opacity: 1; }
 }
 
+@keyframes fm-hud-slot-out-rev {
+  from { transform: translateX(0);     opacity: 1; }
+  to   { transform: translateX(-110%); opacity: 0; }
+}
+
+@keyframes fm-hud-slot-in-rev {
+  from { transform: translateX(110%);  opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
 .fm-hud-slot--exit {
-  animation: fm-hud-slot-out 0.36s ease-in-out forwards;
+  animation: fm-hud-slot-out 0.12s ease-in-out both;
 }
 
 .fm-hud-slot--enter {
-  animation: fm-hud-slot-in 0.36s ease-in-out forwards;
+  animation: fm-hud-slot-in 0.12s ease-in-out both;
+}
+
+.fm-hud-slot--exit-rev {
+  animation: fm-hud-slot-out-rev 0.12s ease-in-out both;
+}
+
+.fm-hud-slot--enter-rev {
+  animation: fm-hud-slot-in-rev 0.12s ease-in-out both;
 }
 
 /* Score-wrap inner card fills the wrap's full width */

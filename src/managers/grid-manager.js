@@ -154,6 +154,7 @@ export class GridManager {
    *
    * @param {'up' | 'down' | 'left' | 'right'} direction
    * @param {(ms: number) => Promise<void>} waitFn — Phaser-aware delay
+   * @param {(() => void) | null} [onSlideStart] — called synchronously once tile slides begin
    * @returns {Promise<{
    *   moved: boolean,
    *   merges: object[],
@@ -164,7 +165,7 @@ export class GridManager {
    *   cancelled: boolean
    * } | null>}
    */
-  async executeMove(direction, waitFn) {
+  async executeMove(direction, waitFn, onSlideStart = null) {
     const hasMergePossible = this.#grid.hasPossibleMerge();
     const scoreBefore = this.#grid.score;
 
@@ -188,6 +189,7 @@ export class GridManager {
     // Phase 1 — slide + expel-to-edge (run concurrently, same duration)
     this.#animator.slideExpelledToEdge(result.expelled, direction, layout.grid.tileSize);
     this.#animator.slidePositions(result, (r, c) => this.cellPosition(r, c));
+    onSlideStart?.();
     await waitFn(ANIM.SLIDE_DURATION);
     // Remove expelled tiles after their screen-exit animation completes
     for (const tile of result.expelled) {

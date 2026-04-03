@@ -43,7 +43,7 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * State for each rotating HUD card.
-   * @type {Array<{slots: HTMLElement[], current: number, locked: boolean, timer: Phaser.Time.TimerEvent}>}
+   * @type {Array<{slots: HTMLElement[], current: number}>}
    */
   #hudCardStates = [];
 
@@ -220,10 +220,7 @@ export class GameScene extends Phaser.Scene {
     this.#battlePowerManager = null;
     this.#deadEnemyBodies = [];
     this.#physicsFloor = null;
-    // HUD card rotators — destroy existing timers before scene re-init
-    for (const card of this.#hudCardStates) {
-      card.timer?.remove(false);
-    }
+    // HUD card rotators — no timers, just reset state
     this.#hudCardStates = [];
   }
 
@@ -350,9 +347,9 @@ export class GameScene extends Phaser.Scene {
   // ─── HUD CARD ROTATORS ───────────────────────────
 
   /**
-   * Set up the two rotating HUD cards:
-   *   0 — Moves → Fusions → Max Tile (every 5 s, 3-slot cycle)
-   *   1 — Best Score ↔ Best Tile (every 10 s)
+   * Set up the two rotating HUD cards (direction-driven, no timers):
+   *   0 — Moves / Fusions / Max Tile (3-slot cycle)
+   *   1 — Best Score ↔ Best Tile
    * Card 2 (Score) is fixed — no rotation.
    */
   #initHudCardRotations() {
@@ -360,56 +357,59 @@ export class GameScene extends Phaser.Scene {
     if (!el) return;
 
     const defs = [
-      { slotIds: ['fm-card-stat1-a', 'fm-card-stat1-b', 'fm-card-stat1-c'], delay: 5000 },
-      { slotIds: ['fm-card-stat3-a', 'fm-card-stat3-b'], delay: 10000 },
+      { slotIds: ['fm-card-stat1-a', 'fm-card-stat1-b', 'fm-card-stat1-c'] },
+      { slotIds: ['fm-card-stat3-a', 'fm-card-stat3-b'] },
     ];
 
-    for (let i = 0; i < defs.length; i++) {
-      const { slotIds, delay } = defs[i];
-      const state = {
+    for (const { slotIds } of defs) {
+      this.#hudCardStates.push({
         slots: slotIds.map((id) => el.querySelector(`#${id}`)),
         current: 0,
-        locked: false,
-        timer: null,
-      };
-      const idx = i;
-      state.timer = this.time.addEvent({
-        delay,
-        loop: true,
-        callback: () => this.#doHudCardRotate(idx),
       });
-      this.#hudCardStates.push(state);
     }
   }
 
   /**
-   * Advance the specified HUD card to its next slot (unless locked).
-   * @param {number} cardIdx
+   * Advance all HUD cards in the direction matching the player's move.
+   * Right → content scrolls left (shows « next » stat).
+   * Left  → content scrolls right (shows « previous » stat).
+   * Up/Down are ignored.
+   * @param {'left' | 'right' | 'up' | 'down'} direction
    */
-  #doHudCardRotate(cardIdx) {
-    const card = this.#hudCardStates[cardIdx];
-    if (!card || card.locked) return;
-    const next = (card.current + 1) % card.slots.length;
-    const exitSlot = card.slots[card.current];
-    const enterSlot = card.slots[next];
-    card.current = next;
-    this.#animateHudSlotSwap(exitSlot, enterSlot);
+  #advanceHudCards(direction) {
+    if (direction !== 'left' && direction !== 'right') return;
+    const forward = direction === 'left';
+    for (const card of this.#hudCardStates) {
+      const n = card.slots.length;
+      const next = forward
+        ? (card.current + 1) % n
+        : (card.current - 1 + n) % n;
+      const exitSlot  = card.slots[card.current];
+      const enterSlot = card.slots[next];
+      card.current = next;
+      this.#animateHudSlotSwap(exitSlot, enterSlot, forward);
+    }
   }
 
   /**
-   * Slide exitSlot out to the right while enterSlot slides in from the left.
+   * Slide exitSlot out and enterSlot in.
+   * forward=true  → exit goes left,  enter comes from right (player moved right).
+   * forward=false → exit goes right, enter comes from left  (player moved left).
    * @param {HTMLElement} exitSlot
    * @param {HTMLElement} enterSlot
+   * @param {boolean} [forward=true]
    */
-  #animateHudSlotSwap(exitSlot, enterSlot) {
+  #animateHudSlotSwap(exitSlot, enterSlot, forward = true) {
     if (!exitSlot || !enterSlot) return;
-    exitSlot.classList.add('fm-hud-slot--exit');
+    const exitClass  = forward ? 'fm-hud-slot--exit-rev' : 'fm-hud-slot--exit';
+    const enterClass = forward ? 'fm-hud-slot--enter-rev' : 'fm-hud-slot--enter';
+    exitSlot.classList.add(exitClass);
     enterSlot.classList.remove('fm-hud-slot--hidden');
-    enterSlot.classList.add('fm-hud-slot--enter');
-    this.time.delayedCall(400, () => {
-      exitSlot.classList.remove('fm-hud-slot--exit');
+    enterSlot.classList.add(enterClass);
+    this.time.delayedCall(140, () => {
+      exitSlot.classList.remove(exitClass);
       exitSlot.classList.add('fm-hud-slot--hidden');
-      enterSlot.classList.remove('fm-hud-slot--enter');
+      enterSlot.classList.remove(enterClass);
     });
   }
   #showPowerSelectModal() {
@@ -577,7 +577,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     const waitFn = (ms) => this.#wait(ms);
-    const moveResult = await this.#gm.executeMove(direction, waitFn);
+    const moveResult = await this.#gm.executeMove(
+      direction,
+      waitFn,
+      () => this.#advanceHudCards(direction),
+    );
 
     if (!moveResult.moved) {
       this.#gm.updateFusionIndicators();
@@ -1890,9 +1894,6 @@ export class GameScene extends Phaser.Scene {
     // we only need to null our reference.
     this.#physicsFloor = null;
     document.querySelectorAll('.fm-contaminate-particle').forEach((el) => el.remove());
-    for (const card of this.#hudCardStates) {
-      card.timer?.remove(false);
-    }
     this.#hudCardStates = [];
     this.input.keyboard.off('keydown', this.#handleKey, this);
     this.input.off('pointerdown', this.#onPointerDown, this);
