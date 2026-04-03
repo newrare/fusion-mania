@@ -1066,7 +1066,6 @@ html, body {
 
 /* --- Ranking modal --- */
 .fm-ranking-modal {
-  height: 75%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1119,19 +1118,13 @@ html, body {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-}
-
-.fm-ranking-empty {
-  text-align: center;
-  padding: 30px 0;
-  color: rgba(255,255,255,0.4);
-  font-size: 0.95rem;
+  margin-bottom: 12px;
 }
 
 .fm-ranking-header {
   display: flex;
-  gap: 4px;
-  padding: 6px 4px;
+  gap: 0;
+  padding: 6px 0;
   border-bottom: 1px solid rgba(255,255,255,0.15);
   font-size: 0.65rem;
   text-transform: uppercase;
@@ -1139,26 +1132,62 @@ html, body {
   color: rgba(255,255,255,0.45);
 }
 
+.fm-ranking-rows {
+  display: flex;
+  flex-direction: column;
+}
+
 .fm-ranking-row {
   display: flex;
-  gap: 4px;
-  padding: 7px 4px;
+  gap: 0;
+  padding: 4px 0;
+  min-height: 46px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   font-size: 0.82rem;
   align-items: center;
+  cursor: pointer;
+  transition: background 0.12s;
+  border-radius: 6px;
 }
 
-.fm-ranking-medal-1 { color: #ffd700; }
-.fm-ranking-medal-2 { color: #c0c0c0; }
-.fm-ranking-medal-3 { color: #cd7f32; }
+.fm-ranking-row[data-rank-index]:hover {
+  background: rgba(255,255,255,0.08);
+}
 
-.fm-ranking-cell { text-align: center; }
-.fm-ranking-rank { flex: 0 0 26px; }
-.fm-ranking-score-col { flex: 1; font-weight: 700; }
-.fm-ranking-max { flex: 0 0 42px; }
-.fm-ranking-date-col { flex: 0 0 62px; font-size: 0.72rem; opacity: 0.7; }
-.fm-ranking-powers-col { flex: 0 0 72px; }
-.fm-ranking-enemy-max-col { flex: 0 0 52px; }
+.fm-ranking-row--alt {
+  background: rgba(255,255,255,0.04);
+}
+
+.fm-ranking-row--alt[data-rank-index]:hover {
+  background: rgba(255,255,255,0.10);
+}
+
+/* Top 3 medal glow */
+.fm-ranking-medal-1 {
+  color: #ffd700;
+  text-shadow: 0 0 8px rgba(255,215,0,0.8), 0 0 16px rgba(255,215,0,0.4);
+  box-shadow: inset 0 0 12px rgba(255,215,0,0.12);
+  border-radius: 6px;
+}
+
+.fm-ranking-medal-2 {
+  color: #c0c0c0;
+  text-shadow: 0 0 8px rgba(192,192,192,0.7), 0 0 14px rgba(192,192,192,0.3);
+  box-shadow: inset 0 0 10px rgba(192,192,192,0.1);
+  border-radius: 6px;
+}
+
+.fm-ranking-medal-3 {
+  color: #cd7f32;
+  text-shadow: 0 0 8px rgba(205,127,50,0.7), 0 0 14px rgba(205,127,50,0.3);
+  box-shadow: inset 0 0 10px rgba(205,127,50,0.1);
+  border-radius: 6px;
+}
+
+.fm-ranking-cell { display: flex; align-items: center; }
+.fm-ranking-rank { flex: 0 0 30px; justify-content: center; font-weight: 700; padding: 0 4px; }
+.fm-ranking-main-col { flex: 1; font-weight: 700; justify-content: center; padding: 0 10px; }
+.fm-ranking-date-col { flex: 0 0 65px; min-width: 65px; font-size: 0.72rem; opacity: 0.7; white-space: nowrap; justify-content: flex-end; padding: 0 10px; }
 
 /* Enemy level badge inside ranking table */
 .fm-ranking-enemy-lvl {
@@ -1178,17 +1207,94 @@ html, body {
   background-image: none !important;
 }
 
-.fm-ranking-powers {
+/* --- Ranking detail modal --- */
+.fm-rank-detail-modal {
+  max-height: 78%;
   display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  justify-content: center;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 20px 16px;
 }
 
-.fm-ranking-power-icon {
-  width: 14px;
-  height: 14px;
-  color: rgba(255,255,255,0.65);
+.fm-rank-detail-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 0;
+}
+
+.fm-rdd-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-size: 0.84rem;
+  gap: 8px;
+}
+
+.fm-rdd-row:last-child { border-bottom: none; }
+
+.fm-rdd-label {
+  color: rgba(255,255,255,0.55);
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.fm-rdd-value {
+  font-weight: 700;
+  text-align: right;
+}
+
+.fm-rdd-section-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: rgba(255,255,255,0.4);
+  padding: 10px 4px 4px;
+}
+
+.fm-rdd-enemies {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0 8px;
+}
+
+.fm-rdd-enemy-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.fm-rdd-enemy-name {
+  color: rgba(255,255,255,0.8);
+}
+
+.fm-rdd-powers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0 8px;
+}
+
+.fm-rdd-power-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 8px;
+}
+
+.fm-rdd-power-icon {
+  width: 18px;
+  height: 18px;
+  color: rgba(255,255,255,0.75);
 }
 
 /* --- Button disabled state --- */

@@ -84,4 +84,7 @@ export const fr = {
   'battle.enemies_defeated': 'Ennemis vaincus',
   'ranking.enemies_defeated': 'Ennemis',
   'ranking.enemy_max_level': 'Niveau max',
+  'ranking.combo_score': 'Bonus combo',
+  'ranking.enemies_killed': 'Ennemis vaincus',
+  'ranking.powers_used': 'Pouvoirs déclenchés',
 };

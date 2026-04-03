@@ -15,6 +15,9 @@ export class BattleManager {
   /** @type {Set<number>} Enemy levels already defeated */
   #defeatedLevels = new Set();
 
+  /** @type {{ name: string, level: number }[]} Ordered list of defeated enemies */
+  #defeatedEnemies = [];
+
   /** @type {number} Highest tile value ever seen on the grid */
   #maxTileSeen = 0;
 
@@ -46,6 +49,14 @@ export class BattleManager {
   /** @returns {Set<number>} */
   get defeatedLevels() {
     return new Set(this.#defeatedLevels);
+  }
+
+  /**
+   * Ordered list of defeated enemies: `{ name, level }`.
+   * @returns {{ name: string, level: number }[]}
+   */
+  get defeatedEnemies() {
+    return [...this.#defeatedEnemies];
   }
 
   /** @returns {number} */
@@ -144,6 +155,7 @@ export class BattleManager {
     const dead = this.#enemy;
     if (dead) {
       this.#defeatedLevels.add(dead.level);
+      this.#defeatedEnemies.push({ name: dead.name, level: dead.level });
       this.#nextLevelIndex++;
     }
     this.#enemy = null;

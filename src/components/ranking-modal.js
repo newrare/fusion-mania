@@ -1,9 +1,10 @@
 import { i18n } from '../managers/i18n-manager.js';
 import { saveManager } from '../managers/save-manager.js';
-import { POWER_META } from '../configs/constants.js';
+import { RankingDetailModal } from './ranking-detail-modal.js';
 
 /**
- * Ranking modal — full-safe-zone leaderboard with Classic / Free tabs.
+ * Ranking modal — full-safe-zone leaderboard with Classic / Battle / Free tabs.
+ * Rows are clickable: tapping opens a RankingDetailModal with extra stats.
  */
 export class RankingModal {
   /** @type {Phaser.GameObjects.DOMElement | null} */
@@ -12,7 +13,7 @@ export class RankingModal {
   /** @type {Phaser.Scene} */
   #scene;
 
-  /** @type {string} Active tab: 'classic' | 'free' */
+  /** @type {string} Active tab: 'classic' | 'battle' | 'free' */
   #activeTab = 'classic';
 
   /** @type {Function | null} */
@@ -23,6 +24,9 @@ export class RankingModal {
 
   /** @type {Function | null} */
   #unsubI18n = null;
+
+  /** @type {RankingDetailModal | null} */
+  #detailModal = null;
 
   /**
    * @param {Phaser.Scene} scene
@@ -69,20 +73,31 @@ export class RankingModal {
         return;
       }
       const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
-      if (!btn) return;
-      e.stopPropagation();
-      if (btn.dataset.action === 'resume') options.onResume?.();
-      else if (btn.dataset.action === 'close') this.#onClose?.();
+      if (btn) {
+        e.stopPropagation();
+        if (btn.dataset.action === 'resume') options.onResume?.();
+        else if (btn.dataset.action === 'close') this.#onClose?.();
+        return;
+      }
+      const row = /** @type {HTMLElement} */ (e.target).closest('[data-rank-index]');
+      if (row) {
+        e.stopPropagation();
+        const idx = parseInt(row.dataset.rankIndex, 10);
+        this.#openDetail(idx);
+      }
     });
 
-    // Keyboard navigation
     /** @type {string[]} Tab order for keyboard navigation */
     const tabOrder = ['classic', 'battle', 'free'];
 
     this.#keyHandler = (event) => {
       switch (event.code) {
         case 'Escape':
-          this.#onClose?.();
+          if (this.#detailModal) {
+            this.#closeDetail();
+          } else {
+            this.#onClose?.();
+          }
           break;
         case 'ArrowLeft': {
           const idx = tabOrder.indexOf(this.#activeTab);
@@ -130,68 +145,101 @@ export class RankingModal {
     if (!wrap) return;
 
     const rankings = saveManager.getRankings(this.#activeTab);
-    if (rankings.length === 0) {
-      wrap.innerHTML = `<div class="fm-ranking-empty">${i18n.t('ranking.empty')}</div>`;
-      return;
-    }
-
-    const isFree = this.#activeTab === 'free';
     const isBattle = this.#activeTab === 'battle';
-    let headerHtml = `
-      <div class="fm-ranking-header">
+    const locale = i18n.locale === 'fr' ? 'fr-FR' : 'en-GB';
+
+    const headerMainLabel = isBattle
+      ? i18n.t('ranking.enemy_max_level')
+      : i18n.t('ranking.score');
+
+    let html = `
+      <div class="fm-ranking-header" aria-hidden="true">
         <span class="fm-ranking-cell fm-ranking-rank">${i18n.t('ranking.rank')}</span>
-        <span class="fm-ranking-cell fm-ranking-score-col">${i18n.t('ranking.score')}</span>
-        <span class="fm-ranking-cell fm-ranking-max">${i18n.t('ranking.max_tile')}</span>
-        ${isBattle ? `<span class="fm-ranking-cell fm-ranking-enemy-max-col">${i18n.t('ranking.enemy_max_level')}</span>` : ''}
+        <span class="fm-ranking-cell fm-ranking-main-col">${headerMainLabel}</span>
         <span class="fm-ranking-cell fm-ranking-date-col">${i18n.t('ranking.date')}</span>
-        ${isFree ? `<span class="fm-ranking-cell fm-ranking-powers-col">${i18n.t('ranking.powers')}</span>` : ''}
-      </div>`;
+      </div>
+      <div class="fm-ranking-rows">`;
 
-    let rowsHtml = '';
-    for (let i = 0; i < rankings.length; i++) {
-      const r = rankings[i];
-      const date = new Date(r.date);
-      const dateStr = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
-      const maxTile = r.maxTile ?? '-';
+    const ROWS = 10;
+    for (let i = 0; i < ROWS; i++) {
+      const r = rankings[i] ?? null;
+      const isTop3 = i < 3;
+      const isEven = i % 2 === 1;
+      const medalClass = isTop3 ? ` fm-ranking-medal-${i + 1}` : '';
+      const evenClass = isEven ? ' fm-ranking-row--alt' : '';
+      const clickAttr = r ? ` data-rank-index="${i}"` : '';
 
-      let enemyMaxHtml = '';
-      if (isBattle) {
+      let rankHtml = `<span class="fm-ranking-cell fm-ranking-rank">${r ? i + 1 : '-'}</span>`;
+
+      let mainHtml;
+      if (!r) {
+        mainHtml = `<span class="fm-ranking-cell fm-ranking-main-col">-</span>`;
+      } else if (isBattle) {
         const lvl = r.enemyMaxLevel;
-        enemyMaxHtml = lvl
-          ? `<span class="fm-ranking-cell fm-ranking-enemy-max-col"><span class="fm-tile fm-ranking-enemy-lvl fm-t${lvl}">${lvl}</span></span>`
-          : `<span class="fm-ranking-cell fm-ranking-enemy-max-col">-</span>`;
+        mainHtml = lvl
+          ? `<span class="fm-ranking-cell fm-ranking-main-col"><span class="fm-tile fm-ranking-enemy-lvl fm-t${lvl}">${lvl}</span></span>`
+          : `<span class="fm-ranking-cell fm-ranking-main-col">-</span>`;
+      } else {
+        mainHtml = `<span class="fm-ranking-cell fm-ranking-main-col">${r.score}</span>`;
       }
 
-      let powersHtml = '';
-      if (isFree && r.powers?.length > 0) {
-        powersHtml = '<span class="fm-ranking-cell fm-ranking-powers-col"><span class="fm-ranking-powers">';
-        for (const p of r.powers) {
-          const meta = POWER_META[p];
-          if (meta) {
-            powersHtml += `<svg class="fm-ranking-power-icon" aria-hidden="true"><use href="#${meta.svgId}"/></svg>`;
-          }
-        }
-        powersHtml += '</span></span>';
-      } else if (isFree) {
-        powersHtml = '<span class="fm-ranking-cell fm-ranking-powers-col">-</span>';
+      let dateHtml;
+      if (!r) {
+        dateHtml = `<span class="fm-ranking-cell fm-ranking-date-col">-</span>`;
+      } else {
+        const dateStr = this.#formatDate(r.date, locale);
+        dateHtml = `<span class="fm-ranking-cell fm-ranking-date-col">${dateStr}</span>`;
       }
 
-      const medalClass = i < 3 ? ` fm-ranking-medal-${i + 1}` : '';
-      rowsHtml += `
-        <div class="fm-ranking-row${medalClass}">
-          <span class="fm-ranking-cell fm-ranking-rank">${i + 1}</span>
-          <span class="fm-ranking-cell fm-ranking-score-col">${r.score}</span>
-          <span class="fm-ranking-cell fm-ranking-max">${maxTile}</span>
-          ${enemyMaxHtml}
-          <span class="fm-ranking-cell fm-ranking-date-col">${dateStr}</span>
-          ${powersHtml}
-        </div>`;
+      const rowClass = `fm-ranking-row${medalClass}${evenClass}`;
+      html += `<div class="${rowClass}"${clickAttr}>${rankHtml}${mainHtml}${dateHtml}</div>`;
     }
 
-    wrap.innerHTML = headerHtml + `<div class="fm-ranking-rows">${rowsHtml}</div>`;
+    html += `</div>`;
+    wrap.innerHTML = html;
+  }
+
+  /**
+   * Format a timestamp as a compact locale-aware date string ("3 avr 26" / "3 Apr 26").
+   * @param {number} ts - Unix timestamp (ms)
+   * @param {string} locale - BCP 47 locale string
+   * @returns {string}
+   */
+  #formatDate(ts, locale) {
+    const d = new Date(ts);
+    const parts = new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'short',
+      year: '2-digit',
+    }).formatToParts(d);
+    // Strip trailing dots from month abbreviation and forward slashes / commas
+    const day = parts.find((p) => p.type === 'day')?.value ?? '';
+    const month = (parts.find((p) => p.type === 'month')?.value ?? '').replace(/\.$/u, '');
+    const year = parts.find((p) => p.type === 'year')?.value ?? '';
+    return `${day} ${month} ${year}`;
+  }
+
+  /** @param {number} idx - 0-based index in rankings array */
+  #openDetail(idx) {
+    if (this.#detailModal) return;
+    const rankings = saveManager.getRankings(this.#activeTab);
+    const entry = rankings[idx];
+    if (!entry) return;
+    this.#detailModal = new RankingDetailModal(this.#scene, {
+      entry,
+      mode: this.#activeTab,
+      rank: idx + 1,
+      onClose: () => this.#closeDetail(),
+    });
+  }
+
+  #closeDetail() {
+    this.#detailModal?.destroy();
+    this.#detailModal = null;
   }
 
   destroy() {
+    this.#closeDetail();
     this.#unsubI18n?.();
     this.#unsubI18n = null;
     if (this.#keyHandler) {
@@ -202,3 +250,4 @@ export class RankingModal {
     this.#domElement = null;
   }
 }
+

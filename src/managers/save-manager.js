@@ -37,7 +37,16 @@ class SaveManager {
    * Add a score to rankings for a given mode.
    * @param {string} mode - 'classic' | 'battle' | 'free'
    * @param {number} score
-   * @param {{ maxTile?: number, moves?: number, fusions?: number, powers?: string[] }} extra
+   * @param {{
+   *   maxTile?: number,
+   *   moves?: number,
+   *   fusions?: number,
+   *   comboScore?: number,
+   *   powers?: string[],
+   *   enemiesDefeated?: number,
+   *   enemyMaxLevel?: number,
+   *   defeatedEnemies?: { name: string, level: number }[],
+   * }} extra
    */
   addRanking(mode, score, extra = {}) {
     const rankings = this.#loadRankings();
@@ -46,13 +55,37 @@ class SaveManager {
     if (extra.maxTile != null) entry.maxTile = extra.maxTile;
     if (extra.moves != null) entry.moves = extra.moves;
     if (extra.fusions != null) entry.fusions = extra.fusions;
+    if (extra.comboScore != null) entry.comboScore = extra.comboScore;
     if (extra.powers) entry.powers = extra.powers;
     if (extra.enemiesDefeated != null) entry.enemiesDefeated = extra.enemiesDefeated;
     if (extra.enemyMaxLevel != null) entry.enemyMaxLevel = extra.enemyMaxLevel;
+    if (extra.defeatedEnemies) entry.defeatedEnemies = extra.defeatedEnemies;
     rankings[mode].push(entry);
-    rankings[mode].sort((a, b) => b.score - a.score);
+    rankings[mode].sort((a, b) => this.#compareEntries(mode, a, b));
     rankings[mode] = rankings[mode].slice(0, 10);
     localStorage.setItem(STORAGE_KEYS.RANKINGS, JSON.stringify(rankings));
+  }
+
+  /**
+   * Compare two ranking entries for sorting (DESC rank = index 0 is best).
+   * Battle: enemyMaxLevel DESC → score DESC → date ASC (oldest wins tie).
+   * Classic / Free: score DESC → date ASC (oldest wins tie).
+   * @param {string} mode
+   * @param {object} a
+   * @param {object} b
+   * @returns {number}
+   */
+  #compareEntries(mode, a, b) {
+    if (mode === 'battle') {
+      const lvlDiff = (b.enemyMaxLevel ?? 0) - (a.enemyMaxLevel ?? 0);
+      if (lvlDiff !== 0) return lvlDiff;
+      const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
+      if (scoreDiff !== 0) return scoreDiff;
+      return (a.date ?? 0) - (b.date ?? 0);
+    }
+    const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
+    if (scoreDiff !== 0) return scoreDiff;
+    return (a.date ?? 0) - (b.date ?? 0);
   }
 
   /**

@@ -84,4 +84,7 @@ export const en = {
   'battle.enemies_defeated': 'Enemies defeated',
   'ranking.enemies_defeated': 'Enemies',
   'ranking.enemy_max_level': 'Max lvl',
+  'ranking.combo_score': 'Combo bonus',
+  'ranking.enemies_killed': 'Enemies defeated',
+  'ranking.powers_used': 'Powers triggered',
 };

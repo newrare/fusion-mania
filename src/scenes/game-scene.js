@@ -69,6 +69,12 @@ export class GameScene extends Phaser.Scene {
   /** @type {string[] | null} Selected power types for this free-mode game */
   #selectedPowers = null;
 
+  /** @type {number} Cumulative combo bonus score earned this game */
+  #comboScoreTotal = 0;
+
+  /** @type {string[]} Power types triggered/fused during this game (battle + free) */
+  #powersTriggered = [];
+
   /** @type {number} Current combo streak level */
   #combo = 0;
 
@@ -188,6 +194,8 @@ export class GameScene extends Phaser.Scene {
     this.#fusions = 0;
     this.#maxTile = 0;
     this.#selectedPowers = null;
+    this.#comboScoreTotal = 0;
+    this.#powersTriggered = [];
     this.#combo = 0;
     this.#comboMax = 0;
     this.#comboScoreStart = 0;
@@ -463,6 +471,8 @@ export class GameScene extends Phaser.Scene {
   // ─── GAME FLOW ───────────────────────────────────
   #startNewGame() {
     this.#fusions = 0;
+    this.#comboScoreTotal = 0;
+    this.#powersTriggered = [];
     this.#combo = 0;
     this.#comboMax = 0;
     this.#comboScoreStart = 0;
@@ -665,6 +675,7 @@ export class GameScene extends Phaser.Scene {
           chosenPower = await this.#showPowerChoiceModal(trigger.powerType, trigger.powerTypeB);
         }
 
+        this.#powersTriggered.push(chosenPower);
         await this.#executePowerEffect(chosenPower, trigger.tile);
       }
 
@@ -684,6 +695,7 @@ export class GameScene extends Phaser.Scene {
           chosenPower = await this.#showPowerChoiceModal(trigger.powerType, trigger.powerTypeB);
         }
 
+        this.#powersTriggered.push(chosenPower);
         await this.#executeBattlePowerEffect(chosenPower, trigger.tile);
       }
 
@@ -928,6 +940,7 @@ export class GameScene extends Phaser.Scene {
       if (scoreGained > 0) {
         const bonus = scoreGained * (this.#comboMax - 1);
         grid.score += bonus;
+        this.#comboScoreTotal += bonus;
         this.#showScoreBonus(bonus);
         this.#updateHUD();
       }
@@ -1517,11 +1530,13 @@ export class GameScene extends Phaser.Scene {
       maxTile: this.#maxTile,
       moves: this.#gm.grid.moves,
       fusions: this.#fusions,
+      comboScore: this.#comboScoreTotal,
     };
-    if (this.#selectedPowers) extra.powers = [...this.#selectedPowers];
+    if (this.#powersTriggered.length > 0) extra.powers = [...this.#powersTriggered];
     if (this.#battleManager) {
       extra.enemiesDefeated = this.#battleManager.enemiesDefeated;
       extra.enemyMaxLevel = this.#battleManager.maxEnemyLevel;
+      extra.defeatedEnemies = this.#battleManager.defeatedEnemies;
     }
     saveManager.addRanking(this.#mode, this.#gm.grid.score, extra);
     saveManager.clearGame();
