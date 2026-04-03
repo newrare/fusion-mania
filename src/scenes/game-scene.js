@@ -41,6 +41,12 @@ export class GameScene extends Phaser.Scene {
   /** @type {Phaser.GameObjects.DOMElement | null} */
   #hudDom = null;
 
+  /**
+   * State for each rotating HUD card.
+   * @type {Array<{slots: HTMLElement[], current: number, locked: boolean, timer: Phaser.Time.TimerEvent}>}
+   */
+  #hudCardStates = [];
+
   /** @type {boolean} Game over state */
   #gameOver = false;
 
@@ -214,6 +220,11 @@ export class GameScene extends Phaser.Scene {
     this.#battlePowerManager = null;
     this.#deadEnemyBodies = [];
     this.#physicsFloor = null;
+    // HUD card rotators — destroy existing timers before scene re-init
+    for (const card of this.#hudCardStates) {
+      card.timer?.remove(false);
+    }
+    this.#hudCardStates = [];
   }
 
   create() {
@@ -262,44 +273,40 @@ export class GameScene extends Phaser.Scene {
 
   // ─── HUD ─────────────────────────────────────────
   #createHUD() {
-    const hpBox = (this.#mode === 'free' || this.#mode === 'battle')
-      ? `<div class="fm-score-box fm-hp-box" id="fm-hp-box" style="${this.#mode === 'battle' ? 'display:none' : ''}">
-            <span class="fm-score-label" id="fm-label-hp">${i18n.t('game.hp')}</span>
-            <span class="fm-score-value" id="fm-hp"></span>
-          </div>`
-      : '';
-
     const html = `
       <div class="fm-hud">
         <div class="fm-hud-row">
-          <div class="fm-score-box">
-            <span class="fm-score-label" id="fm-label-moves">${i18n.t('game.moves')}</span>
-            <span class="fm-score-value" id="fm-moves">0</span>
-          </div>
-          <div class="fm-score-box">
-            <span class="fm-score-label" id="fm-label-fusions">${i18n.t('game.fusions')}</span>
-            <span class="fm-score-value" id="fm-fusions">0</span>
-          </div>
-          ${hpBox}
-          <div class="fm-score-box">
-            <span class="fm-score-label" id="fm-label-max-tile">${i18n.t('game.max_tile')}</span>
-            <span class="fm-score-value" id="fm-max-tile">0</span>
+          <div class="fm-score-box fm-hud-card" id="fm-card-stat1">
+            <div class="fm-hud-slot" id="fm-card-stat1-a">
+              <span class="fm-score-label" id="fm-label-moves">${i18n.t('game.moves')}</span>
+              <span class="fm-score-value" id="fm-moves">0</span>
+            </div>
+            <div class="fm-hud-slot fm-hud-slot--hidden" id="fm-card-stat1-b" aria-hidden="true">
+              <span class="fm-score-label" id="fm-label-fusions">${i18n.t('game.fusions')}</span>
+              <span class="fm-score-value" id="fm-fusions">0</span>
+            </div>
+            <div class="fm-hud-slot fm-hud-slot--hidden" id="fm-card-stat1-c" aria-hidden="true">
+              <span class="fm-score-label" id="fm-label-max-tile">${i18n.t('game.max_tile')}</span>
+              <span class="fm-score-value" id="fm-max-tile">0</span>
+            </div>
           </div>
           <div class="fm-score-wrap">
-            <div class="fm-score-box">
+            <div class="fm-score-box" id="fm-card-stat2">
               <span class="fm-score-label" id="fm-label-score">${i18n.t('game.score')}</span>
               <span class="fm-score-value" id="fm-score">0</span>
             </div>
             <div class="fm-combo-display" id="fm-combo-display" style="display:none"></div>
             <div class="fm-score-bonus" id="fm-score-bonus"></div>
           </div>
-          <div class="fm-score-box">
-            <span class="fm-score-label" id="fm-label-best">${i18n.t('game.best')}</span>
-            <span class="fm-score-value" id="fm-best">${saveManager.getBestScore(this.#mode)}</span>
-          </div>
-          <div class="fm-score-box">
-            <span class="fm-score-label" id="fm-label-best-tile">${i18n.t('game.best_tile')}</span>
-            <span class="fm-score-value" id="fm-best-max-tile">${saveManager.getBestMaxTile(this.#mode)}</span>
+          <div class="fm-score-box fm-hud-card" id="fm-card-stat3">
+            <div class="fm-hud-slot" id="fm-card-stat3-a">
+              <span class="fm-score-label" id="fm-label-best">${i18n.t('game.best')}</span>
+              <span class="fm-score-value" id="fm-best">${saveManager.getBestScore(this.#mode)}</span>
+            </div>
+            <div class="fm-hud-slot fm-hud-slot--hidden" id="fm-card-stat3-b" aria-hidden="true">
+              <span class="fm-score-label" id="fm-label-best-tile">${i18n.t('game.best_tile')}</span>
+              <span class="fm-score-value" id="fm-best-max-tile">${saveManager.getBestMaxTile(this.#mode)}</span>
+            </div>
           </div>
           <div class="fm-menu-btn" id="fm-menu-btn">☰</div>
         </div>
@@ -320,6 +327,7 @@ export class GameScene extends Phaser.Scene {
     this.#scoreBonusEl = this.#hudEl.querySelector('#fm-score-bonus');
 
     this.#unsubI18n = i18n.onChange(() => this.#refreshHUDLabels());
+    this.#initHudCardRotations();
   }
 
   #refreshHUDLabels() {
@@ -332,7 +340,6 @@ export class GameScene extends Phaser.Scene {
       'fm-label-score':     'game.score',
       'fm-label-best':      'game.best',
       'fm-label-best-tile': 'game.best_tile',
-      'fm-label-hp':        'game.hp',
     };
     for (const [id, key] of Object.entries(map)) {
       const node = el.querySelector(`#${id}`);
@@ -340,7 +347,71 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // ─── POWER SELECT MODAL ──────────────────────────
+  // ─── HUD CARD ROTATORS ───────────────────────────
+
+  /**
+   * Set up the two rotating HUD cards:
+   *   0 — Moves → Fusions → Max Tile (every 5 s, 3-slot cycle)
+   *   1 — Best Score ↔ Best Tile (every 10 s)
+   * Card 2 (Score) is fixed — no rotation.
+   */
+  #initHudCardRotations() {
+    const el = this.#hudEl;
+    if (!el) return;
+
+    const defs = [
+      { slotIds: ['fm-card-stat1-a', 'fm-card-stat1-b', 'fm-card-stat1-c'], delay: 5000 },
+      { slotIds: ['fm-card-stat3-a', 'fm-card-stat3-b'], delay: 10000 },
+    ];
+
+    for (let i = 0; i < defs.length; i++) {
+      const { slotIds, delay } = defs[i];
+      const state = {
+        slots: slotIds.map((id) => el.querySelector(`#${id}`)),
+        current: 0,
+        locked: false,
+        timer: null,
+      };
+      const idx = i;
+      state.timer = this.time.addEvent({
+        delay,
+        loop: true,
+        callback: () => this.#doHudCardRotate(idx),
+      });
+      this.#hudCardStates.push(state);
+    }
+  }
+
+  /**
+   * Advance the specified HUD card to its next slot (unless locked).
+   * @param {number} cardIdx
+   */
+  #doHudCardRotate(cardIdx) {
+    const card = this.#hudCardStates[cardIdx];
+    if (!card || card.locked) return;
+    const next = (card.current + 1) % card.slots.length;
+    const exitSlot = card.slots[card.current];
+    const enterSlot = card.slots[next];
+    card.current = next;
+    this.#animateHudSlotSwap(exitSlot, enterSlot);
+  }
+
+  /**
+   * Slide exitSlot out to the right while enterSlot slides in from the left.
+   * @param {HTMLElement} exitSlot
+   * @param {HTMLElement} enterSlot
+   */
+  #animateHudSlotSwap(exitSlot, enterSlot) {
+    if (!exitSlot || !enterSlot) return;
+    exitSlot.classList.add('fm-hud-slot--exit');
+    enterSlot.classList.remove('fm-hud-slot--hidden');
+    enterSlot.classList.add('fm-hud-slot--enter');
+    this.time.delayedCall(400, () => {
+      exitSlot.classList.remove('fm-hud-slot--exit');
+      exitSlot.classList.add('fm-hud-slot--hidden');
+      enterSlot.classList.remove('fm-hud-slot--enter');
+    });
+  }
   #showPowerSelectModal() {
     this.#powerSelectModal = new PowerSelectModal(this, {
       onStart: (selectedTypes) => {
@@ -568,7 +639,9 @@ export class GameScene extends Phaser.Scene {
     if (merges.length > 0) {
       this.#fusions += merges.length;
       if (this.#comboBreaking) this.#endCombo();
-      if (this.#combo === 0) this.#comboScoreStart = scoreBefore;
+      if (this.#combo === 0) {
+        this.#comboScoreStart = scoreBefore;
+      }
       this.#combo++;
       if (this.#combo > this.#comboMax) this.#comboMax = this.#combo;
       this.#updateComboDisplay(true);
@@ -813,11 +886,6 @@ export class GameScene extends Phaser.Scene {
       const bestMax = Math.max(saveManager.getBestMaxTile(this.#mode), this.#maxTile);
       bestMaxTileEl.textContent = String(bestMax);
     }
-
-    const hpEl = this.#hudEl?.querySelector('#fm-hp');
-    if (hpEl && this.#gridLife) {
-      hpEl.textContent = `${Math.ceil(this.#gridLife.currentHp)}/${this.#gridLife.maxHp}`;
-    }
   }
 
   // ─── COMBO ───────────────────────────────────────
@@ -1003,10 +1071,6 @@ export class GameScene extends Phaser.Scene {
     this.#gridLife = new GridLife();
     this.#createLiquidOverlay();
 
-    // Show HP box in HUD
-    const hpBox = this.#hudEl?.querySelector('#fm-hp-box');
-    if (hpBox) hpBox.style.display = '';
-
     // Render enemy (HP bar starts at 0% for fill animation)
     this.#renderEnemy(enemy);
 
@@ -1163,9 +1227,7 @@ export class GameScene extends Phaser.Scene {
       setTimeout(removeDying, 700);
     }
 
-    // Hide HP box in HUD
-    const hpBox = this.#hudEl?.querySelector('#fm-hp-box');
-    if (hpBox) hpBox.style.display = 'none';
+    // Hide HP box in HUD — removed (HP no longer shown in battle HUD)
 
     // Death animation: gray out, move to graveyard
     await this.#playEnemyDeathAnimation(dead);
@@ -1828,6 +1890,10 @@ export class GameScene extends Phaser.Scene {
     // we only need to null our reference.
     this.#physicsFloor = null;
     document.querySelectorAll('.fm-contaminate-particle').forEach((el) => el.remove());
+    for (const card of this.#hudCardStates) {
+      card.timer?.remove(false);
+    }
+    this.#hudCardStates = [];
     this.input.keyboard.off('keydown', this.#handleKey, this);
     this.input.off('pointerdown', this.#onPointerDown, this);
     this.input.off('pointerup', this.#onPointerUp, this);

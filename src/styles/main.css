@@ -288,8 +288,9 @@ html, body {
   width: 100%;
   padding: 10px 0 6px;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
+  gap: 6px;
 }
 
 .fm-hud > *, .fm-hud-row > * {
@@ -354,6 +355,54 @@ html, body {
 /* --- Score wrap: relative container for combo sticker + bonus float --- */
 .fm-score-wrap {
   position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* --- Rotating HUD card (holds 2 alternating slots) --- */
+.fm-hud-card {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.fm-hud-slot {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.fm-hud-slot--hidden {
+  transform: translateX(-110%);
+  opacity: 0;
+}
+
+@keyframes fm-hud-slot-out {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(110%); opacity: 0; }
+}
+
+@keyframes fm-hud-slot-in {
+  from { transform: translateX(-110%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+.fm-hud-slot--exit {
+  animation: fm-hud-slot-out 0.36s ease-in-out forwards;
+}
+
+.fm-hud-slot--enter {
+  animation: fm-hud-slot-in 0.36s ease-in-out forwards;
+}
+
+/* Score-wrap inner card fills the wrap's full width */
+.fm-score-wrap .fm-hud-card {
+  width: 100%;
 }
 
 /* --- Combo sticker glued over the score box --- */
