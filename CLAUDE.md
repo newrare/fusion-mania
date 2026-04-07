@@ -63,7 +63,8 @@ To add a new animation: add a keyframe to `src/styles/main.css`, add a method to
 
 ### Save & i18n
 
-- `SaveManager` — `localStorage` persistence for game state and per-mode rankings (top 10). Rankings store score, date, maxTile, moves, fusions, and (for free mode) selected powers, (for battle mode) enemies defeated.
+- `SaveManager` — `localStorage` persistence for game state, per-mode rankings (top 10), and save slots (up to 10). Rankings store score, date, maxTile, moves, fusions, and (for free mode) selected powers, (for battle mode) enemies defeated. Save slots store full game state including tile powers, states, grid life, battle/power manager state.
+- `SaveLoadModal` (`src/components/save-load-modal.js`) — Modal listing saved game slots with mode, date, score, and max tile. Accessible from the title menu (Load) and in-game menu (Save).
 - `I18nManager` — English/French via `src/locales/`. Keys are dot-separated (`menu.play`). Never hardcode user-facing strings; always use `i18n.t('key')`.
 
 ### Ranking modal

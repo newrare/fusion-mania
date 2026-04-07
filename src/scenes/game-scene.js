@@ -64,6 +64,13 @@ export class GameScene extends Phaser.Scene {
   /** @type {number} Total tile fusions this game */
   #fusions = 0;
 
+  /**
+   * Fingerprint of the last persisted save state (mode:score:moves:fusions).
+   * Reset after every valid move. Used to skip duplicate saves.
+   * @type {string | null}
+   */
+  #lastSavedFingerprint = null;
+
   /** @type {number} Highest tile value reached this game */
   #maxTile = 0;
 
@@ -195,12 +202,15 @@ export class GameScene extends Phaser.Scene {
   /** Tile size in CSS pixels, cached from --fm-tile-size after create(). */
   #tileSizePx = 64;
 
+  /** @type {object | null} Full save slot data to restore from */
+  #pendingSlotData = null;
+
   constructor() {
     super({ key: SCENE_KEYS.GRID });
     this.#gm = new GridManager();
   }
 
-  /** @param {{ mode?: string, restore?: boolean, selectedPowers?: string[] }} data */
+  /** @param {{ mode?: string, restore?: boolean, selectedPowers?: string[], slotData?: object }} data */
   init(data) {
     this.#mode = data?.mode ?? 'classic';
     this.#gameOver = false;
@@ -238,6 +248,7 @@ export class GameScene extends Phaser.Scene {
     this.#showingAds = false;
     this.#prevBestScore = 0;
     this.#bestScoreNotified = false;
+    this.#pendingSlotData = data?.slotData ?? null;
     // Battle mode
     this.#battleManager = null;
     this.#enemyAreaEl = null;
@@ -291,7 +302,10 @@ export class GameScene extends Phaser.Scene {
       ) || 64;
     });
 
-    if (this.#mode === 'free' && !this.#pendingPowerTypes) {
+    if (this.#pendingSlotData) {
+      this.#restoreFromSlot(this.#pendingSlotData);
+      this.#pendingSlotData = null;
+    } else if (this.#mode === 'free' && !this.#pendingPowerTypes) {
       this.#showPowerSelectModal();
     } else {
       if (this.#mode === 'free' && this.#pendingPowerTypes) {
@@ -649,6 +663,8 @@ export class GameScene extends Phaser.Scene {
 
     // Nudge dead enemies on every valid player move
     this.#nudgeDeadEnemies(direction);
+    // Invalidate duplicate-save guard
+    this.#lastSavedFingerprint = null;
 
     // Tick power state for EVERY real grid move
     if (this.#powerManager) {
@@ -1604,8 +1620,216 @@ export class GameScene extends Phaser.Scene {
         saveManager.saveGame({ ...this.#gm.grid.serialize(), mode: this.#mode });
         this.scene.start(SCENE_KEYS.TITLE);
       },
+      onSave: () => this.#handleSaveSlot(),
       onAdmin: () => this.#openAdminMenu(),
     });
+  }
+
+  // ─── SAVE SLOT ───────────────────────────────────
+
+  /**
+   * Build a complete save-state object for the current game.
+   * @returns {object}
+   */
+  #buildFullSaveState() {
+    const grid = this.#gm.grid;
+    const state = {
+      mode: this.#mode,
+      grid: grid.serializeFull(),
+      score: grid.score,
+      moves: grid.moves,
+      fusions: this.#fusions,
+      maxTile: this.#maxTile,
+      comboScoreTotal: this.#comboScoreTotal,
+      combo: this.#combo,
+      comboMax: this.#comboMax,
+      comboScoreStart: this.#comboScoreStart,
+      powersTriggered: [...this.#powersTriggered],
+      victoryShown: this.#victoryShown,
+    };
+
+    if (this.#mode === 'free') {
+      state.selectedPowers = this.#selectedPowers ? [...this.#selectedPowers] : null;
+      if (this.#powerManager) state.powerManager = this.#powerManager.serialize();
+      if (this.#gridLife) state.gridLife = this.#gridLife.serialize();
+    }
+
+    if (this.#mode === 'battle') {
+      if (this.#battleManager) state.battleManager = this.#battleManager.serialize();
+      if (this.#gridLife) state.gridLife = this.#gridLife.serialize();
+      if (this.#battlePowerManager) state.battlePowerManager = this.#battlePowerManager.serialize();
+    }
+
+    return state;
+  }
+
+  /**
+   * Save the current game to a slot. Shows a toast on success.
+   * Skips if the current state is identical to the last save (no moves made).
+   */
+  #handleSaveSlot() {
+    const grid = this.#gm.grid;
+    const fingerprint = `${this.#mode}:${grid.score}:${grid.moves}:${this.#fusions}`;
+    if (fingerprint === this.#lastSavedFingerprint) {
+      this.#showToast(i18n.t('save.already_saved'));
+      return;
+    }
+    const state = this.#buildFullSaveState();
+    saveManager.saveSlot(state);
+    this.#lastSavedFingerprint = fingerprint;
+    this.#showToast(i18n.t('save.saved'));
+  }
+
+  /**
+   * Show a brief toast message at the bottom of the screen.
+   * @param {string} message
+   */
+  #showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'fm-saveload-toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+  }
+
+  /**
+   * Recreate dead-enemy DOM tiles settled at the bottom of the screen after loading a save.
+   * Each enemy is placed randomly along the screen width at the viewport bottom,
+   * on top of the physics floor, with a static body so it does not fall again.
+   * @param {{ name: string, level: number }[]} enemies
+   */
+  #restoreDeadEnemyTiles(enemies) {
+    // Read the live CSS variable so tile size matches the actual rendered tiles,
+    // even when this runs before events.once('create') sets #tileSizePx.
+    const cssSize = parseInt(
+      getComputedStyle(document.getElementById('game-container') ?? document.body)
+        .getPropertyValue('--fm-tile-size'),
+      10,
+    );
+    const tileSize = cssSize || this.#tileSizePx || 64;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const gap = 6;
+
+    for (let i = 0; i < enemies.length; i++) {
+      const { name, level } = enemies[i];
+      const tileClass = `fm-t${level}`;
+
+      // Centre tiles at the very bottom of the screen, spread side-by-side.
+      // The physics floor top edge sits at H, so body centre at H - tileSize/2
+      // places the tile bottom flush with the floor — perfectly flat.
+      const totalW = enemies.length * tileSize + (enemies.length - 1) * gap;
+      const startX = (W - totalW) / 2 + tileSize / 2;
+      const cx = startX + i * (tileSize + gap);
+      const cy = H - tileSize / 2;
+
+      const deadTile = document.createElement('div');
+      deadTile.className = 'fm-dead-enemy';
+      deadTile.style.cssText = `position:fixed;width:${tileSize}px;height:${tileSize}px;pointer-events:none;transform-origin:center center;`;
+      deadTile.style.left = `${cx - tileSize / 2}px`;
+      deadTile.style.top  = `${cy - tileSize / 2}px`;
+      deadTile.innerHTML = `
+        <div class="fm-tile fm-dead-enemy-inner ${tileClass}">
+          <span class="fm-dead-enemy-label">${name}</span>
+          <div class="fm-dead-enemy-face">
+            <img src="${getRandomFaceUrl('death')}" alt="">
+          </div>
+        </div>`;
+      document.body.appendChild(deadTile);
+
+      // Dynamic body with the same physics properties as a live dead-enemy tile,
+      // but zero initial velocity — already settled on the floor.
+      // Using dynamic (not static) so new enemies falling on top interact naturally.
+      const body = this.matter.add.rectangle(cx, cy, tileSize, tileSize, {
+        chamfer      : { radius: 14 },
+        restitution  : 0.30,
+        friction     : 0.90,
+        frictionAir  : 0.008,
+        density      : 0.002,
+        label        : 'dead-enemy',
+      });
+      // Already settled — no initial velocity or spin
+      const M = Phaser.Physics.Matter.Matter;
+      M.Body.setVelocity(body, { x: 0, y: 0 });
+      M.Body.setAngularVelocity(body, 0);
+
+      this.#deadEnemyBodies.push({ el: deadTile, body });
+    }
+  }
+
+  /**
+   * Restore full game state from a save slot.
+   * @param {object} data — Full save-slot object
+   */
+  #restoreFromSlot(data) {
+    this.#fusions = data.fusions ?? 0;
+    this.#maxTile = data.maxTile ?? 0;
+    this.#comboScoreTotal = data.comboScoreTotal ?? 0;
+    this.#powersTriggered = data.powersTriggered ?? [];
+    this.#combo = data.combo ?? 0;
+    this.#comboMax = data.comboMax ?? 0;
+    this.#comboScoreStart = data.comboScoreStart ?? 0;
+    this.#victoryShown = data.victoryShown ?? false;
+    this.#prevBestScore = saveManager.getBestScore(this.#mode);
+    this.#bestScoreNotified = false;
+    this.#cancelComboTimer();
+
+    // Restore grid
+    this.#gm.grid.restoreFull(data.grid);
+
+    // Free mode: restore power manager and grid life
+    if (this.#mode === 'free') {
+      this.#selectedPowers = data.selectedPowers ?? null;
+      if (this.#selectedPowers) {
+        this.#powerManager = new PowerManager(this.#selectedPowers);
+        if (data.powerManager) this.#powerManager.restore(data.powerManager);
+      }
+      if (data.gridLife) {
+        this.#gridLife = new GridLife();
+        this.#gridLife.restore(data.gridLife);
+        this.#createLiquidOverlay();
+        this.#updateLifeVisual();
+      }
+    }
+
+    // Battle mode: restore battle manager, power manager, grid life
+    if (this.#mode === 'battle') {
+      this.#battleManager = new BattleManager();
+      if (data.battleManager) this.#battleManager.restore(data.battleManager);
+      if (data.battlePowerManager) {
+        this.#battlePowerManager = new PowerManager([]);
+        this.#battlePowerManager.restore(data.battlePowerManager);
+      }
+      if (data.gridLife) {
+        this.#gridLife = new GridLife();
+        this.#gridLife.restore(data.gridLife);
+        this.#createLiquidOverlay();
+        this.#updateLifeVisual();
+      }
+      // Restore enemy visual if one is active
+      if (this.#battleManager?.enemy) {
+        const enemy = this.#battleManager.enemy;
+        this.#renderEnemy(enemy);
+        if (this.#enemyAreaEl) {
+          this.#enemyAreaEl.style.display = 'flex';
+          void this.#enemyAreaEl.offsetWidth;
+          this.#attachEnemyWave(enemy.life.getColorCategory(), enemy.life.percent);
+        }
+      }
+      // Recreate dead enemy tiles at the bottom of the screen
+      const defeated = this.#battleManager.defeatedEnemies;
+      if (defeated.length > 0) {
+        this.#restoreDeadEnemyTiles(defeated);
+      }
+    }
+
+    // Render restored grid and update HUD
+    this.#gm.renderAllTiles();
+    this.#gm.updateFusionIndicators();
+    if (this.#powerManager || this.#battlePowerManager) {
+      this.#gm.syncTileDom(this.#powerManager?.windDirection ?? this.#battlePowerManager?.windDirection ?? null);
+    }
+    this.#updateHUD();
   }
 
   #destroyMenuModal() {

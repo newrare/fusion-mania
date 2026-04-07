@@ -57,7 +57,11 @@ export const STORAGE_KEYS = {
   RANKINGS: 'fusionmania_rankings',
   OPTIONS: 'fusionmania_options',
   THEME: 'fusionmania_theme',
+  SAVE_SLOTS: 'fusionmania_save_slots',
 };
+
+/** Maximum number of save slots */
+export const MAX_SAVE_SLOTS = 10;
 
 /** Default options */
 export const DEFAULT_OPTIONS = {

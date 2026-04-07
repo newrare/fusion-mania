@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { STORAGE_KEYS } from '../../src/configs/constants.js';
+import { STORAGE_KEYS, MAX_SAVE_SLOTS } from '../../src/configs/constants.js';
 
 // Mock localStorage
 const store = {};
@@ -124,6 +124,114 @@ describe('SaveManager', () => {
     it('handles rankings without maxTile gracefully', () => {
       saveManager.addRanking('classic', 100);
       expect(saveManager.getBestMaxTile('classic')).toBe(0);
+    });
+  });
+
+  describe('save slots', () => {
+    it('returns empty array when no slots exist', () => {
+      expect(saveManager.getSlots()).toEqual([]);
+    });
+
+    it('saves a slot and loads it back', () => {
+      const state = {
+        mode: 'classic',
+        score: 500,
+        maxTile: 128,
+        moves: 20,
+        grid: { cells: [[{ v: 2 }, null, null, null]], score: 500, moves: 20 },
+      };
+      const idx = saveManager.saveSlot(state);
+      expect(idx).toBe(0);
+      const loaded = saveManager.loadSlot(0);
+      expect(loaded.mode).toBe('classic');
+      expect(loaded.score).toBe(500);
+      expect(loaded.date).toBeGreaterThan(0);
+    });
+
+    it('saves to consecutive slots', () => {
+      saveManager.saveSlot({ mode: 'classic', score: 100 });
+      saveManager.saveSlot({ mode: 'battle', score: 200 });
+      const slots = saveManager.getSlots();
+      expect(slots.length).toBe(2);
+      expect(slots[0].mode).toBe('classic');
+      expect(slots[1].mode).toBe('battle');
+    });
+
+    it('appends after delete (no null slots to reuse)', () => {
+      saveManager.saveSlot({ mode: 'classic', score: 100 }); // slot 0
+      saveManager.saveSlot({ mode: 'battle', score: 200 });  // slot 1
+      saveManager.deleteSlot(0); // battle shifts to slot 0; array length = 1
+      const idx = saveManager.saveSlot({ mode: 'free', score: 300 });
+      // New save appends at index 1 (first available position)
+      expect(idx).toBe(1);
+      expect(saveManager.loadSlot(0).mode).toBe('battle');
+      expect(saveManager.loadSlot(1).mode).toBe('free');
+    });
+
+    it('evicts the oldest slot when all are full', () => {
+      // Fill all slots; slot 0 will be the oldest
+      for (let i = 0; i < MAX_SAVE_SLOTS; i++) {
+        saveManager.saveSlot({ mode: 'classic', score: i * 100 });
+      }
+      // Saving again should overwrite the oldest (slot 0) and return a valid index
+      const idx = saveManager.saveSlot({ mode: 'free', score: 999 });
+      expect(idx).toBeGreaterThanOrEqual(0);
+      expect(idx).toBeLessThan(MAX_SAVE_SLOTS);
+      const overwritten = saveManager.loadSlot(idx);
+      expect(overwritten.mode).toBe('free');
+      expect(overwritten.score).toBe(999);
+    });
+
+    it('deletes a slot and compacts the array (no null gaps)', () => {
+      saveManager.saveSlot({ mode: 'classic', score: 100 });
+      saveManager.saveSlot({ mode: 'battle', score: 200 });
+      saveManager.deleteSlot(0);
+      // After deletion slot 0 is removed; former slot 1 becomes slot 0
+      expect(saveManager.loadSlot(0).mode).toBe('battle');
+      expect(saveManager.loadSlot(1)).toBeNull();
+    });
+
+    it('returns slot summaries', () => {
+      saveManager.saveSlot({ mode: 'classic', score: 500, maxTile: 256, moves: 30 });
+      saveManager.saveSlot({ mode: 'free', score: 800, maxTile: 512, moves: 50 });
+      const summaries = saveManager.getSlotSummaries();
+      expect(summaries.length).toBe(2);
+      expect(summaries[0].mode).toBe('classic');
+      expect(summaries[0].score).toBe(500);
+      expect(summaries[0].maxTile).toBe(256);
+      expect(summaries[1].mode).toBe('free');
+    });
+
+    it('hasAvailableSlot returns true when slots available', () => {
+      expect(saveManager.hasAvailableSlot()).toBe(true);
+    });
+
+    it('hasAvailableSlot always returns true (eviction prevents full state)', () => {
+      for (let i = 0; i < MAX_SAVE_SLOTS; i++) {
+        saveManager.saveSlot({ mode: 'classic', score: i });
+      }
+      expect(saveManager.hasAvailableSlot()).toBe(true);
+    });
+
+    it('hasAvailableSlot is always true (eviction prevents exhaustion)', () => {
+      for (let i = 0; i < MAX_SAVE_SLOTS; i++) {
+        saveManager.saveSlot({ mode: 'classic', score: i });
+      }
+      saveManager.deleteSlot(3);
+      expect(saveManager.hasAvailableSlot()).toBe(true);
+    });
+
+    it('loadSlot returns null for out-of-range index', () => {
+      expect(saveManager.loadSlot(99)).toBeNull();
+    });
+
+    it('compacts the array on delete (no null gaps)', () => {
+      saveManager.saveSlot({ mode: 'classic', score: 100 });
+      saveManager.saveSlot({ mode: 'battle', score: 200 });
+      saveManager.deleteSlot(1);
+      const slots = saveManager.getSlots();
+      expect(slots.length).toBe(1);
+      expect(slots[0].mode).toBe('classic');
     });
   });
 });

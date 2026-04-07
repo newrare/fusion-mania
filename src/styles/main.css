@@ -1517,6 +1517,48 @@ html, body {
   transition: none !important;
 }
 
+/* --- Save/Load modal --- */
+.fm-saveload-modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 20px 16px;
+  max-height: 82%;
+}
+.fm-saveload-table-wrap {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 12px;
+}
+.fm-saveload-mode-col { flex: 0 0 58px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; justify-content: center; padding: 0 4px; }
+.fm-saveload-empty { opacity: 0.35; cursor: default; }
+.fm-saveload-row { cursor: pointer; }
+.fm-saveload-row--expanded { background: rgba(255,255,255,0.10) !important; border-radius: 6px 6px 0 0; }
+
+/* Action bar below each row — hidden by default */
+.fm-saveload-action-bar {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 8px 8px;
+  border-radius: 0 0 6px 6px;
+  background: rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.fm-saveload-action-bar--open { display: flex; }
+.fm-saveload-confirm-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+.fm-saveload-confirm-text { font-size: 0.72rem; opacity: 0.85; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 220px; line-height: 1.35; }
+.fm-saveload-confirm-btns { display: flex; gap: 8px; }
+.fm-saveload-confirm-btns .fm-btn--small { min-width: 52px; text-align: center; }
+.fm-btn--small { font-size: 0.7rem; padding: 4px 10px; min-height: 0; }
+.fm-btn--danger { background: #e53e3e; color: #fff; box-shadow: 0 3px 0 #9b2c2c, 0 4px 8px rgba(229,62,62,.3); }
+.fm-btn--danger:active { box-shadow: 0 1px 0 #9b2c2c; }
+.fm-saveload-toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #fff; padding: 10px 24px; border-radius: 50px; font-size: 0.85rem; font-weight: 700; z-index: 9999; animation: fm-toast-in 0.3s ease, fm-toast-out 0.3s ease 1.5s forwards; pointer-events: none; }
+@keyframes fm-toast-in { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+@keyframes fm-toast-out { from { opacity: 1; } to { opacity: 0; } }
+
 /* --- Ranking detail modal --- */
 .fm-rank-detail-modal {
   max-height: 78%;

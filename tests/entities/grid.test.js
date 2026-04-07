@@ -365,6 +365,79 @@ describe('Grid', () => {
     });
   });
 
+  describe('serializeFull / restoreFull', () => {
+    it('serializes and restores tile values', () => {
+      grid.cells[0][0] = new Tile(2, 0, 0);
+      grid.cells[1][2] = new Tile(8, 1, 2);
+      grid.score = 100;
+      grid.moves = 10;
+
+      const state = grid.serializeFull();
+      const newGrid = new Grid();
+      newGrid.restoreFull(state);
+
+      expect(newGrid.score).toBe(100);
+      expect(newGrid.moves).toBe(10);
+      expect(newGrid.cells[0][0].value).toBe(2);
+      expect(newGrid.cells[1][2].value).toBe(8);
+      expect(newGrid.cells[0][1]).toBeNull();
+    });
+
+    it('serializes and restores tile powers', () => {
+      const tile = new Tile(4, 0, 0);
+      tile.power = 'fire-h';
+      grid.cells[0][0] = tile;
+
+      const state = grid.serializeFull();
+      const newGrid = new Grid();
+      newGrid.restoreFull(state);
+
+      expect(newGrid.cells[0][0].power).toBe('fire-h');
+    });
+
+    it('serializes and restores tile states', () => {
+      const tile = new Tile(4, 0, 0);
+      tile.applyState('ice', 3);
+      grid.cells[0][0] = tile;
+
+      const state = grid.serializeFull();
+      const newGrid = new Grid();
+      newGrid.restoreFull(state);
+
+      expect(newGrid.cells[0][0].state).toBe('ice');
+      expect(newGrid.cells[0][0].stateTurns).toBe(3);
+    });
+
+    it('serializes and restores targeted flag', () => {
+      const tile = new Tile(4, 0, 0);
+      tile.targeted = true;
+      grid.cells[0][0] = tile;
+
+      const state = grid.serializeFull();
+      const newGrid = new Grid();
+      newGrid.restoreFull(state);
+
+      expect(newGrid.cells[0][0].targeted).toBe(true);
+    });
+
+    it('does not include absent properties in compact format', () => {
+      grid.cells[0][0] = new Tile(2, 0, 0);
+      const state = grid.serializeFull();
+      const cell = state.cells[0][0];
+      expect(cell.v).toBe(2);
+      expect(cell.p).toBeUndefined();
+      expect(cell.s).toBeUndefined();
+      expect(cell.tg).toBeUndefined();
+    });
+
+    it('handles fully empty grid', () => {
+      const state = grid.serializeFull();
+      const newGrid = new Grid();
+      newGrid.restoreFull(state);
+      expect(newGrid.getAllTiles()).toEqual([]);
+    });
+  });
+
   describe('getAllTiles', () => {
     it('returns empty array for empty grid', () => {
       expect(grid.getAllTiles()).toEqual([]);

@@ -2,6 +2,7 @@ import { layout } from '../managers/layout-manager.js';
 import { i18n } from '../managers/i18n-manager.js';
 import { OptionsModal } from './options-modal.js';
 import { RankingModal } from './ranking-modal.js';
+import { SaveLoadModal } from './save-load-modal.js';
 import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /**
@@ -20,6 +21,9 @@ export class MenuModal {
   /** @type {RankingModal | null} */
   #rankingModal = null;
 
+  /** @type {SaveLoadModal | null} */
+  #saveLoadModal = null;
+
   /** @type {{ destroy: () => void } | null} */
   #keyNav = null;
 
@@ -31,7 +35,7 @@ export class MenuModal {
 
   /**
    * @param {Phaser.Scene} scene
-   * @param {{ showResume?: boolean, onResume?: Function, onClassic?: Function, onBattle?: Function, onFree?: Function, onClose?: Function, onQuit?: Function, onAdmin?: Function }} options
+   * @param {{ showResume?: boolean, onResume?: Function, onClassic?: Function, onBattle?: Function, onFree?: Function, onClose?: Function, onQuit?: Function, onAdmin?: Function, onSave?: Function, onLoadGame?: (slotData: object) => void }} options
    */
   constructor(scene, options = {}) {
     this.#scene = scene;
@@ -78,6 +82,12 @@ export class MenuModal {
         case 'options':
           this.#openOptions();
           break;
+        case 'save':
+          options.onSave?.();
+          break;
+        case 'loadgame':
+          this.#openSaveLoad();
+          break;
         case 'close':
           options.onClose?.();
           break;
@@ -105,18 +115,22 @@ export class MenuModal {
     const opts = this.#options;
     let html = '';
     if (opts.showResume) {
-      // Game in progress: only show Resume + Ranking + Options + (Quit) + (Admin)
+      // Game in progress: only show Resume + Save + Ranking + Options + (Quit) + (Admin)
       html += `<button class="fm-btn fm-btn--primary" data-action="resume">${i18n.t('menu.resume')}</button>`;
+      if (opts.onSave) {
+        html += `<button class="fm-btn" data-action="save">${i18n.t('menu.save')}</button>`;
+      }
       html += `<button class="fm-btn" data-action="ranking">${i18n.t('menu.ranking')}</button>`;
       html += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;
       if (opts.onQuit) {
         html += `<button class="fm-btn" data-action="quit">${i18n.t('menu.quit')}</button>`;
       }
     } else {
-      // No game in progress: show mode selection
+      // No game in progress: show mode selection + Load
       html += `<button class="fm-btn" data-action="classic">${i18n.t('menu.classic')}</button>`;
       html += `<button class="fm-btn" data-action="battle">${i18n.t('menu.battle')}</button>`;
       html += `<button class="fm-btn" data-action="free">${i18n.t('menu.free')}</button>`;
+      html += `<button class="fm-btn" data-action="loadgame">${i18n.t('menu.load')}</button>`;
       html += `<button class="fm-btn" data-action="ranking">${i18n.t('menu.ranking')}</button>`;
       html += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;
       html += `<button class="fm-btn" data-action="close">${i18n.t('menu.close')}</button>`;
@@ -174,6 +188,21 @@ export class MenuModal {
     });
   }
 
+  #openSaveLoad() {
+    if (this.#saveLoadModal) return;
+    this.#saveLoadModal = new SaveLoadModal(this.#scene, {
+      onLoad: (slotData) => {
+        this.#saveLoadModal?.destroy();
+        this.#saveLoadModal = null;
+        this.#options.onLoadGame?.(slotData);
+      },
+      onClose: () => {
+        this.#saveLoadModal?.destroy();
+        this.#saveLoadModal = null;
+      },
+    });
+  }
+
   destroy() {
     this.#unsubI18n?.();
     this.#unsubI18n = null;
@@ -183,6 +212,8 @@ export class MenuModal {
     this.#optionsModal = null;
     this.#rankingModal?.destroy();
     this.#rankingModal = null;
+    this.#saveLoadModal?.destroy();
+    this.#saveLoadModal = null;
     this.#domElement?.destroy();
     this.#domElement = null;
   }

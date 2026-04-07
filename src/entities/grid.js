@@ -59,6 +59,46 @@ export class Grid {
   }
 
   /**
+   * Serialize full state including tile powers, states, and targeted flags.
+   * @returns {{ cells: (object | null)[][], score: number, moves: number }}
+   */
+  serializeFull() {
+    return {
+      cells: this.cells.map((row) =>
+        row.map((tile) => {
+          if (!tile) return null;
+          const t = { v: tile.value };
+          if (tile.power) t.p = tile.power;
+          if (tile.state) { t.s = tile.state; t.st = tile.stateTurns; }
+          if (tile.targeted) t.tg = true;
+          return t;
+        }),
+      ),
+      score: this.score,
+      moves: this.moves,
+    };
+  }
+
+  /**
+   * Restore grid from full serialized data (with powers, states).
+   * @param {{ cells: (object | null)[][], score: number, moves: number }} state
+   */
+  restoreFull(state) {
+    this.score = state.score;
+    this.moves = state.moves;
+    this.cells = state.cells.map((row, r) =>
+      row.map((data, c) => {
+        if (!data) return null;
+        const tile = new Tile(data.v, r, c);
+        if (data.p) tile.power = data.p;
+        if (data.s) { tile.state = data.s; tile.stateTurns = data.st ?? 0; }
+        if (data.tg) tile.targeted = true;
+        return tile;
+      }),
+    );
+  }
+
+  /**
    * Get all empty cell coordinates.
    * @returns {{ row: number, col: number }[]}
    */

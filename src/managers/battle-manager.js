@@ -200,6 +200,7 @@ export class BattleManager {
       enemy: this.#enemy?.serialize() ?? null,
       classicMoves: this.#classicMoves,
       defeatedLevels: [...this.#defeatedLevels],
+      defeatedEnemies: [...this.#defeatedEnemies],
       maxTileSeen: this.#maxTileSeen,
       nextLevelIndex: this.#nextLevelIndex,
     };
@@ -210,6 +211,7 @@ export class BattleManager {
     this.#enemy = data.enemy ? Enemy.restore(data.enemy) : null;
     this.#classicMoves = data.classicMoves ?? 0;
     this.#defeatedLevels = new Set(data.defeatedLevels ?? []);
+    this.#defeatedEnemies = data.defeatedEnemies ?? [];
     this.#maxTileSeen = data.maxTileSeen ?? 0;
     this.#nextLevelIndex = data.nextLevelIndex ?? 0;
   }
