@@ -141,11 +141,12 @@ export class RankingDetailModal {
       html += `</div>`;
     }
 
-    // Powers (battle + free)
+    // Powers (battle + free) — distinct power types only, no duplicates
     if ((isBattle || isFree) && entry.powers?.length > 0) {
+      const distinctPowers = [...new Set(entry.powers)];
       html += `<div class="fm-rdd-section-title">${i18n.t('ranking.powers_used')}</div>`;
       html += `<div class="fm-rdd-powers">`;
-      for (const p of entry.powers) {
+      for (const p of distinctPowers) {
         const meta = POWER_META[p];
         if (meta) {
           html += `<div class="fm-rdd-power-item" title="${i18n.t(meta.nameKey)}">

@@ -177,9 +177,9 @@ export const GRID_LIFE = {
  */
 export const BATTLE = {
   /** Moves in classic phase before an enemy can appear */
-  CLASSIC_MOVES: 3,
+  CLASSIC_MOVES: 10,
   /** HP multiplier for enemy: HP = log2(level) × HP_PER_LEVEL */
-  HP_PER_LEVEL: 3,
+  HP_PER_LEVEL: 10,
   /** Enemy levels in progression order */
   LEVELS: [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048],
   /** Available powers for each enemy level */

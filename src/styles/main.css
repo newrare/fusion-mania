@@ -141,32 +141,13 @@ html, body {
   mix-blend-mode: screen;
 }
 
-/* --- Imminent fusion: edge glow + subtle pull --- */
-@keyframes fm-fusion-edge-pulse {
-  0%, 100% { opacity: 0.28; }
-  50%       { opacity: 1.0;  }
-}
-@keyframes fm-pull-right { 0%,100%{transform:translateX(0)} 50%{transform:translateX(2px)} }
-@keyframes fm-pull-left  { 0%,100%{transform:translateX(0)} 50%{transform:translateX(-2px)} }
-@keyframes fm-pull-down  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(2px)} }
-@keyframes fm-pull-up    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+/* --- Imminent fusion: electric arc between paired tiles + subtle pull --- */
+@keyframes fm-pull-right { 0%,100%{transform:translateX(0)} 50%{transform:translateX(3px)} }
+@keyframes fm-pull-left  { 0%,100%{transform:translateX(0)} 50%{transform:translateX(-3px)} }
+@keyframes fm-pull-down  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(3px)} }
+@keyframes fm-pull-up    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
 
-.fm-fuse-right { animation: fm-pull-right 1.9s ease-in-out infinite; }
-.fm-fuse-left  { animation: fm-pull-left  1.9s ease-in-out infinite; }
-.fm-fuse-down  { animation: fm-pull-down  1.9s ease-in-out infinite; }
-.fm-fuse-up    { animation: fm-pull-up    1.9s ease-in-out infinite; }
-
-.fm-fuse-right::after,
-.fm-fuse-left::after,
-.fm-fuse-down::after,
-.fm-fuse-up::after {
-  content: ''; position: absolute; pointer-events: none; z-index: 3;
-  animation: fm-fusion-edge-pulse 1.8s ease-in-out infinite;
-}
-.fm-fuse-right::after { top:0; right:0;  bottom:0; width:52%;  background: radial-gradient(ellipse at 100% 50%, rgba(255,255,255,0.42) 0%, transparent 78%); border-radius: 0 5px 5px 0; }
-.fm-fuse-left::after  { top:0; left:0;   bottom:0; width:52%;  background: radial-gradient(ellipse at   0% 50%, rgba(255,255,255,0.42) 0%, transparent 78%); border-radius: 5px 0 0 5px; }
-.fm-fuse-down::after  { left:0; right:0; bottom:0; height:52%; background: radial-gradient(ellipse at 50% 100%, rgba(255,255,255,0.42) 0%, transparent 78%); border-radius: 0 0 5px 5px; }
-.fm-fuse-up::after    { left:0; right:0; top:0;    height:52%; background: radial-gradient(ellipse at 50%   0%, rgba(255,255,255,0.42) 0%, transparent 78%); border-radius: 5px 5px 0 0; }
+.fm-fuse-arc { position: absolute; pointer-events: none; overflow: visible; z-index: 5; }
 
 /* --- Keyframes --- */
 @keyframes gradientShift {
@@ -574,6 +555,14 @@ html, body {
   opacity: 0.75;
 }
 
+.fm-title-version {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.6rem;
+  font-weight: 400;
+  opacity: 0.35;
+  letter-spacing: 0.5px;
+}
+
 @keyframes fm-blink {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.3; }
@@ -713,6 +702,27 @@ html, body {
   animation: fm-btn-wobble 0.5s ease;
 }
 
+/* Keyboard navigation focus — replaces browser default ring with a subtle glow */
+.fm-btn:focus-visible,
+.fm-ranking-tab:focus-visible,
+.fm-theme-btn:focus-visible {
+  outline: none;
+  filter: brightness(1.18);
+  box-shadow: 0 6px 0 var(--fm-btn-shadow, #7c6ff7), 0 8px 16px var(--fm-btn-glow, rgba(178,163,255,.35)), 0 0 0 2px rgba(255,255,255,0.55);
+}
+
+.fm-btn--primary:focus-visible {
+  box-shadow: 0 6px 0 var(--fm-btn-primary-shadow, #c4429a), 0 8px 16px var(--fm-btn-primary-glow, rgba(255,111,200,.35)), 0 0 0 2px rgba(255,255,255,0.55);
+}
+
+.fm-btn--danger:focus-visible {
+  box-shadow: 0 6px 0 #7a0a70, 0 8px 16px rgba(170,15,150,.22), 0 0 0 2px rgba(255,255,255,0.55);
+}
+
+.fm-ranking-tab--active:focus-visible {
+  box-shadow: 0 4px 0 var(--fm-btn-primary-shadow, #c4429a), 0 6px 12px var(--fm-btn-primary-glow, rgba(255,111,200,.35)), 0 0 0 2px rgba(255,255,255,0.55);
+}
+
 .fm-btn:active {
   transform: scaleX(1.15) scaleY(0.82);
   box-shadow: 0 2px 0 var(--fm-btn-shadow, #7c6ff7), 0 2px 8px var(--fm-btn-glow, rgba(178,163,255,.3));
@@ -736,8 +746,289 @@ html, body {
 .fm-gameover-score {
   font-size: 2.2rem;
   font-weight: 900;
-  margin: 10px 0 20px;
+  margin: 10px 0 14px;
   color: var(--fm-modal-score, #c0295a);
+}
+
+/* --- Game over stats --- */
+.fm-gameover-stats {
+  margin-bottom: 14px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.fm-gameover-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 0.78rem;
+}
+
+.fm-gameover-stat-label {
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.65rem;
+}
+
+.fm-gameover-stat-value {
+  font-weight: 700;
+}
+
+.fm-gameover-powers {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.fm-gameover-power-icon {
+  width: 16px;
+  height: 16px;
+  color: rgba(255,255,255,0.7);
+}
+
+/* --- Game over ranking --- */
+.fm-gameover-ranking {
+  margin-bottom: 14px;
+}
+
+.fm-gameover-ranking-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0.15));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.fm-gameover-ranking-empty {
+  font-size: 0.75rem;
+  opacity: 0.4;
+}
+
+/* --- Rank obtained display --- */
+.fm-gameover-rank-obtained {
+  font-weight: 900;
+  text-align: center;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.fm-gameover-rank-obtained--1 {
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255,215,0,0.9);
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.95rem;
+  animation: fm-rank1-pulse 1.5s ease-in-out infinite;
+}
+
+.fm-gameover-rank-obtained--2 {
+  color: #c0c0c0;
+  text-shadow: 0 0 8px rgba(192,192,192,0.8);
+  background: transparent;
+  font-size: 0.95rem;
+}
+
+.fm-gameover-rank-obtained--3 {
+  color: #cd7f32;
+  text-shadow: 0 0 8px rgba(205,127,50,0.8);
+  background: transparent;
+}
+
+.fm-gameover-rank-obtained--neutral {
+  opacity: 0.55;
+  font-size: 0.9rem;
+}
+
+@keyframes fm-rank1-pulse {
+  0%, 100% { text-shadow: 0 0 12px rgba(255,215,0,0.9), 0 0 15px rgba(255,215,0,0.5); }
+  50% { text-shadow: 0 0 15px rgba(255,215,0,1), 0 0 12px rgba(255,215,0,0.7); }
+}
+
+.fm-gameover-ranking-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.fm-gameover-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  font-size: 0.72rem;
+}
+
+.fm-gameover-rank-num {
+  font-weight: 900;
+  width: 18px;
+  text-align: center;
+  opacity: 0.5;
+}
+
+.fm-gameover-rank-main {
+  flex: 1;
+  font-weight: 700;
+}
+
+.fm-gameover-rank-date {
+  opacity: 0.4;
+  font-size: 0.65rem;
+}
+
+/* --- Game over particles --- */
+.fm-gameover-particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 9990;
+}
+
+@keyframes fm-gameover-rise {
+  0%   { transform: translateY(0) rotate(0deg) scale(1);         opacity: 1; }
+  60%  { opacity: 0.8; }
+  100% { transform: translateY(-110vh) rotate(-540deg) scale(0.4); opacity: 0; }
+}
+
+.fm-gameover-particle {
+  position: absolute;
+  bottom: -12px;
+  border-radius: 50%;
+  opacity: 0;
+  animation: fm-gameover-rise ease-out forwards;
+}
+
+/* --- Victory modal --- */
+.fm-victory {
+  text-align: center;
+  position: relative;
+  isolation: isolate;
+}
+
+.fm-victory > *:not(.fm-victory-sunburst) {
+  position: relative;
+  z-index: 1;
+}
+
+.fm-victory-title {
+  font-size: 1.8rem !important;
+  color: #ffd700 !important;
+  text-shadow: 0 0 20px rgba(255,215,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.fm-victory-subtitle {
+  font-size: 0.9rem;
+  opacity: 0.7;
+  margin: -12px 0 14px;
+}
+
+/* --- Victory sunburst (inside .fm-modal.fm-victory as absolute background) --- */
+.fm-victory-sunburst {
+  position: absolute;
+  inset: 0;
+  border-radius: 26px;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.fm-victory-sunburst::before {
+  content: '';
+  position: absolute;
+  top: 27%;
+  left: 50%;
+  width: 300%;
+  height: 300%;
+  transform: translate(-50%, -50%) rotate(0deg);
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg, rgba(255,215,0,0.12) 5deg,
+    transparent 10deg, rgba(255,215,0,0.09) 15deg,
+    transparent 20deg, rgba(255,215,0,0.12) 25deg,
+    transparent 30deg, rgba(255,215,0,0.09) 35deg,
+    transparent 40deg, rgba(255,215,0,0.12) 45deg,
+    transparent 50deg, rgba(255,215,0,0.09) 55deg,
+    transparent 60deg, rgba(255,215,0,0.12) 65deg,
+    transparent 70deg, rgba(255,215,0,0.09) 75deg,
+    transparent 80deg, rgba(255,215,0,0.12) 85deg,
+    transparent 90deg, rgba(255,215,0,0.09) 95deg,
+    transparent 100deg, rgba(255,215,0,0.12) 105deg,
+    transparent 110deg, rgba(255,215,0,0.09) 115deg,
+    transparent 120deg, rgba(255,215,0,0.12) 125deg,
+    transparent 130deg, rgba(255,215,0,0.09) 135deg,
+    transparent 140deg, rgba(255,215,0,0.12) 145deg,
+    transparent 150deg, rgba(255,215,0,0.09) 155deg,
+    transparent 160deg, rgba(255,215,0,0.12) 165deg,
+    transparent 170deg, rgba(255,215,0,0.09) 175deg,
+    transparent 180deg, rgba(255,215,0,0.12) 185deg,
+    transparent 190deg, rgba(255,215,0,0.09) 195deg,
+    transparent 200deg, rgba(255,215,0,0.12) 205deg,
+    transparent 210deg, rgba(255,215,0,0.09) 215deg,
+    transparent 220deg, rgba(255,215,0,0.12) 225deg,
+    transparent 230deg, rgba(255,215,0,0.09) 235deg,
+    transparent 240deg, rgba(255,215,0,0.12) 245deg,
+    transparent 250deg, rgba(255,215,0,0.09) 255deg,
+    transparent 260deg, rgba(255,215,0,0.12) 265deg,
+    transparent 270deg, rgba(255,215,0,0.09) 275deg,
+    transparent 280deg, rgba(255,215,0,0.12) 285deg,
+    transparent 290deg, rgba(255,215,0,0.09) 295deg,
+    transparent 300deg, rgba(255,215,0,0.12) 305deg,
+    transparent 310deg, rgba(255,215,0,0.09) 315deg,
+    transparent 320deg, rgba(255,215,0,0.12) 325deg,
+    transparent 330deg, rgba(255,215,0,0.09) 335deg,
+    transparent 340deg, rgba(255,215,0,0.12) 345deg,
+    transparent 350deg, rgba(255,215,0,0.09) 355deg,
+    transparent 360deg
+  );
+  animation: fm-sunburst-spin 20s linear infinite;
+}
+
+@keyframes fm-sunburst-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* --- Victory confetti (fixed full-screen overlay) --- */
+.fm-victory-confetti {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 9991;
+}
+
+@keyframes fm-confetti-fall {
+  0%   { transform: translateY(-20px) rotate(0deg) scale(1);     opacity: 1; }
+  60%  { opacity: 0.9; }
+  100% { transform: translateY(105vh) rotate(720deg) scale(0.7); opacity: 0; }
+}
+
+.fm-confetti-piece {
+  position: absolute;
+  top: -12px;
+  opacity: 0;
+  animation: fm-confetti-fall ease-in forwards;
+}
+
+/* --- Victory provisional ranking highlight --- */
+.fm-gameover-rank-row.fm-rank-provisional {
+  border: 1px solid rgba(255,215,0,0.5);
+  background: rgba(255,215,0,0.08);
+  border-radius: 6px;
 }
 
 /* --- Options modal theme row --- */
@@ -854,8 +1145,24 @@ html, body {
   box-shadow: 0 2px 0 #2e0099, 0 2px 8px rgba(68,0,224,.18);
 }
 
+.fm-admin-trigger-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+}
+
+.fm-admin-trigger-row .fm-admin-tile-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  white-space: nowrap;
+  padding: 6px 10px;
+}
+
 .fm-admin-close-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
   margin-top: 4px;
@@ -1486,9 +1793,12 @@ html, body {
 
 /* ─── Dead enemy tiles (stay at physics-settled position on document.body) ── */
 
-/* Wrapper — position:fixed + size set in JS; transform (rotation) applied here */
+/* Wrapper — position:fixed + size set in JS; transform (rotation) applied here.
+   z-index:3 keeps dead enemies above the Phaser canvas (0) but below the Phaser
+   DOM container (z-index:5), which holds the grid, HUD, and all modals. */
 .fm-dead-enemy {
   will-change: transform;
+  z-index: 3;
 }
 
 .fm-dead-enemy-inner {
@@ -1550,4 +1860,80 @@ html, body {
 body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
   visibility: hidden;
   pointer-events: none;
+}
+
+/* --- New Best Score notification banner --- */
+@keyframes fm-new-best-in {
+  from { transform: translate(-50%, -100%); opacity: 0; }
+  60%  { transform: translate(-50%, 6px);   opacity: 1; }
+  to   { transform: translate(-50%, 0);     opacity: 1; }
+}
+
+@keyframes fm-new-best-out {
+  from { transform: translate(-50%, 0);     opacity: 1; }
+  to   { transform: translate(-50%, -80px); opacity: 0; }
+}
+
+.fm-new-best-notif {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 72px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 99999;
+  background: linear-gradient(135deg, #ffe28a, #ffb940);
+  color: #7a3200;
+  border-radius: 50px;
+  padding: 10px 28px;
+  font-family: 'Merkin', cursive, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 900;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: 0 6px 0 rgba(0,0,0,0.30), 0 8px 24px rgba(255,200,100,0.45);
+  pointer-events: none;
+  animation: fm-new-best-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.fm-new-best-notif--out {
+  animation: fm-new-best-out 0.4s ease-in forwards;
+}
+
+/* --- Options modal success message --- */
+.fm-reset-success {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #4ade80;
+  text-align: center;
+  padding: 6px 0;
+  animation: fm-success-flash 0.4s ease-out;
+}
+
+@keyframes fm-success-flash {
+  0%   { opacity: 0; transform: scale(0.8); }
+  60%  { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* --- Options modal confirm row (reset ranking confirmation) --- */
+.fm-confirm-row {
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+  text-align: center;
+}
+
+.fm-confirm-label {
+  font-size: 0.88rem;
+  color: var(--fm-modal-text, rgba(255,255,255,.85));
+}
+
+.fm-confirm-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.fm-confirm-btns .fm-btn {
+  flex: 1;
+  padding: 10px 12px;
 }

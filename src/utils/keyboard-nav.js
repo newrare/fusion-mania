@@ -57,7 +57,12 @@ export function enableKeyboardNav(container, keyboard, options = {}) {
           const powerItems = items.filter((i) => i.classList.contains('fm-power-item'));
           const pidx = powerItems.indexOf(/** @type {HTMLElement} */ (active));
           const next = pidx + gridColumns;
-          if (next < powerItems.length) powerItems[next].focus();
+          if (next < powerItems.length) {
+            powerItems[next].focus();
+          } else {
+            // Last row of power grid — move on to the next focusable item (e.g. Start/Cancel buttons)
+            focusIndex(items, idx + 1);
+          }
         } else {
           focusIndex(items, idx + 1);
         }
@@ -77,7 +82,12 @@ export function enableKeyboardNav(container, keyboard, options = {}) {
           const powerItems = items.filter((i) => i.classList.contains('fm-power-item'));
           const pidx = powerItems.indexOf(/** @type {HTMLElement} */ (active));
           const prev = pidx - gridColumns;
-          if (prev >= 0) powerItems[prev].focus();
+          if (prev >= 0) {
+            powerItems[prev].focus();
+          } else {
+            // First row of power grid — move back to the preceding focusable item
+            focusIndex(items, idx <= 0 ? items.length - 1 : idx - 1);
+          }
         } else {
           focusIndex(items, idx <= 0 ? items.length - 1 : idx - 1);
         }

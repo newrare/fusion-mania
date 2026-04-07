@@ -48,8 +48,6 @@ const WIND_LINE_LAYOUT = [
   { pos: 83, dur: 1.30, dl: -0.85 },
 ];
 
-/** Category → sparkle colour (uses category colour, not the tile value colour). */
-const SPARKLE_COLOR = { danger: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
 
 /**
  * Deterministic spread of sparkle positions across the tile.
@@ -222,7 +220,7 @@ export class TileRenderer {
     el.classList.add('fm-tile-powered');
     const valText = tile.state === 'blind' ? '?' : String(tile.value);
     el.innerHTML = `
-      ${TileRenderer.#sparklesHtml(meta.svgId, category)}
+      ${TileRenderer.#sparklesHtml(meta.svgId)}
       <span class="fm-val">${valText}</span>
       <div class="fm-pw-face fm-pw-${category}">
         <svg><use href="#${meta.svgId}"/></svg>
@@ -247,11 +245,6 @@ export class TileRenderer {
       face.classList.add(`fm-pw-${category}`);
     }
 
-    // Re-colour sparkles if category changed
-    const color = SPARKLE_COLOR[category] ?? '#888';
-    for (const sp of el.querySelectorAll('.fm-pw-sparkle')) {
-      sp.style.color = color;
-    }
   }
 
   /**
@@ -267,14 +260,13 @@ export class TileRenderer {
   /**
    * Build HTML for the sparkle particles (small power icons, one per layout slot).
    * Uses deterministic positions so layout is stable across re-renders.
+   * Colour is inherited via currentColor from the tile (same as fm-val).
    * @param {string} svgId
-   * @param {'danger' | 'warning' | 'info'} category
    * @returns {string}
    */
-  static #sparklesHtml(svgId, category) {
-    const color = SPARKLE_COLOR[category] ?? '#888';
+  static #sparklesHtml(svgId) {
     return SPARKLE_LAYOUT.map(({ left, top, size, dur, dl }) =>
-      `<svg class="fm-pw-sparkle" style="left:${left}%;top:${top}%;width:${size}px;height:${size}px;color:${color};--fm-sp-dur:${dur}s;--fm-sp-dl:${dl}s"><use href="#${svgId}"/></svg>`
+      `<svg class="fm-pw-sparkle" style="left:${left}%;top:${top}%;width:${size}px;height:${size}px;--fm-sp-dur:${dur}s;--fm-sp-dl:${dl}s"><use href="#${svgId}"/></svg>`
     ).join('');
   }
 

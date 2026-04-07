@@ -1,13 +1,15 @@
-import { layout } from '../managers/layout-manager.js';
 import { i18n } from '../managers/i18n-manager.js';
 import { saveManager } from '../managers/save-manager.js';
 import { POWER_META } from '../configs/constants.js';
 import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /**
- * Game over modal — shows final score, game stats, ranking, and dramatic particle effect.
+ * Victory modal — shown when the player reaches the 2048 tile.
+ *
+ * Classic / Free: allows continuing the game or going to menu.
+ * Battle: the game ends (score saved), only new game or menu.
  */
-export class GameOverModal {
+export class VictoryModal {
   /** @type {Phaser.GameObjects.DOMElement | null} */
   #domElement = null;
 
@@ -17,8 +19,8 @@ export class GameOverModal {
   /** @type {Function | null} */
   #unsubI18n = null;
 
-  /** @type {number} */
-  #score = 0;
+  /** @type {number} Interval ID for confetti */
+  #confettiInterval = 0;
 
   /** @type {object} */
   #stats;
@@ -29,51 +31,47 @@ export class GameOverModal {
   /** @type {number | null} */
   #currentRank = null;
 
-  /** @type {number} Interval ID for particle spawning */
-  #particleInterval = 0;
-
   /**
    * @param {Phaser.Scene} scene
    * @param {{
    *   score: number,
    *   mode: string,
-   *   stats: {
-   *     maxTile?: number,
-   *     moves?: number,
-   *     fusions?: number,
-   *     comboScore?: number,
-   *     powers?: string[],
-   *     enemiesDefeated?: number,
-   *     enemyMaxLevel?: number,
-   *     defeatedEnemies?: { name: string, level: number }[],
-   *   },
+   *   stats: object,
+   *   onContinue?: Function,
    *   onNewGame?: Function,
    *   onMenu?: Function,
    * }} options
    */
   constructor(scene, options) {
-    this.#score = options.score;
     this.#stats = options.stats ?? {};
     this.#mode = options.mode ?? 'classic';
 
+    const isBattle = this.#mode === 'battle';
     const rankings = saveManager.getRankings(this.#mode);
-    this.#currentRank = this.#computeRank(rankings);
+    this.#currentRank = this.#computeProvisionalRank(rankings, options.score);
+
+    const continueBtn = !isBattle && options.onContinue
+      ? `<button class="fm-btn fm-btn--primary" data-action="continue">${i18n.t('victory.continue')}</button>`
+      : '';
 
     const html = `
-      <div class="fm-modal-overlay" id="fm-gameover-overlay">
-        <div class="fm-gameover-particles" id="fm-gameover-particles"></div>
-        <div class="fm-modal fm-gameover">
-          <div class="fm-modal-title">${i18n.t('gameover.title')}</div>
+      <div class="fm-modal-overlay" id="fm-victory-overlay">
+        <div class="fm-victory-confetti" id="fm-victory-confetti"></div>
+        <div class="fm-modal fm-victory">
+          <div class="fm-victory-sunburst"></div>
+          <div class="fm-modal-title fm-victory-title">${i18n.t('victory.title')}</div>
+          <div class="fm-victory-subtitle">${i18n.t('victory.subtitle')}</div>
           <div class="fm-score-label">${i18n.t('gameover.score')}</div>
           <div class="fm-gameover-score">${options.score}</div>
-          <div class="fm-gameover-stats" id="fm-gameover-stats">
+          <div class="fm-gameover-stats" id="fm-victory-stats">
             ${this.#renderStats()}
           </div>
-          <div class="fm-gameover-ranking" id="fm-gameover-ranking">
+          <div class="fm-gameover-ranking" id="fm-victory-ranking">
             <div class="fm-gameover-ranking-title">${i18n.t('ranking.title')}</div>
             ${this.#renderRankObtained()}
           </div>
           <div class="fm-modal-buttons">
+            ${continueBtn}
             <button class="fm-btn fm-btn--primary" data-action="new-game">${i18n.t('gameover.new_game')}</button>
             <button class="fm-btn" data-action="menu">${i18n.t('gameover.menu')}</button>
           </div>
@@ -85,26 +83,22 @@ export class GameOverModal {
     this.#domElement.setOrigin(0, 0);
     this.#domElement.setDepth(100);
 
-    const overlay = this.#domElement.node.querySelector('#fm-gameover-overlay');
+    const overlay = this.#domElement.node.querySelector('#fm-victory-overlay');
     overlay?.addEventListener('pointerdown', (e) => {
       const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
       if (!btn) return;
       e.stopPropagation();
 
       const action = btn.dataset.action;
-      if (action === 'new-game') options.onNewGame?.();
+      if (action === 'continue') options.onContinue?.();
+      else if (action === 'new-game') options.onNewGame?.();
       else if (action === 'menu') options.onMenu?.();
     });
 
     this.#keyNav = enableKeyboardNav(overlay, scene.input.keyboard);
     this.#unsubI18n = i18n.onChange(() => this.#refresh());
 
-    // Dark red overlay
-    const overlayEl = this.#domElement?.node.querySelector('#fm-gameover-overlay');
-    if (overlayEl) overlayEl.style.background = 'rgba(60,0,0,0.82)';
-
-    // Start dramatic particle effect
-    this.#startParticles();
+    this.#startConfetti();
   }
 
   #renderStats() {
@@ -112,7 +106,6 @@ export class GameOverModal {
     const isBattle = this.#mode === 'battle';
     const isFree = this.#mode === 'free';
 
-    /** @param {string} label @param {string|number} value */
     const row = (label, value) =>
       `<div class="fm-gameover-stat-row"><span class="fm-gameover-stat-label">${label}</span><span class="fm-gameover-stat-value">${value}</span></div>`;
 
@@ -120,7 +113,6 @@ export class GameOverModal {
     html += row(i18n.t('ranking.moves'), s.moves ?? '-');
     html += row(i18n.t('ranking.fusions'), s.fusions ?? '-');
 
-    // Max tile
     const maxTile = s.maxTile;
     const maxTileHtml = maxTile
       ? `<span class="fm-tile fm-ranking-enemy-lvl fm-t${maxTile}">${maxTile}</span>`
@@ -140,7 +132,6 @@ export class GameOverModal {
       html += row(i18n.t('ranking.enemies_defeated'), s.enemiesDefeated ?? 0);
     }
 
-    // Powers triggered
     if ((isBattle || isFree) && s.powers?.length > 0) {
       const distinct = [...new Set(s.powers)];
       const iconsHtml = distinct.map((p) => {
@@ -154,26 +145,32 @@ export class GameOverModal {
   }
 
   /**
-   * Find the rank of the current game in the saved rankings.
-   * Ties are broken by date ASC (oldest wins), so the current entry (newest) ranks last among equals.
+   * Compute the rank the current game *would* obtain once saved.
+   * Inserts a provisional entry (date = now, so newest = loses ties) and returns its 1-based position.
    * @param {object[]} rankings
+   * @param {number} score
    * @returns {number | null}
    */
-  #computeRank(rankings) {
-    if (rankings.length === 0) return null;
-    const s = this.#stats;
-    let lastIdx = -1;
+  #computeProvisionalRank(rankings, score) {
+    const provisional = { score, date: Date.now(), ...this.#stats };
+    const list = [...rankings, provisional];
     if (this.#mode === 'battle') {
-      const lvl = s.enemyMaxLevel ?? 0;
-      for (let i = 0; i < rankings.length; i++) {
-        if ((rankings[i].enemyMaxLevel ?? 0) === lvl && rankings[i].score === this.#score) lastIdx = i;
-      }
+      list.sort((a, b) => {
+        const lvlDiff = (b.enemyMaxLevel ?? 0) - (a.enemyMaxLevel ?? 0);
+        if (lvlDiff !== 0) return lvlDiff;
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+        return (a.date ?? 0) - (b.date ?? 0);
+      });
     } else {
-      for (let i = 0; i < rankings.length; i++) {
-        if (rankings[i].score === this.#score) lastIdx = i;
-      }
+      list.sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+        return (a.date ?? 0) - (b.date ?? 0);
+      });
     }
-    return lastIdx >= 0 ? lastIdx + 1 : null;
+    const rank = list.indexOf(provisional) + 1;
+    return rank > 0 ? rank : null;
   }
 
   /** @returns {string} */
@@ -194,49 +191,60 @@ export class GameOverModal {
     return `<div class="fm-gameover-rank-obtained fm-gameover-rank-obtained--neutral">${i18n.t('gameover.rank_n')}${rank}</div>`;
   }
 
-  #startParticles() {
-    const container = this.#domElement?.node.querySelector('#fm-gameover-particles');
+  #startConfetti() {
+    const container = this.#domElement?.node.querySelector('#fm-victory-confetti');
     if (!container) return;
 
-    const colors = ['#ff2200', '#ff4400', '#cc0000', '#ff6600', '#aa0000', '#ff3300', '#880000', '#ff1100', '#dd0000'];
+    const colors = [
+      '#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff',
+      '#ff9ff3', '#feca57', '#48dbfb', '#ff6348',
+      '#1dd1a1', '#ee5a24', '#c8d6e5', '#f368e0',
+    ];
 
     const spawn = () => {
       const p = document.createElement('div');
-      p.className = 'fm-gameover-particle';
+      p.className = 'fm-confetti-piece';
       const color = colors[Math.floor(Math.random() * colors.length)];
-      const size = 5 + Math.random() * 10;
       const left = Math.random() * 100;
-      const dur = 1.8 + Math.random() * 2.5;
+      const size = 5 + Math.random() * 8;
+      const dur = 2.5 + Math.random() * 3;
       const delay = Math.random() * 0.3;
-      p.style.cssText = `left:${left}%;width:${size}px;height:${size}px;background:${color};animation-duration:${dur}s;animation-delay:${delay}s;`;
+      const rotation = Math.random() * 360;
+      const isRect = Math.random() > 0.5;
+      const radius = isRect ? '2px' : '50%';
+      const w = isRect ? size : size * 0.7;
+      const h = isRect ? size * 0.4 : size * 0.7;
+      p.style.cssText = `left:${left}%;width:${w}px;height:${h}px;background:${color};border-radius:${radius};animation-duration:${dur}s;animation-delay:${delay}s;transform:rotate(${rotation}deg);`;
       container.appendChild(p);
       p.addEventListener('animationend', () => p.remove());
     };
 
     // Big initial burst
-    for (let i = 0; i < 60; i++) spawn();
-    this.#particleInterval = setInterval(spawn, 80);
+    for (let i = 0; i < 40; i++) spawn();
+    this.#confettiInterval = setInterval(spawn, 100);
   }
 
   #refresh() {
     const overlay = this.#domElement?.node;
     if (!overlay) return;
-    const title = overlay.querySelector('.fm-modal-title');
-    if (title) title.textContent = i18n.t('gameover.title');
-    const label = overlay.querySelector('.fm-score-label');
-    if (label) label.textContent = i18n.t('gameover.score');
+    const title = overlay.querySelector('.fm-victory-title');
+    if (title) title.textContent = i18n.t('victory.title');
+    const subtitle = overlay.querySelector('.fm-victory-subtitle');
+    if (subtitle) subtitle.textContent = i18n.t('victory.subtitle');
+    const statsEl = overlay.querySelector('#fm-victory-stats');
+    if (statsEl) statsEl.innerHTML = this.#renderStats();
+    const rankingEl = overlay.querySelector('#fm-victory-ranking');
+    if (rankingEl) rankingEl.innerHTML = `<div class="fm-gameover-ranking-title">${i18n.t('ranking.title')}</div>${this.#renderRankObtained()}`;
+    const continueBtn = overlay.querySelector('[data-action="continue"]');
+    if (continueBtn) continueBtn.textContent = i18n.t('victory.continue');
     const newGameBtn = overlay.querySelector('[data-action="new-game"]');
     if (newGameBtn) newGameBtn.textContent = i18n.t('gameover.new_game');
     const menuBtn = overlay.querySelector('[data-action="menu"]');
     if (menuBtn) menuBtn.textContent = i18n.t('gameover.menu');
-    const statsEl = overlay.querySelector('#fm-gameover-stats');
-    if (statsEl) statsEl.innerHTML = this.#renderStats();
-    const rankingEl = overlay.querySelector('#fm-gameover-ranking');
-    if (rankingEl) rankingEl.innerHTML = `<div class="fm-gameover-ranking-title">${i18n.t('ranking.title')}</div>${this.#renderRankObtained()}`;
   }
 
   destroy() {
-    if (this.#particleInterval) clearInterval(this.#particleInterval);
+    if (this.#confettiInterval) clearInterval(this.#confettiInterval);
     this.#unsubI18n?.();
     this.#unsubI18n = null;
     this.#keyNav?.destroy();

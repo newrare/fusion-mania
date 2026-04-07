@@ -78,6 +78,25 @@ export class AnimationManager {
   #consumedElements = new Set();
 
   /**
+   * Active arc SVG elements keyed by a pair id ("tileA:tileB").
+   * @type {Map<string, SVGElement>}
+   */
+  #arcElements = new Map();
+
+  /**
+   * Pull directions active per tile id — used to pick the right keyframe.
+   * A tile with two opposing pulls (e.g. right + left) gets no pull animation.
+   * @type {Map<string, Set<string>>}
+   */
+  #tilePullDirs = new Map();
+
+  /**
+   * rAF handle for the arc animation loop.
+   * @type {number | null}
+   */
+  #arcRaf = null;
+
+  /**
    * @param {Map<string, HTMLElement>} tileElements Shared tile ID → DOM element map
    * @param {HTMLElement | null} gridEl Grid container element
    * @param {HTMLCanvasElement | null} mergeCanvas Canvas for particle effects (optional)
@@ -163,6 +182,7 @@ export class AnimationManager {
 
     // Snap surviving tiles — disable transition, apply final position, clear animation classes,
     // and sync value class + text in case processMerges was cancelled mid-animation.
+    this.clearFusionIndicators();
     for (const tile of allTiles) {
       const el = this.#tileElements.get(tile.id);
       if (!el) continue;
@@ -364,21 +384,178 @@ export class AnimationManager {
   }
 
   /**
-   * Remove all imminent-fusion indicator classes from every tile element.
+   * Remove all fusion arc SVG elements and stop the animation loop.
    */
   clearFusionIndicators() {
-    for (const el of this.#tileElements.values()) {
-      el.classList.remove('fm-fuse-right', 'fm-fuse-left', 'fm-fuse-down', 'fm-fuse-up');
+    if (this.#arcRaf !== null) {
+      cancelAnimationFrame(this.#arcRaf);
+      this.#arcRaf = null;
     }
+    for (const svg of this.#arcElements.values()) {
+      if (svg.isConnected) svg.remove();
+    }
+    this.#arcElements.clear();
+    for (const el of this.#tileElements.values()) {
+      el.style.animation = '';
+    }
+    this.#tilePullDirs.clear();
   }
 
   /**
-   * Add a fusion indicator class to a specific tile element.
-   * @param {string} tileId
-   * @param {string} className
+   * Register a fusion pair and draw an electric arc between the two tiles.
+   * Each pair is identified by "idA:idB" and gets its own SVG arc element.
+   * @param {string} idA - tile id of the first tile
+   * @param {string} idB - tile id of the second tile
+   * @param {'h' | 'v'} axis - 'h' for horizontal pair (A left of B), 'v' for vertical (A above B)
    */
-  addFusionClass(tileId, className) {
-    this.#tileElements.get(tileId)?.classList.add(className);
+  addFusionArc(idA, idB, axis) {
+    const elA = this.#tileElements.get(idA);
+    const elB = this.#tileElements.get(idB);
+    if (!elA || !elB || !this.#gridEl) return;
+
+    const key = `${idA}:${idB}`;
+    if (this.#arcElements.has(key)) return;
+
+    /* Apply pull animation to each tile toward the other.
+     * A tile pulling in two opposing directions (e.g. left + right) gets no pull. */
+    const pullA = axis === 'h' ? 'right' : 'down';
+    const pullB = axis === 'h' ? 'left'  : 'up';
+    AnimationManager.#applyPull(elA, idA, pullA, this.#tilePullDirs);
+    AnimationManager.#applyPull(elB, idB, pullB, this.#tilePullDirs);
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'fm-fuse-arc');
+    svg.style.cssText = 'position:absolute;pointer-events:none;overflow:visible;z-index:5;';
+
+    /* Glow filter definition */
+    const ns = 'http://www.w3.org/2000/svg';
+    const filterId = `ffa-${idA.slice(-4)}`;
+    const defs = document.createElementNS(ns, 'defs');
+    const filt = document.createElementNS(ns, 'filter');
+    filt.setAttribute('id', filterId);
+    filt.setAttribute('x', '-50%'); filt.setAttribute('y', '-50%');
+    filt.setAttribute('width', '200%'); filt.setAttribute('height', '200%');
+    const blur = document.createElementNS(ns, 'feGaussianBlur');
+    blur.setAttribute('stdDeviation', '1.2');
+    blur.setAttribute('result', 'coloredBlur');
+    const merge = document.createElementNS(ns, 'feMerge');
+    const mn1 = document.createElementNS(ns, 'feMergeNode');
+    mn1.setAttribute('in', 'coloredBlur');
+    const mn2 = document.createElementNS(ns, 'feMergeNode');
+    mn2.setAttribute('in', 'SourceGraphic');
+    merge.append(mn1, mn2);
+    filt.append(blur, merge);
+    defs.append(filt);
+    svg.append(defs);
+
+    /* The arc polyline — points updated every frame */
+    const line = document.createElementNS(ns, 'polyline');
+    line.setAttribute('fill', 'none');
+    line.setAttribute('stroke', 'rgba(180,220,255,0.75)');
+    line.setAttribute('stroke-width', '1.5');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('stroke-linejoin', 'round');
+    line.setAttribute('filter', `url(#${filterId})`);
+    svg.append(line);
+
+    this.#gridEl.appendChild(svg);
+    this.#arcElements.set(key, svg);
+
+    /* Bind a per-frame updater that repositions the SVG and redraws the arc */
+    svg._update = () => {
+      const gridRect = this.#gridEl.getBoundingClientRect();
+      const rA = elA.getBoundingClientRect();
+      const rB = elB.getBoundingClientRect();
+
+      /* SVG covers the gap between the two tiles */
+      let svgX, svgY, svgW, svgH, points;
+      if (axis === 'h') {
+        svgX = rA.right - gridRect.left;
+        svgY = rA.top  - gridRect.top + rA.height * 0.2;
+        svgW = rB.left - rA.right;
+        svgH = rA.height * 0.6;
+        points = AnimationManager.#zigzag(0, svgH / 2, svgW, svgH / 2, 5, svgH * 0.3);
+      } else {
+        svgX = rA.left - gridRect.left + rA.width * 0.2;
+        svgY = rA.bottom - gridRect.top;
+        svgW = rA.width * 0.6;
+        svgH = rB.top - rA.bottom;
+        points = AnimationManager.#zigzag(svgW / 2, 0, svgW / 2, svgH, 5, svgW * 0.3);
+      }
+
+      svg.style.left   = `${svgX}px`;
+      svg.style.top    = `${svgY}px`;
+      svg.style.width  = `${Math.max(svgW, 1)}px`;
+      svg.style.height = `${Math.max(svgH, 1)}px`;
+      svg.setAttribute('viewBox', `0 0 ${Math.max(svgW, 1)} ${Math.max(svgH, 1)}`);
+      line.setAttribute('points', points);
+
+      /* Pulse opacity */
+      const t = (Date.now() % 1600) / 1600;
+      const opacity = 0.35 + 0.55 * Math.abs(Math.sin(Math.PI * t));
+      svg.style.opacity = String(opacity);
+    };
+
+    if (this.#arcRaf === null) this.#startArcLoop();
+  }
+
+  /**
+   * Generate a zigzag polyline points string between two endpoints.
+   * @param {number} x1 @param {number} y1 @param {number} x2 @param {number} y2
+   * @param {number} steps - number of zigzag segments
+   * @param {number} jitter - max perpendicular displacement
+   * @returns {string}
+   */
+  /**
+   * Apply the correct pull keyframe to a tile, skipping if opposing dirs cancel out.
+   * @param {HTMLElement} el
+   * @param {string} id
+   * @param {'right'|'left'|'down'|'up'} dir
+   * @param {Map<string, Set<string>>} pullDirs - shared tracker
+   */
+  static #applyPull(el, id, dir, pullDirs) {
+    if (!pullDirs.has(id)) pullDirs.set(id, new Set());
+    const dirs = pullDirs.get(id);
+    dirs.add(dir);
+
+    const OPPOSITE = { right: 'left', left: 'right', down: 'up', up: 'down' };
+    if (dirs.has(OPPOSITE[dir])) {
+      /* Opposing pulls cancel — remove animation entirely */
+      el.style.animation = '';
+      return;
+    }
+
+    /* Pick the dominant direction (first non-cancelled one) */
+    const active = [...dirs].find((d) => !dirs.has(OPPOSITE[d]));
+    if (active) el.style.animation = `fm-pull-${active} 2s ease-in-out infinite`;
+  }
+
+  static #zigzag(x1, y1, x2, y2, steps, jitter) {
+    const pts = [[x1, y1]];
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      const bx = x1 + (x2 - x1) * t;
+      const by = y1 + (y2 - y1) * t;
+      /* Perpendicular displacement — random each frame for flicker */
+      const perp = (Math.random() - 0.5) * 2 * jitter;
+      const dx = -(y2 - y1); const dy = (x2 - x1);
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      pts.push([bx + (dx / len) * perp, by + (dy / len) * perp]);
+    }
+    pts.push([x2, y2]);
+    return pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  }
+
+  /**
+   * Start the shared rAF loop that updates all active arc elements.
+   */
+  #startArcLoop() {
+    const tick = () => {
+      if (this.#arcElements.size === 0) { this.#arcRaf = null; return; }
+      for (const svg of this.#arcElements.values()) svg._update?.();
+      this.#arcRaf = requestAnimationFrame(tick);
+    };
+    this.#arcRaf = requestAnimationFrame(tick);
   }
 
   /**

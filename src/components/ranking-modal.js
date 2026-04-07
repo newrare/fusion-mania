@@ -109,9 +109,43 @@ export class RankingModal {
           this.#switchTab(tabOrder[(idx + 1) % tabOrder.length]);
           break;
         }
+        case 'ArrowDown':
+        case 'ArrowUp': {
+          event.preventDefault?.();
+          const overlay = this.#domElement?.node.querySelector('#fm-ranking-overlay');
+          if (!overlay) break;
+          const focusable = /** @type {HTMLElement[]} */ (
+            [...overlay.querySelectorAll('button:not([disabled]), [data-action]')].filter(
+              (el) => !/** @type {HTMLElement} */ (el).closest('[style*="display:none"], [style*="display: none"]'),
+            )
+          );
+          if (focusable.length === 0) break;
+          const active = /** @type {HTMLElement} */ (document.activeElement);
+          const fidx = focusable.indexOf(active);
+          const next = event.code === 'ArrowDown'
+            ? (fidx + 1) % focusable.length
+            : ((fidx - 1) + focusable.length) % focusable.length;
+          focusable[next]?.focus();
+          break;
+        }
+        case 'Enter':
+        case 'Space': {
+          const active = /** @type {HTMLElement} */ (document.activeElement);
+          if (active && active !== document.body) {
+            event.preventDefault?.();
+            active.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+          }
+          break;
+        }
       }
     };
     scene.input.keyboard.on('keydown', this.#keyHandler);
+
+    // Auto-focus the active tab so ArrowDown immediately navigates from there
+    this.#domElement.node
+      .querySelector('.fm-ranking-tab--active')
+      ?.focus();
+
     this.#unsubI18n = i18n.onChange(() => this.#refreshText());
   }
 

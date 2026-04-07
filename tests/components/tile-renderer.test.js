@@ -157,31 +157,31 @@ describe('TileRenderer', () => {
     });
 
     it('injects sparkle particles with the correct category colour', () => {
-      tile.power = POWER_TYPES.FIRE_H; // danger → #ef4444
+      tile.power = POWER_TYPES.FIRE_H; // danger category → #b91c1c
       TileRenderer.applyState(el, tile);
       const sparkles = el.querySelectorAll('.fm-pw-sparkle');
       expect(sparkles.length).toBeGreaterThan(0);
-      // Every sparkle must carry the danger colour
+      // Every sparkle must carry the category icon colour
       for (const sp of sparkles) {
-        expect(sp.style.color).toBe('#ef4444');
+        expect(sp.style.color).toBe('#b91c1c');
       }
     });
 
-    it('sparkles carry warning colour for warning powers', () => {
-      tile.power = POWER_TYPES.TELEPORT; // warning → #f59e0b
+    it('sparkles carry the category icon colour (warning)', () => {
+      tile.power = POWER_TYPES.TELEPORT; // warning → #b45309
       TileRenderer.applyState(el, tile);
       const sparkles = el.querySelectorAll('.fm-pw-sparkle');
       for (const sp of sparkles) {
-        expect(sp.style.color).toBe('#f59e0b');
+        expect(sp.style.color).toBe('#b45309');
       }
     });
 
-    it('sparkles carry info colour for info powers', () => {
-      tile.power = POWER_TYPES.ICE; // info → #3b82f6
+    it('sparkles carry the category icon colour (info)', () => {
+      tile.power = POWER_TYPES.ICE; // info → #1d4ed8
       TileRenderer.applyState(el, tile);
       const sparkles = el.querySelectorAll('.fm-pw-sparkle');
       for (const sp of sparkles) {
-        expect(sp.style.color).toBe('#3b82f6');
+        expect(sp.style.color).toBe('#1d4ed8');
       }
     });
 
@@ -207,9 +207,9 @@ describe('TileRenderer', () => {
       const face = el.querySelector('.fm-pw-face');
       expect(face.classList.contains('fm-pw-info')).toBe(true);
       expect(face.classList.contains('fm-pw-danger')).toBe(false);
-      // Sparkle colours must have been updated too
+      // Sparkle colours must match the new category icon colour (info → #1d4ed8)
       for (const sp of el.querySelectorAll('.fm-pw-sparkle')) {
-        expect(sp.style.color).toBe('#3b82f6');
+        expect(sp.style.color).toBe('#1d4ed8');
       }
     });
 

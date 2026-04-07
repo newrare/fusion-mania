@@ -44,7 +44,7 @@ export class TitleScene extends Phaser.Scene {
             <img class="fm-title-dev-logo" src="/images/newrare.png" alt="Newrare" />
             <div class="fm-title-dev-info">
               <span>A Newrare Game</span>
-              <span>v1.0</span>
+              <span class="fm-title-version">v1.0</span>
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { TILE_VALUES } from '../configs/constants.js';
 import { TILE_STATE_IDS } from '../entities/tile.js';
+import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /** @param {string} id */
 const stateLabel = (id) =>
@@ -13,14 +14,20 @@ export class AdminModal {
   /** @type {Phaser.GameObjects.DOMElement | null} */
   #domElement = null;
 
+  /** @type {{ destroy: () => void } | null} */
+  #keyNav = null;
+
   /**
    * @param {Phaser.Scene} scene
    * @param {{
-   *   onClearTiles?: () => void,
-   *   onAddValue?:   (value: number) => void,
-   *   onAddState?:   (state: string) => void,
-   *   onClose?:      () => void,
-   *   onResume?:     () => void,
+   *   onClearTiles?:    () => void,
+   *   onAddValue?:      (value: number) => void,
+   *   onAddState?:      (state: string) => void,
+   *   onClose?:         () => void,
+   *   onResume?:        () => void,
+   *   onNewRecord?:     () => void,
+   *   onShowVictory?:   () => void,
+   *   onShowGameOver?:  () => void,
    * }} options
    */
   constructor(scene, options = {}) {
@@ -55,6 +62,15 @@ export class AdminModal {
             <div class="fm-admin-grid">${stateButtons}</div>
           </div>
 
+          <div class="fm-admin-section">
+            <div class="fm-admin-label">Trigger</div>
+            <div class="fm-admin-trigger-row">
+              <button class="fm-btn fm-admin-tile-btn" data-action="new-record">New Record</button>
+              <button class="fm-btn fm-admin-tile-btn" data-action="show-victory">Victory</button>
+              <button class="fm-btn fm-admin-tile-btn" data-action="show-gameover">Game Over</button>
+            </div>
+          </div>
+
           <div class="fm-admin-close-row">
             ${resumeBtn}
             <button class="fm-btn" data-action="close">Close</button>
@@ -83,6 +99,15 @@ export class AdminModal {
         case 'add-state':
           options.onAddState?.(btn.dataset.state ?? 'normal');
           break;
+        case 'new-record':
+          options.onNewRecord?.();
+          break;
+        case 'show-victory':
+          options.onShowVictory?.();
+          break;
+        case 'show-gameover':
+          options.onShowGameOver?.();
+          break;
         case 'resume':
           options.onResume?.();
           break;
@@ -91,9 +116,15 @@ export class AdminModal {
           break;
       }
     });
+
+    this.#keyNav = enableKeyboardNav(overlay, scene.input.keyboard, {
+      onEscape: () => options.onClose?.(),
+    });
   }
 
   destroy() {
+    this.#keyNav?.destroy();
+    this.#keyNav = null;
     this.#domElement?.destroy();
     this.#domElement = null;
   }

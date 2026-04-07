@@ -18,6 +18,7 @@ import { GameOverModal } from '../components/game-over-modal.js';
 import { PowerSelectModal } from '../components/power-select-modal.js';
 import { PowerChoiceModal } from '../components/power-choice-modal.js';
 import { AdminModal } from '../components/admin-modal.js';
+import { VictoryModal } from '../components/victory-modal.js';
 import { GridLife } from '../entities/grid-life.js';
 import { BattleManager } from '../managers/battle-manager.js';
 import { BATTLE, getRandomFaceUrl } from '../configs/constants.js';
@@ -108,6 +109,12 @@ export class GameScene extends Phaser.Scene {
   /** @type {AdminModal | null} */
   #adminModal = null;
 
+  /** @type {VictoryModal | null} */
+  #victoryModal = null;
+
+  /** @type {boolean} True once the victory modal has been shown this game */
+  #victoryShown = false;
+
   /** Skip first pointerup after power-select Start tap */
   #skipNextPointerUp = false;
 
@@ -155,6 +162,12 @@ export class GameScene extends Phaser.Scene {
 
   /** @type {boolean} True while the ads overlay is visible — blocks all player input */
   #showingAds = false;
+
+  /** @type {number} Best score for current mode at game start (persisted best from previous games) */
+  #prevBestScore = 0;
+
+  /** @type {boolean} True once the new-best notification has been shown this game */
+  #bestScoreNotified = false;
 
   /** @type {Function | null} Unsubscribe from i18n locale changes */
   #unsubI18n = null;
@@ -207,6 +220,8 @@ export class GameScene extends Phaser.Scene {
     this.#powerSelectModal = null;
     this.#powerChoiceModal = null;
     this.#adminModal = null;
+    this.#victoryModal = null;
+    this.#victoryShown = false;
     this.#powerInfoEl = null;
     this.#powerInfoDom = null;
     this.#powerInfoAllDom = null;
@@ -221,6 +236,8 @@ export class GameScene extends Phaser.Scene {
     this.#adsOverlay = null;
     this.#adsShown = false;
     this.#showingAds = false;
+    this.#prevBestScore = 0;
+    this.#bestScoreNotified = false;
     // Battle mode
     this.#battleManager = null;
     this.#enemyAreaEl = null;
@@ -238,6 +255,16 @@ export class GameScene extends Phaser.Scene {
     document.querySelectorAll(
       '.fm-dead-enemy, .fm-enemy-area, .fm-contaminate-particle, .fm-critical-overlay'
     ).forEach((el) => el.remove());
+
+    // The Phaser DOM container is position:absolute with a CSS transform, which
+    // creates an isolated stacking context. Without an explicit z-index it sits at
+    // z-index:auto (0) and dead-enemy tiles appended to document.body at z-index:3
+    // would paint on top of modals. Setting z-index:5 here makes the entire DOM
+    // layer (grid, HUD, modals) paint above dead enemies (z-index:3) while keeping
+    // the Phaser canvas (no z-index → 0) below them.
+    if (this.game.domContainer) {
+      this.game.domContainer.style.zIndex = '5';
+    }
 
     this.#gm = new GridManager();
     addBackground(this);
@@ -373,6 +400,7 @@ export class GameScene extends Phaser.Scene {
       this.#hudCardStates.push({
         slots: slotIds.map((id) => el.querySelector(`#${id}`)),
         current: 0,
+        swapTimer: null,
       });
     }
   }
@@ -395,7 +423,7 @@ export class GameScene extends Phaser.Scene {
       const exitSlot  = card.slots[card.current];
       const enterSlot = card.slots[next];
       card.current = next;
-      this.#animateHudSlotSwap(exitSlot, enterSlot, forward);
+      this.#animateHudSlotSwap(card, exitSlot, enterSlot, forward);
     }
   }
 
@@ -407,14 +435,29 @@ export class GameScene extends Phaser.Scene {
    * @param {HTMLElement} enterSlot
    * @param {boolean} [forward=true]
    */
-  #animateHudSlotSwap(exitSlot, enterSlot, forward = true) {
+  #animateHudSlotSwap(activeCard, exitSlot, enterSlot, forward = true) {
     if (!exitSlot || !enterSlot) return;
+
+    // Cancel any pending swap cleanup for this card to avoid conflicts on rapid direction changes
+    if (activeCard.swapTimer) {
+      activeCard.swapTimer.remove(false);
+      activeCard.swapTimer = null;
+    }
+
+    const allAnimClasses = [
+      'fm-hud-slot--exit', 'fm-hud-slot--enter',
+      'fm-hud-slot--exit-rev', 'fm-hud-slot--enter-rev',
+    ];
     const exitClass  = forward ? 'fm-hud-slot--exit-rev' : 'fm-hud-slot--exit';
     const enterClass = forward ? 'fm-hud-slot--enter-rev' : 'fm-hud-slot--enter';
+    for (const cls of allAnimClasses) exitSlot.classList.remove(cls);
+    exitSlot.classList.remove('fm-hud-slot--hidden');
     exitSlot.classList.add(exitClass);
+    for (const cls of allAnimClasses) enterSlot.classList.remove(cls);
     enterSlot.classList.remove('fm-hud-slot--hidden');
     enterSlot.classList.add(enterClass);
-    this.time.delayedCall(140, () => {
+    activeCard.swapTimer = this.time.delayedCall(140, () => {
+      activeCard.swapTimer = null;
       exitSlot.classList.remove(exitClass);
       exitSlot.classList.add('fm-hud-slot--hidden');
       enterSlot.classList.remove(enterClass);
@@ -476,6 +519,8 @@ export class GameScene extends Phaser.Scene {
     this.#combo = 0;
     this.#comboMax = 0;
     this.#comboScoreStart = 0;
+    this.#prevBestScore = saveManager.getBestScore(this.#mode);
+    this.#bestScoreNotified = false;
     this.#cancelComboTimer();
     if (this.#comboEl) {
       this.#comboEl.style.removeProperty('animation');
@@ -512,7 +557,7 @@ export class GameScene extends Phaser.Scene {
 
   /** @param {Phaser.Input.Keyboard.Key} event */
   #handleKey = (event) => {
-    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal || this.#powerSelectModal || this.#showingAds) return;
+    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal || this.#powerSelectModal || this.#showingAds || this.#victoryModal) return;
 
     /** @type {'up' | 'down' | 'left' | 'right' | null} */
     let direction = null;
@@ -543,7 +588,7 @@ export class GameScene extends Phaser.Scene {
       this.#pointerStartY = pointer.y;
       return;
     }
-    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal || this.#powerSelectModal || this.#showingAds) return;
+    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal || this.#powerSelectModal || this.#showingAds || this.#victoryModal) return;
 
     const dx = pointer.x - this.#pointerStartX;
     const dy = pointer.y - this.#pointerStartY;
@@ -637,6 +682,16 @@ export class GameScene extends Phaser.Scene {
         }
         this.#powerManager.onMove(this.#gm.grid);
       }
+      // Count fusions even when animations were cancelled
+      if (moveResult.merges.length > 0) {
+        this.#fusions += moveResult.merges.length;
+        // Track max tile from cancelled moves
+        for (const tile of this.#gm.grid.getAllTiles()) {
+          if (tile.value > this.#maxTile) this.#maxTile = tile.value;
+        }
+        this.#updateHUD();
+        this.#gm.updateFusionIndicators();
+      }
       return;
     }
 
@@ -686,6 +741,23 @@ export class GameScene extends Phaser.Scene {
 
     // ── Battle power system (contaminated tile effects) ──
     if (this.#battlePowerManager && merges.length > 0) {
+      // Apply merge damage to enemy BEFORE processing power choice modals
+      // so the player sees the damage from the fusion immediately.
+      if (this.#battleManager?.isBattlePhase) {
+        const { damage, killed } = this.#battleManager.applyMergeDamage(merges);
+        if (damage > 0) {
+          this.#showEnemyDamage(damage);
+          this.#updateEnemyVisual();
+        }
+        if (killed) {
+          await this.#onEnemyDefeated();
+          this.#updateHUD();
+          this.#gm.updateFusionIndicators();
+          this.#gm.animating = false;
+          return;
+        }
+      }
+
       const triggers = this.#battlePowerManager.checkMergeTriggers(merges, this.#gm.grid);
 
       for (const trigger of triggers) {
@@ -718,6 +790,13 @@ export class GameScene extends Phaser.Scene {
     this.#updateHUD();
     this.#gm.updateFusionIndicators();
     this.#gm.animating = false;
+
+    // Check for victory (2048 tile reached) — classic and free modes only.
+    // Battle mode victory is handled in #onEnemyDefeated when the level-2048 enemy is killed.
+    if (!this.#victoryShown && this.#mode !== 'battle' && this.#maxTile >= 2048) {
+      this.#onVictory();
+      return;
+    }
 
     if (this.#gridLife?.isDead || !this.#gm.grid.canMove()) {
       this.#onGameOver();
@@ -902,6 +981,25 @@ export class GameScene extends Phaser.Scene {
       const bestMax = Math.max(saveManager.getBestMaxTile(this.#mode), this.#maxTile);
       bestMaxTileEl.textContent = String(bestMax);
     }
+
+    // New best score notification — fire once per game when current score beats the record
+    if (!this.#bestScoreNotified && this.#prevBestScore > 0 && grid.score > this.#prevBestScore) {
+      this.#bestScoreNotified = true;
+      this.#showNewBestNotification();
+    }
+  }
+
+  /** Show a transient banner when the player beats their previous best score. */
+  #showNewBestNotification() {
+    const el = document.createElement('div');
+    el.className = 'fm-new-best-notif';
+    el.textContent = i18n.t('game.new_best');
+    document.body.appendChild(el);
+
+    this.time.delayedCall(2500, () => {
+      el.classList.add('fm-new-best-notif--out');
+      this.time.delayedCall(400, () => el.remove());
+    });
   }
 
   // ─── COMBO ───────────────────────────────────────
@@ -1015,9 +1113,9 @@ export class GameScene extends Phaser.Scene {
     this.#enemyAreaEl.style.left = '50%';
     this.#enemyAreaEl.style.top = `${spaceCenter}px`;
     this.#enemyAreaEl.style.transform = 'translate(-50%, -50%)';
-    // z-index 5: visible above grid tiles but deliberately below modal overlays (z-index 100).
+    // z-index 1: above background canvas but below grid tiles, panels, and modals.
     // The CSS :has(.fm-modal-overlay) rule hides this element entirely when any modal is open.
-    this.#enemyAreaEl.style.zIndex = '5';
+    this.#enemyAreaEl.style.zIndex = '1';
   }
 
   /**
@@ -1032,7 +1130,7 @@ export class GameScene extends Phaser.Scene {
     this.#physicsFloor = this.matter.add.rectangle(
       W / 2, H + thickness / 2,
       W * 4, thickness,
-      { isStatic: true, label: 'floor', friction: 1.5, restitution: 0.05 },
+      { isStatic: true, label: 'floor', friction: 1.0, frictionStatic: 10.0, restitution: 0.02 },
     );
   }
 
@@ -1052,8 +1150,11 @@ export class GameScene extends Phaser.Scene {
         await this.#onEnemySpawn(enemy);
       }
     } else {
-      // Battle phase: apply merge damage, enemy contaminates
-      if (merges.length > 0) {
+      // Merge damage is now applied earlier (before power choice modal)
+      // in the battle power system block of #executeMove.
+      // Only apply damage here if there was no battlePowerManager
+      // (i.e. no contaminated tiles were on the grid).
+      if (!this.#battlePowerManager && merges.length > 0) {
         const { damage, killed } = bm.applyMergeDamage(merges);
         if (damage > 0) {
           this.#showEnemyDamage(damage);
@@ -1269,6 +1370,14 @@ export class GameScene extends Phaser.Scene {
     if (this.#powerInfoEl) {
       this.#powerInfoEl.style.display = 'none';
     }
+
+    // Check if all enemies have been defeated — triggers battle victory
+    if (this.#battleManager?.allDefeated() && !this.#victoryShown) {
+      this.#updateHUD();
+      this.#gm.updateFusionIndicators();
+      this.#gm.animating = false;
+      this.#onVictory();
+    }
   }
 
   /**
@@ -1326,7 +1435,7 @@ export class GameScene extends Phaser.Scene {
     const deadTile = document.createElement('div');
     deadTile.className = 'fm-dead-enemy';
     deadTile.style.cssText = `position:fixed;width:${tileSize}px;height:${tileSize}px;` +
-                             `z-index:3;pointer-events:none;transform-origin:center center;`;
+                             `pointer-events:none;transform-origin:center center;`;
     deadTile.style.left = `${cx - tileSize / 2}px`;
     deadTile.style.top  = `${cy - tileSize / 2}px`;
     deadTile.innerHTML  = `
@@ -1341,12 +1450,12 @@ export class GameScene extends Phaser.Scene {
     // ── Matter.js physics body ─────────────────────────────────────────────
     // this.matter.add.rectangle() creates a raw Matter Body and adds it to the world.
     const body = this.matter.add.rectangle(cx, cy, tileSize, tileSize, {
-      chamfer    : { radius: 14 }, // match CSS border-radius: 14px
-      restitution : 0.30,   // bounciness
-      friction    : 0.90,   // floor friction
-      frictionAir : 0.008,  // air resistance
-      density     : 0.002,
-      label       : 'dead-enemy',
+      chamfer       : { radius: 14 }, // match CSS border-radius: 14px
+      restitution   : 0.30,   // light bounce — natural fall feel
+      friction      : 0.90,   // friction against floor/other bodies
+      frictionAir   : 0.008,  // low air resistance — falls at normal speed
+      density       : 0.002,
+      label         : 'dead-enemy',
     });
 
     // Initial impulse: random horizontal kick + spin
@@ -1447,6 +1556,11 @@ export class GameScene extends Phaser.Scene {
         this.#adsShown = true;
         // Disable ADS for the rest of this game
         this.#battlePowerManager?.removePowerType(POWER_TYPES.ADS);
+        // Also remove ADS from enemy's available powers to stop contamination
+        if (this.#battleManager?.enemy) {
+          this.#battleManager.enemy.availablePowers =
+            this.#battleManager.enemy.availablePowers.filter((p) => p !== POWER_TYPES.ADS);
+        }
         // Clear any ADS powers already assigned to tiles
         for (const tile of this.#gm.grid.getAllTiles()) {
           if (tile.power === POWER_TYPES.ADS) tile.power = null;
@@ -1517,15 +1631,85 @@ export class GameScene extends Phaser.Scene {
         this.#gm.syncTileDom(this.#powerManager?.windDirection ?? null);
         this.#gm.updateFusionIndicators();
       },
+      onNewRecord: () => this.#showNewBestNotification(),
+      onShowVictory: () => {
+        this.#adminModal?.destroy();
+        this.#adminModal = null;
+        this.#onVictory();
+      },
+      onShowGameOver: () => {
+        this.#adminModal?.destroy();
+        this.#adminModal = null;
+        this.#onGameOver();
+      },
       onResume: () => this.#destroyMenuModal(),
       onClose: () => { this.#adminModal?.destroy(); this.#adminModal = null; },
     });
   }
 
+  #onVictory() {
+    this.#victoryShown = true;
+    const isBattle = this.#mode === 'battle';
+
+    // Build stats (same structure as game over)
+    const extra = {
+      maxTile: this.#maxTile,
+      moves: this.#gm.grid.moves,
+      fusions: this.#fusions,
+      comboScore: this.#comboScoreTotal,
+    };
+    if (this.#powersTriggered.length > 0) extra.powers = [...this.#powersTriggered];
+    if (this.#battleManager) {
+      extra.enemiesDefeated = this.#battleManager.enemiesDefeated;
+      extra.enemyMaxLevel = this.#battleManager.maxEnemyLevel;
+      extra.defeatedEnemies = this.#battleManager.defeatedEnemies;
+    }
+
+    // In battle mode, victory ends the game — save score
+    if (isBattle) {
+      this.#gameOver = true;
+      this.#endCombo();
+      saveManager.addRanking(this.#mode, this.#gm.grid.score, extra);
+      saveManager.clearGame();
+    }
+
+    const provisionalEntry = isBattle ? null : {
+      score: this.#gm.grid.score,
+      date: Date.now(),
+      maxTile: extra.maxTile,
+      moves: extra.moves,
+      fusions: extra.fusions,
+      comboScore: extra.comboScore,
+    };
+
+    this.#victoryModal = new VictoryModal(this, {
+      score: this.#gm.grid.score,
+      mode: this.#mode,
+      stats: extra,
+      provisionalEntry,
+      onContinue: isBattle ? undefined : () => {
+        this.#victoryModal?.destroy();
+        this.#victoryModal = null;
+        // Player continues — game is NOT over
+      },
+      onNewGame: () => {
+        this.#victoryModal?.destroy();
+        this.#victoryModal = null;
+        this.scene.restart({ mode: this.#mode });
+      },
+      onMenu: () => {
+        this.#victoryModal?.destroy();
+        this.#victoryModal = null;
+        this.scene.start(SCENE_KEYS.TITLE);
+      },
+    });
+  }
+
   #onGameOver() {
+    if (this.#gameOver) return;
+    this.#gameOver = true;
     this.#cancelEmptyGridTimer();
     this.#endCombo();
-    this.#gameOver = true;
     const extra = {
       maxTile: this.#maxTile,
       moves: this.#gm.grid.moves,
@@ -1545,6 +1729,8 @@ export class GameScene extends Phaser.Scene {
 
     this.#gameOverModal = new GameOverModal(this, {
       score: this.#gm.grid.score,
+      mode: this.#mode,
+      stats: extra,
       onNewGame: () => {
         this.#gameOverModal?.destroy();
         this.#gameOverModal = null;
@@ -1887,6 +2073,7 @@ export class GameScene extends Phaser.Scene {
     this.#gm.shutdown();
     this.#destroyMenuModal();
     this.#gameOverModal?.destroy();
+    this.#victoryModal?.destroy();
     this.#powerSelectModal?.destroy();
     this.#powerChoiceModal?.destroy();
     this.#adminModal?.destroy();
@@ -1900,6 +2087,7 @@ export class GameScene extends Phaser.Scene {
     this.#enemyWave = null;
     this.#adsOverlay?.remove();
     this.#adsOverlay = null;
+    document.querySelectorAll('.fm-new-best-notif').forEach((el) => el.remove());
     this.#enemyAreaEl?.remove();
     this.#enemyAreaEl = null;
     // Remove all dead enemy DOM nodes (in-flight or settled)

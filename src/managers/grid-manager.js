@@ -405,15 +405,13 @@ export class GridManager {
         if (c + 1 < GRID_SIZE) {
           const right = this.#grid.cells[r][c + 1];
           if (right && right.value === tile.value) {
-            this.#animator.addFusionClass(tile.id, 'fm-fuse-right');
-            this.#animator.addFusionClass(right.id, 'fm-fuse-left');
+            this.#animator.addFusionArc(tile.id, right.id, 'h');
           }
         }
         if (r + 1 < GRID_SIZE) {
           const bottom = this.#grid.cells[r + 1][c];
           if (bottom && bottom.value === tile.value) {
-            this.#animator.addFusionClass(tile.id, 'fm-fuse-down');
-            this.#animator.addFusionClass(bottom.id, 'fm-fuse-up');
+            this.#animator.addFusionArc(tile.id, bottom.id, 'v');
           }
         }
       }
