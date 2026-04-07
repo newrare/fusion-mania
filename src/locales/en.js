@@ -91,6 +91,7 @@ export const en = {
   'ranking.enemy_max_level': 'Best enemy defeated',
   'ranking.combo_score': 'Combo bonus',
   'ranking.enemies_killed': 'Enemies defeated',
+  'ranking.enemies_see_all': 'See all ({count})',
   'ranking.powers_used': 'Powers triggered',
   'gameover.rank_1': '🥇 1st place · Exceptional!',
   'gameover.rank_2': '🥈 2nd place · Magnificent!',

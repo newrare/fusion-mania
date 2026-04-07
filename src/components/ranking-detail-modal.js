@@ -8,9 +8,14 @@ import { POWER_META } from '../configs/constants.js';
  * Battle   : as Classic + score + list of defeated enemies + triggered powers
  * Free     : as Classic + triggered powers
  */
+const ENEMIES_PREVIEW_COUNT = 3;
+
 export class RankingDetailModal {
   /** @type {Phaser.GameObjects.DOMElement | null} */
   #domElement = null;
+
+  /** @type {Phaser.GameObjects.DOMElement | null} */
+  #allEnemiesOverlay = null;
 
   /** @type {Phaser.Scene} */
   #scene;
@@ -20,6 +25,9 @@ export class RankingDetailModal {
 
   /** @type {Function | null} */
   #keyHandler = null;
+
+  /** @type {Function | null} */
+  #allEnemiesKeyHandler = null;
 
   /** @type {Function | null} */
   #unsubI18n = null;
@@ -61,6 +69,10 @@ export class RankingDetailModal {
       if (!btn) return;
       e.stopPropagation();
       if (btn.dataset.action === 'close') this.#onClose?.();
+      if (btn.dataset.action === 'see-all-enemies') {
+        const enemies = JSON.parse(btn.dataset.enemies ?? '[]');
+        this.#openAllEnemiesModal(enemies);
+      }
     });
 
     this.#keyHandler = (event) => {
@@ -128,15 +140,24 @@ export class RankingDetailModal {
     const date = entry.date ? this.#formatDate(entry.date, locale) : '-';
     html += row(i18n.t('ranking.date'), date);
 
-    // Battle: defeated enemies list
+    // Battle: defeated enemies list (sorted by level desc, preview only)
     if (isBattle && entry.defeatedEnemies?.length > 0) {
+      const sorted = [...entry.defeatedEnemies].sort((a, b) => b.level - a.level);
+      const preview = sorted.slice(0, ENEMIES_PREVIEW_COUNT);
+      const hasMore = sorted.length > ENEMIES_PREVIEW_COUNT;
+
       html += `<div class="fm-rdd-section-title">${i18n.t('ranking.enemies_killed')}</div>`;
       html += `<div class="fm-rdd-enemies">`;
-      for (const e of entry.defeatedEnemies) {
+      for (const e of preview) {
         html += `<div class="fm-rdd-enemy-row">
           <span class="fm-tile fm-ranking-enemy-lvl fm-t${e.level}">${e.level}</span>
           <span class="fm-rdd-enemy-name">${e.name}</span>
         </div>`;
+      }
+      if (hasMore) {
+        const label = i18n.t('ranking.enemies_see_all').replace('{count}', String(sorted.length));
+        const encodedEnemies = JSON.stringify(sorted).replace(/"/gu, '&quot;');
+        html += `<button class="fm-rdd-see-all" data-action="see-all-enemies" data-enemies="${encodedEnemies}">${label}</button>`;
       }
       html += `</div>`;
     }
@@ -161,6 +182,63 @@ export class RankingDetailModal {
   }
 
   /**
+   * @param {Array<{level: number, name: string}>} enemies
+   */
+  #openAllEnemiesModal(enemies) {
+    if (this.#allEnemiesOverlay) return;
+
+    const rowsHtml = enemies
+      .map(
+        (e) => `<div class="fm-rdd-enemy-row">
+          <span class="fm-tile fm-ranking-enemy-lvl fm-t${e.level}">${e.level}</span>
+          <span class="fm-rdd-enemy-name">${e.name}</span>
+        </div>`
+      )
+      .join('');
+
+    const html = `
+      <div class="fm-modal-overlay" id="fm-all-enemies-overlay">
+        <div class="fm-modal fm-rank-detail-modal">
+          <div class="fm-modal-title">${i18n.t('ranking.enemies_killed')}</div>
+          <div class="fm-rank-detail-body">
+            <div class="fm-rdd-enemies">${rowsHtml}</div>
+          </div>
+          <div class="fm-modal-buttons">
+            <button class="fm-btn" data-action="close-all-enemies">${i18n.t('ranking.close')}</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    this.#allEnemiesOverlay = this.#scene.add.dom(0, 0).createFromHTML(html);
+    this.#allEnemiesOverlay.setOrigin(0, 0);
+    this.#allEnemiesOverlay.setDepth(140);
+
+    this.#allEnemiesOverlay.node
+      .querySelector('#fm-all-enemies-overlay')
+      ?.addEventListener('pointerdown', (e) => {
+        const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
+        if (!btn) return;
+        e.stopPropagation();
+        if (btn.dataset.action === 'close-all-enemies') this.#closeAllEnemiesModal();
+      });
+
+    this.#allEnemiesKeyHandler = (event) => {
+      if (event.code === 'Escape') this.#closeAllEnemiesModal();
+    };
+    this.#scene.input.keyboard.on('keydown', this.#allEnemiesKeyHandler);
+  }
+
+  #closeAllEnemiesModal() {
+    if (this.#allEnemiesKeyHandler) {
+      this.#scene.input.keyboard.off('keydown', this.#allEnemiesKeyHandler);
+      this.#allEnemiesKeyHandler = null;
+    }
+    this.#allEnemiesOverlay?.destroy();
+    this.#allEnemiesOverlay = null;
+  }
+
+  /**
    * @param {number} ts
    * @param {string} locale
    * @returns {string}
@@ -179,6 +257,7 @@ export class RankingDetailModal {
   }
 
   destroy() {
+    this.#closeAllEnemiesModal();
     this.#unsubI18n?.();
     this.#unsubI18n = null;
     if (this.#keyHandler) {

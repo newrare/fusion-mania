@@ -91,6 +91,7 @@ export const fr = {
   'ranking.enemy_max_level': 'Meilleur ennemi vaincu',
   'ranking.combo_score': 'Bonus combo',
   'ranking.enemies_killed': 'Ennemis vaincus',
+  'ranking.enemies_see_all': 'Voir tout ({count})',
   'ranking.powers_used': 'Pouvoirs déclenchés',
   'gameover.rank_1': '🥇 1ère place · Exceptionnel !',
   'gameover.rank_2': '🥈 2ème place · Magnifique !',
