@@ -1549,7 +1549,7 @@ html, body {
 }
 .fm-saveload-action-bar--open { display: flex; }
 .fm-saveload-confirm-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
-.fm-saveload-confirm-text { font-size: 0.72rem; opacity: 0.85; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 220px; line-height: 1.35; }
+.fm-saveload-confirm-text { font-size: 0.72rem; opacity: 0.85; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 220px; line-height: 1.35; }
 .fm-saveload-confirm-btns { display: flex; gap: 8px; }
 .fm-saveload-confirm-btns .fm-btn--small { min-width: 52px; text-align: center; }
 .fm-btn--small { font-size: 0.7rem; padding: 4px 10px; min-height: 0; }
@@ -1837,8 +1837,6 @@ html, body {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: radial-gradient(circle, #ff44ff, #aa00ff);
-  box-shadow: 0 0 10px 3px rgba(170, 0, 255, 0.6);
   pointer-events: none;
   z-index: 1000;
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
@@ -1846,6 +1844,131 @@ html, body {
 
 .fm-contaminate-fly {
   opacity: 0.7;
+}
+
+/* ─── Attack particles (tile → enemy on merge damage) ─────────────────── */
+.fm-attack-particle {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff8aa, #ffcc00);
+  box-shadow: 0 0 8px 3px rgba(255, 200, 0, 0.7);
+  pointer-events: none;
+  z-index: 1000;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease;
+  opacity: 0.9;
+}
+
+.fm-attack-fly {
+  opacity: 0;
+}
+
+/* ─── Enemy info modal ─────────────────────────────────────────────────── */
+.fm-enemy-info-modal {
+  min-width: 220px;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fm-ei-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Level badge reuses .fm-t* tile classes for colors — no hardcoded values */
+.fm-ei-level-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 900;
+  font-family: 'Merkin', cursive, sans-serif;
+  border-width: 2px;
+  border-style: solid;
+  flex-shrink: 0;
+}
+
+.fm-ei-hp-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fm-ei-hp-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+  flex-shrink: 0;
+}
+
+.fm-ei-hp-bar-wrap {
+  flex: 1;
+  height: 10px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.fm-ei-hp-bar {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.3s ease;
+}
+
+/* HP bar colors reuse LiquidWave category colors already used elsewhere */
+.fm-ei-hp-bar.fm-ei-hp-info    { background: var(--lc-info,    #3b82f6); }
+.fm-ei-hp-bar.fm-ei-hp-warning { background: var(--lc-warning, #f59e0b); }
+.fm-ei-hp-bar.fm-ei-hp-danger  { background: var(--lc-danger,  #ef4444); }
+
+.fm-ei-hp-val {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.8);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.fm-ei-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.5);
+}
+
+.fm-ei-powers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fm-ei-power-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fm-ei-power-name {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.85);
+}
+
+.fm-ei-no-powers {
+  color: rgba(255,255,255,0.4);
+  font-size: 0.85rem;
+}
+
+.fm-ei-close {
+  align-self: center;
+  margin-top: 4px;
 }
 
 /* ─── Dead enemy tiles (stay at physics-settled position on document.body) ── */

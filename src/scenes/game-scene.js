@@ -19,6 +19,7 @@ import { PowerSelectModal } from '../components/power-select-modal.js';
 import { PowerChoiceModal } from '../components/power-choice-modal.js';
 import { AdminModal } from '../components/admin-modal.js';
 import { VictoryModal } from '../components/victory-modal.js';
+import { EnemyInfoModal } from '../components/enemy-info-modal.js';
 import { GridLife } from '../entities/grid-life.js';
 import { BattleManager } from '../managers/battle-manager.js';
 import { BATTLE, getRandomFaceUrl } from '../configs/constants.js';
@@ -195,6 +196,9 @@ export class GameScene extends Phaser.Scene {
 
   /** @type {Array<{el: HTMLElement, body: MatterJS.BodyType}>} DOM+physics pairs for dead enemy tiles */
   #deadEnemyBodies = [];
+
+  /** @type {EnemyInfoModal | null} */
+  #enemyInfoModal = null;
 
   /** @type {MatterJS.BodyType | null} Static floor body at viewport bottom */
   #physicsFloor = null;
@@ -762,6 +766,7 @@ export class GameScene extends Phaser.Scene {
       if (this.#battleManager?.isBattlePhase) {
         const { damage, killed } = this.#battleManager.applyMergeDamage(merges);
         if (damage > 0) {
+          await this.#playAttackParticles(merges);
           this.#showEnemyDamage(damage);
           this.#updateEnemyVisual();
         }
@@ -1173,6 +1178,7 @@ export class GameScene extends Phaser.Scene {
       if (!this.#battlePowerManager && merges.length > 0) {
         const { damage, killed } = bm.applyMergeDamage(merges);
         if (damage > 0) {
+          await this.#playAttackParticles(merges);
           this.#showEnemyDamage(damage);
           this.#updateEnemyVisual();
         }
@@ -1223,9 +1229,6 @@ export class GameScene extends Phaser.Scene {
       this.#attachEnemyWave(cat, enemy.life.percent);
 
       const tileWrapper = this.#enemyAreaEl.querySelector('.fm-enemy-tile');
-      const nameEl = this.#enemyAreaEl.querySelector('.fm-enemy-name');
-
-      if (nameEl) nameEl.classList.add('fm-enemy-name-appear');
 
       if (tileWrapper) {
         tileWrapper.classList.add('fm-enemy-spawn');
@@ -1259,7 +1262,6 @@ export class GameScene extends Phaser.Scene {
     const cat = enemy.life.getColorCategory();
 
     this.#enemyAreaEl.innerHTML = `
-      <div class="fm-enemy-name ${tileClass}">${enemy.name}</div>
       <div class="fm-enemy-tile${bossClass}">
         <div class="fm-tile fm-enemy-tile-inner ${tileClass}">
           <div class="fm-enemy-hp-liquid"></div>
@@ -1271,6 +1273,15 @@ export class GameScene extends Phaser.Scene {
     `;
     /* LiquidWave is created in #onEnemySpawn after display:flex + reflow
        so getBoundingClientRect() returns correct tile dimensions. */
+
+    const tileWrapper = this.#enemyAreaEl.querySelector('.fm-enemy-tile');
+    if (tileWrapper) {
+      tileWrapper.style.cursor = 'pointer';
+      tileWrapper.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        this.#openEnemyInfoModal();
+      });
+    }
   }
 
   /**
@@ -1366,6 +1377,10 @@ export class GameScene extends Phaser.Scene {
     // Death animation: gray out, move to graveyard
     await this.#playEnemyDeathAnimation(dead);
 
+    // Close info modal if open
+    this.#enemyInfoModal?.destroy();
+    this.#enemyInfoModal = null;
+
     // Clear enemy display
     this.#enemyWave?.destroy();
     this.#enemyWave = null;
@@ -1396,8 +1411,78 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Open the enemy info modal (tap on enemy tile). */
+  #openEnemyInfoModal() {
+    if (this.#enemyInfoModal || !this.#battleManager?.enemy) return;
+    this.#enemyInfoModal = new EnemyInfoModal(this, {
+      enemy: this.#battleManager.enemy,
+      onClose: () => {
+        this.#enemyInfoModal?.destroy();
+        this.#enemyInfoModal = null;
+      },
+    });
+  }
+
+  /**
+   * Animate attack particles flying from each merged tile to the enemy.
+   * @param {{ tile: import('../entities/tile.js').Tile }[]} merges
+   */
+  async #playAttackParticles(merges) {
+    if (!this.#enemyAreaEl || !merges.length) return;
+    const enemyTileEl = this.#enemyAreaEl.querySelector('.fm-enemy-tile');
+    if (!enemyTileEl) return;
+
+    const enemyRect = enemyTileEl.getBoundingClientRect();
+    const ex = enemyRect.left + enemyRect.width / 2;
+    const ey = enemyRect.top + enemyRect.height / 2;
+
+    const SPREAD = 28;  // px radius around merge center
+    const COUNT  = 10;  // particles per merged tile
+
+    const particles = [];
+    for (const merge of merges) {
+      const tileEl = this.#gm.tileElements.get(merge.tile.id);
+      if (!tileEl) continue;
+      const tileRect = tileEl.getBoundingClientRect();
+      const cx = tileRect.left + tileRect.width  / 2;
+      const cy = tileRect.top  + tileRect.height / 2;
+
+      // Read tile border color from computed style — reuses the .fm-t* CSS class
+      const borderColor = getComputedStyle(tileEl).borderColor || 'rgba(255,200,0,1)';
+
+      for (let i = 0; i < COUNT; i++) {
+        const angle  = Math.random() * Math.PI * 2;
+        const radius = Math.random() * SPREAD;
+        const ox = Math.cos(angle) * radius;
+        const oy = Math.sin(angle) * radius;
+
+        const p = document.createElement('div');
+        p.className = 'fm-attack-particle';
+        p.style.left = `${cx + ox}px`;
+        p.style.top  = `${cy + oy}px`;
+        p.style.background = `radial-gradient(circle, #fff, ${borderColor})`;
+        p.style.boxShadow  = `0 0 6px 2px ${borderColor}`;
+        document.body.appendChild(p);
+        particles.push({ el: p, dx: ex - (cx + ox), dy: ey - (cy + oy) });
+      }
+    }
+
+    if (!particles.length) return;
+
+    requestAnimationFrame(() => {
+      for (const { el, dx, dy } of particles) {
+        el.style.transform = `translate(${dx}px, ${dy}px)`;
+        el.classList.add('fm-attack-fly');
+      }
+    });
+
+    await this.#wait(320);
+    for (const { el } of particles) el.remove();
+  }
+
   /**
    * Play the contamination animation: particle from enemy to tile.
+   * Color is read from the enemy tile DOM element (.fm-t* class) — no hardcoded values.
    * @param {import('../entities/tile.js').Tile} tile — The freshly contaminated tile
    */
   async #playContaminationAnimation(tile) {
@@ -1407,15 +1492,22 @@ export class GameScene extends Phaser.Scene {
     if (!tileEl) return;
 
     const enemyRect = this.#enemyAreaEl.getBoundingClientRect();
-    const tileRect = tileEl.getBoundingClientRect();
+    const tileRect  = tileEl.getBoundingClientRect();
+
+    // Read border color from the enemy tile inner element (.fm-t* already applied)
+    const enemyInnerEl  = this.#enemyAreaEl.querySelector('.fm-enemy-tile-inner');
+    const borderColor   = enemyInnerEl
+      ? getComputedStyle(enemyInnerEl).borderColor
+      : 'rgba(170, 0, 255, 1)';
 
     const particle = document.createElement('div');
     particle.className = 'fm-contaminate-particle';
-    particle.style.left = `${enemyRect.left + enemyRect.width / 2}px`;
-    particle.style.top = `${enemyRect.top + enemyRect.height / 2}px`;
+    particle.style.background = `radial-gradient(circle, #fff, ${borderColor})`;
+    particle.style.boxShadow  = `0 0 10px 3px ${borderColor}`;
+    particle.style.left = `${enemyRect.left + enemyRect.width  / 2}px`;
+    particle.style.top  = `${enemyRect.top  + enemyRect.height / 2}px`;
     document.body.appendChild(particle);
 
-    // Animate to target tile
     requestAnimationFrame(() => {
       particle.style.transform = `translate(${tileRect.left + tileRect.width / 2 - (enemyRect.left + enemyRect.width / 2)}px, ${tileRect.top + tileRect.height / 2 - (enemyRect.top + enemyRect.height / 2)}px)`;
       particle.classList.add('fm-contaminate-fly');

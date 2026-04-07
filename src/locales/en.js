@@ -111,4 +111,5 @@ export const en = {
   'save.score': 'Score',
   'save.moves': 'Moves',
   'save.mode_col': 'Mode',
+  'battle.powers_label': 'Powers',
 };
