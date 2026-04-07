@@ -22,7 +22,7 @@ import { VictoryModal } from '../components/victory-modal.js';
 import { EnemyInfoModal } from '../components/enemy-info-modal.js';
 import { GridLife } from '../entities/grid-life.js';
 import { BattleManager } from '../managers/battle-manager.js';
-import { BATTLE, getRandomFaceUrl } from '../configs/constants.js';
+import { getRandomFaceUrl } from '../configs/constants.js';
 import { addBackground } from '../utils/background.js';
 import { LiquidWave } from '../utils/liquid-wave.js';
 
@@ -1425,6 +1425,9 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Animate attack particles flying from each merged tile to the enemy.
+   * Each particle follows a quadratic Bézier curve (burst arc → enemy),
+   * guaranteeing arrival at the target at t=1. Trail is derived from the
+   * curve itself for a smooth, accurate arc trail. Color is gold.
    * @param {{ tile: import('../entities/tile.js').Tile }[]} merges
    */
   async #playAttackParticles(merges) {
@@ -1433,56 +1436,116 @@ export class GameScene extends Phaser.Scene {
     if (!enemyTileEl) return;
 
     const enemyRect = enemyTileEl.getBoundingClientRect();
-    const ex = enemyRect.left + enemyRect.width / 2;
-    const ey = enemyRect.top + enemyRect.height / 2;
+    const ex = enemyRect.left + enemyRect.width  / 2;
+    const ey = enemyRect.top  + enemyRect.height / 2;
 
-    const SPREAD = 28;  // px radius around merge center
-    const COUNT  = 10;  // particles per merged tile
+    const COUNT    = 12; // particles per merged tile
+    const DURATION = 560; // ms — all particles guaranteed to arrive
+
+    /** Quadratic Bézier position at parameter t ∈ [0,1]. */
+    const bezier = (p0, p1, p2, t) => ({
+      x: (1 - t) ** 2 * p0.x + 2 * (1 - t) * t * p1.x + t ** 2 * p2.x,
+      y: (1 - t) ** 2 * p0.y + 2 * (1 - t) * t * p1.y + t ** 2 * p2.y,
+    });
+
+    const cvs = document.createElement('canvas');
+    cvs.width  = window.innerWidth;
+    cvs.height = window.innerHeight;
+    cvs.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1000;';
+    document.body.appendChild(cvs);
+    const ctx = cvs.getContext('2d');
 
     const particles = [];
     for (const merge of merges) {
       const tileEl = this.#gm.tileElements.get(merge.tile.id);
       if (!tileEl) continue;
       const tileRect = tileEl.getBoundingClientRect();
-      const cx = tileRect.left + tileRect.width  / 2;
-      const cy = tileRect.top  + tileRect.height / 2;
-
-      // Read tile border color from computed style — reuses the .fm-t* CSS class
-      const borderColor = getComputedStyle(tileEl).borderColor || 'rgba(255,200,0,1)';
+      const sx = tileRect.left + tileRect.width  / 2;
+      const sy = tileRect.top  + tileRect.height / 2;
 
       for (let i = 0; i < COUNT; i++) {
-        const angle  = Math.random() * Math.PI * 2;
-        const radius = Math.random() * SPREAD;
-        const ox = Math.cos(angle) * radius;
-        const oy = Math.sin(angle) * radius;
-
-        const p = document.createElement('div');
-        p.className = 'fm-attack-particle';
-        p.style.left = `${cx + ox}px`;
-        p.style.top  = `${cy + oy}px`;
-        p.style.background = `radial-gradient(circle, #fff, ${borderColor})`;
-        p.style.boxShadow  = `0 0 6px 2px ${borderColor}`;
-        document.body.appendChild(p);
-        particles.push({ el: p, dx: ex - (cx + ox), dy: ey - (cy + oy) });
+        // Evenly distributed burst angles with slight jitter
+        const angle     = (i / COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+        const burstDist = 55 + Math.random() * 55;
+        particles.push({
+          p0: { x: sx + (Math.random() - 0.5) * 6, y: sy + (Math.random() - 0.5) * 6 },
+          p1: { x: sx + Math.cos(angle) * burstDist, y: sy + Math.sin(angle) * burstDist },
+          p2: { x: ex + (Math.random() - 0.5) * 4,  y: ey + (Math.random() - 0.5) * 4  },
+          size:  3 + Math.random() * 2,
+          delay: Math.random() * 0.1, // slight stagger between particles
+        });
       }
     }
 
-    if (!particles.length) return;
+    if (!particles.length) { cvs.remove(); return; }
 
-    requestAnimationFrame(() => {
-      for (const { el, dx, dy } of particles) {
-        el.style.transform = `translate(${dx}px, ${dy}px)`;
-        el.classList.add('fm-attack-fly');
-      }
+    const startTime = performance.now();
+
+    await new Promise(resolve => {
+      const frame = (now) => {
+        const globalT = Math.min((now - startTime) / DURATION, 1);
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+        for (const p of particles) {
+          // Per-particle t, shifted by its delay
+          const t = Math.min(Math.max((globalT - p.delay) / (1 - p.delay), 0), 1);
+          if (t <= 0) continue;
+
+          const pos = bezier(p.p0, p.p1, p.p2, t);
+
+          // Trail: sample the curve behind the current position
+          const TRAIL_STEPS = 14;
+          const TRAIL_SPAN  = 0.18; // how far back the trail reaches on the curve
+          for (let i = 1; i <= TRAIL_STEPS; i++) {
+            const progress = i / TRAIL_STEPS;
+            const tA = Math.max(0, t - TRAIL_SPAN * (1 - (i - 1) / TRAIL_STEPS));
+            const tB = Math.max(0, t - TRAIL_SPAN * (1 - i       / TRAIL_STEPS));
+            const a  = bezier(p.p0, p.p1, p.p2, tA);
+            const b  = bezier(p.p0, p.p1, p.p2, tB);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = `rgba(255,200,30,${progress * 0.65})`;
+            ctx.lineWidth   = p.size * progress * 0.85;
+            ctx.lineCap     = 'round';
+            ctx.stroke();
+          }
+
+          // Outer glow
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, p.size * 2.4, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,180,0,0.18)';
+          ctx.fill();
+
+          // Gold body
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, p.size, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffb800';
+          ctx.fill();
+
+          // White core
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, p.size * 0.4, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff';
+          ctx.fill();
+        }
+
+        if (globalT < 1) {
+          requestAnimationFrame(frame);
+        } else {
+          resolve();
+        }
+      };
+      requestAnimationFrame(frame);
     });
 
-    await this.#wait(320);
-    for (const { el } of particles) el.remove();
+    cvs.remove();
   }
 
   /**
-   * Play the contamination animation: particle from enemy to tile.
-   * Color is read from the enemy tile DOM element (.fm-t* class) — no hardcoded values.
+   * Play the contamination animation: dark particles burst from the enemy and
+   * converge onto the target tile via quadratic Bézier curves with trails.
+   * On arrival a dark shadow pulse flashes on the tile.
    * @param {import('../entities/tile.js').Tile} tile — The freshly contaminated tile
    */
   async #playContaminationAnimation(tile) {
@@ -1494,27 +1557,106 @@ export class GameScene extends Phaser.Scene {
     const enemyRect = this.#enemyAreaEl.getBoundingClientRect();
     const tileRect  = tileEl.getBoundingClientRect();
 
-    // Read border color from the enemy tile inner element (.fm-t* already applied)
-    const enemyInnerEl  = this.#enemyAreaEl.querySelector('.fm-enemy-tile-inner');
-    const borderColor   = enemyInnerEl
-      ? getComputedStyle(enemyInnerEl).borderColor
-      : 'rgba(170, 0, 255, 1)';
+    const sx = enemyRect.left + enemyRect.width  / 2;
+    const sy = enemyRect.top  + enemyRect.height / 2;
+    const ex = tileRect.left  + tileRect.width   / 2;
+    const ey = tileRect.top   + tileRect.height  / 2;
 
-    const particle = document.createElement('div');
-    particle.className = 'fm-contaminate-particle';
-    particle.style.background = `radial-gradient(circle, #fff, ${borderColor})`;
-    particle.style.boxShadow  = `0 0 10px 3px ${borderColor}`;
-    particle.style.left = `${enemyRect.left + enemyRect.width  / 2}px`;
-    particle.style.top  = `${enemyRect.top  + enemyRect.height / 2}px`;
-    document.body.appendChild(particle);
+    const COUNT    = 10;
+    const DURATION = 550;
 
-    requestAnimationFrame(() => {
-      particle.style.transform = `translate(${tileRect.left + tileRect.width / 2 - (enemyRect.left + enemyRect.width / 2)}px, ${tileRect.top + tileRect.height / 2 - (enemyRect.top + enemyRect.height / 2)}px)`;
-      particle.classList.add('fm-contaminate-fly');
+    /** Quadratic Bézier position at parameter t ∈ [0,1]. */
+    const bezier = (p0, p1, p2, t) => ({
+      x: (1 - t) ** 2 * p0.x + 2 * (1 - t) * t * p1.x + t ** 2 * p2.x,
+      y: (1 - t) ** 2 * p0.y + 2 * (1 - t) * t * p1.y + t ** 2 * p2.y,
     });
 
-    await this.#wait(BATTLE.CONTAMINATE_DURATION);
-    particle.remove();
+    const cvs = document.createElement('canvas');
+    cvs.width  = window.innerWidth;
+    cvs.height = window.innerHeight;
+    cvs.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1000;';
+    document.body.appendChild(cvs);
+    const ctx = cvs.getContext('2d');
+
+    const particles = [];
+    for (let i = 0; i < COUNT; i++) {
+      const angle     = (i / COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const burstDist = 45 + Math.random() * 45;
+      particles.push({
+        p0: { x: sx + (Math.random() - 0.5) * 6, y: sy + (Math.random() - 0.5) * 6 },
+        p1: { x: sx + Math.cos(angle) * burstDist, y: sy + Math.sin(angle) * burstDist },
+        p2: { x: ex + (Math.random() - 0.5) * 4,  y: ey + (Math.random() - 0.5) * 4  },
+        size:  2.5 + Math.random() * 2,
+        delay: Math.random() * 0.12,
+      });
+    }
+
+    const startTime = performance.now();
+
+    await new Promise(resolve => {
+      const frame = (now) => {
+        const globalT = Math.min((now - startTime) / DURATION, 1);
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+        for (const p of particles) {
+          const t = Math.min(Math.max((globalT - p.delay) / (1 - p.delay), 0), 1);
+          if (t <= 0) continue;
+
+          const pos = bezier(p.p0, p.p1, p.p2, t);
+
+          // Trail sampled from the Bézier curve
+          const TRAIL_STEPS = 12;
+          const TRAIL_SPAN  = 0.2;
+          for (let i = 1; i <= TRAIL_STEPS; i++) {
+            const progress = i / TRAIL_STEPS;
+            const tA = Math.max(0, t - TRAIL_SPAN * (1 - (i - 1) / TRAIL_STEPS));
+            const tB = Math.max(0, t - TRAIL_SPAN * (1 - i       / TRAIL_STEPS));
+            const a  = bezier(p.p0, p.p1, p.p2, tA);
+            const b  = bezier(p.p0, p.p1, p.p2, tB);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = `rgba(130,0,210,${progress * 0.6})`;
+            ctx.lineWidth   = p.size * progress * 0.85;
+            ctx.lineCap     = 'round';
+            ctx.stroke();
+          }
+
+          // Outer glow (deep violet)
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, p.size * 2.4, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(70,0,150,0.2)';
+          ctx.fill();
+
+          // Dark purple body
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, p.size, 0, Math.PI * 2);
+          ctx.fillStyle = '#5500bb';
+          ctx.fill();
+
+          // Pale violet core
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, p.size * 0.4, 0, Math.PI * 2);
+          ctx.fillStyle = '#bb88ff';
+          ctx.fill();
+        }
+
+        if (globalT < 1) {
+          requestAnimationFrame(frame);
+        } else {
+          resolve();
+        }
+      };
+      requestAnimationFrame(frame);
+    });
+
+    cvs.remove();
+
+    // Dark shadow pulse on the newly contaminated tile
+    tileEl.classList.add('fm-tile-hit-contaminate');
+    tileEl.addEventListener('animationend', () => {
+      tileEl.classList.remove('fm-tile-hit-contaminate');
+    }, { once: true });
   }
 
   /**
