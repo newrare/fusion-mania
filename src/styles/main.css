@@ -30,6 +30,8 @@ html, body {
   width: 100%;
   height: 100%;
   position: relative;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* --- DOM overlay: grid & tiles as CSS DOM elements --- */
@@ -1665,8 +1667,8 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 15px;
+  height: 15px;
   background: rgba(255,255,255,0.08);
   border-radius: 8px;
 }

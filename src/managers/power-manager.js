@@ -229,6 +229,15 @@ export class PowerManager {
           if (powerType === POWER_TYPES.LIGHTNING) {
             pred.lightningRange = this.#predictLightningRange(simGrid);
           }
+          if (
+            powerType === POWER_TYPES.BLIND ||
+            powerType === POWER_TYPES.WIND_UP ||
+            powerType === POWER_TYPES.WIND_DOWN ||
+            powerType === POWER_TYPES.WIND_LEFT ||
+            powerType === POWER_TYPES.WIND_RIGHT
+          ) {
+            pred.allGridValues = this.#getAllGridValues(simGrid);
+          }
           predictions.push(pred);
         };
 
@@ -326,6 +335,22 @@ export class PowerManager {
     const min = hasEmptyCol ? [] : [topValues[topValues.length - 1]];
 
     return { min, max };
+  }
+
+  /**
+   * Return all tile values present in a simulated grid, in reading order.
+   * @param {({ id: string, value: number } | null)[][]} simGrid
+   * @returns {number[]}
+   */
+  #getAllGridValues(simGrid) {
+    const values = [];
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const cell = simGrid[r]?.[c];
+        if (cell) values.push(cell.value);
+      }
+    }
+    return values;
   }
 
   /**

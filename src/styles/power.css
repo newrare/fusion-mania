@@ -128,8 +128,11 @@
   font-size: 0.7rem;
   color: rgba(255,255,255,0.7);
   text-align: center;
-  line-height: 1.25;
-  word-break: break-word;
+  height: 20px;
+  margin: 4px 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* --- Power choice modal --- */
@@ -594,23 +597,30 @@
 .fm-power-info {
   width: var(--fm-grid-width, 340px);
   font-family: 'Merkin', cursive, sans-serif;
-  font-size: 0.95rem;
+  font-size: 0.78rem;
   color: rgba(255,255,255,0.88);
-  padding: 8px 0 6px;
+  padding: 6px 0 4px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
-  gap: 6px;
+  gap: 4px;
   text-align: left;
 }
 
 .fm-power-info-line {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  row-gap: 3px;
+  gap: 4px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.fm-power-info-line {
+  cursor: pointer;
+}
+.fm-power-info-line:active {
+  opacity: 0.65;
 }
 
 /* SVG arrow icon for move direction */
@@ -628,47 +638,42 @@
   flex-shrink: 0;
 }
 
-/* Colored ! badge — matches edge indicator severity */
-.fm-info-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  font-size: 0.65rem;
-  font-weight: 900;
-  line-height: 1;
+/* Plain SVG power icon in prediction line */
+.fm-pred-power-ico {
+  width: 13px;
+  height: 13px;
   flex-shrink: 0;
+  vertical-align: middle;
 }
-
-.fm-info-badge.danger  { background: rgba(239,68,68,.25);  color: #ef4444; border: 1px solid rgba(239,68,68,.55); }
-.fm-info-badge.warning { background: rgba(245,158,11,.2);  color: #f59e0b; border: 1px solid rgba(245,158,11,.5); }
-.fm-info-badge.info    { background: rgba(59,130,246,.2);  color: #3b82f6; border: 1px solid rgba(59,130,246,.5); }
+.fm-pred-power-ico--danger  { color: #ef4444; }
+.fm-pred-power-ico--warning { color: #f59e0b; }
+.fm-pred-power-ico--info    { color: #3b82f6; }
 
 .fm-power-info-name {
   white-space: nowrap;
   flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Min–max range for lightning */
 .fm-power-info-range {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   flex-wrap: nowrap;
 }
 
 .fm-range-label {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   opacity: 0.6;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
   flex-shrink: 0;
 }
 
 .fm-range-sep {
   opacity: 0.6;
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   flex-shrink: 0;
 }
 
@@ -680,17 +685,39 @@
 
 .fm-power-info-tile {
   display: inline-block;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.82rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.75rem;
   font-weight: 900;
   border: 1px solid transparent;
 }
 
 /* ∅ placeholder when lightning min is 0 tiles */
 .fm-range-empty {
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   opacity: 0.5;
+}
+
+/* Unknown tile placeholder for teleport second target */
+.fm-power-info-tile.fm-t-unk {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.5);
+  border-color: rgba(255,255,255,0.2);
+}
+
+/* Adjective for the ads prediction */
+.fm-pred-ads-adj {
+  opacity: 0.65;
+  font-style: italic;
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Colon separator between message and tile pills */
+.fm-pred-sep {
+  opacity: 0.55;
+  flex-shrink: 0;
 }
 
 /* Pending destruction row */
@@ -741,6 +768,14 @@
   box-shadow: 0 1px 0 var(--fm-hud-shadow, rgba(10,4,30,0.8));
 }
 
+/* "..." indicator when panel has more than 4 lines */
+.fm-power-info-more-text {
+  font-size: 0.85rem;
+  opacity: 0.55;
+  padding-left: 4px;
+  letter-spacing: 0.1em;
+}
+
 /* --- Power info full-list modal --- */
 /* Width matches 90% of the safe zone; no scroll needed — all lines visible */
 .fm-power-info-all-modal {
@@ -756,8 +791,12 @@
 }
 
 .fm-power-info-all-lines .fm-power-info-line {
-  flex-wrap: nowrap;
-  white-space: nowrap;
+  flex-wrap: wrap;
+  white-space: normal;
+}
+
+.fm-power-info-all-lines .fm-power-info-tiles {
+  flex-wrap: wrap;
 }
 
 /* ─── Fire Ball (Fuseau projectile) ─────────────────

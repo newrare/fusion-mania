@@ -910,12 +910,7 @@ export class GameScene extends Phaser.Scene {
       if (!this.#adsShown) {
         await this.#showAdsModal();
         this.#adsShown = true;
-        // Disable ADS for the rest of this game
-        this.#powerManager?.removePowerType(POWER_TYPES.ADS);
-        // Clear any ADS powers already assigned to tiles
-        for (const tile of this.#gm.grid.getAllTiles()) {
-          if (tile.power === POWER_TYPES.ADS) tile.power = null;
-        }
+        this.#disableAds();
         this.#gm.syncTileDom(this.#powerManager?.windDirection ?? null);
       }
     } else {
@@ -958,6 +953,22 @@ export class GameScene extends Phaser.Scene {
         },
       });
     });
+  }
+
+  /**
+   * Remove ADS from all power sources so it can never be assigned again this game.
+   * Called once after the ad has been displayed.
+   */
+  #disableAds() {
+    this.#powerManager?.removePowerType(POWER_TYPES.ADS);
+    this.#battlePowerManager?.removePowerType(POWER_TYPES.ADS);
+    if (this.#battleManager?.enemy) {
+      this.#battleManager.enemy.availablePowers =
+        this.#battleManager.enemy.availablePowers.filter((p) => p !== POWER_TYPES.ADS);
+    }
+    for (const tile of this.#gm.grid.getAllTiles()) {
+      if (tile.power === POWER_TYPES.ADS) tile.power = null;
+    }
   }
 
   /**
@@ -1239,6 +1250,11 @@ export class GameScene extends Phaser.Scene {
   async #onEnemySpawn(enemy) {
     // Create power manager for battle contamination effects using ALL powers from this enemy
     this.#battlePowerManager = new PowerManager(enemy.availablePowers);
+    // If the ad was already shown this game, prevent new enemies from using ADS
+    if (this.#adsShown) {
+      this.#battlePowerManager.removePowerType(POWER_TYPES.ADS);
+      enemy.availablePowers = enemy.availablePowers.filter((p) => p !== POWER_TYPES.ADS);
+    }
 
     // Create grid life overlay starting at 0% (will fill via CSS transition below)
     this.#gridLife = new GridLife();
@@ -1837,17 +1853,7 @@ export class GameScene extends Phaser.Scene {
       if (!this.#adsShown) {
         await this.#showAdsModal();
         this.#adsShown = true;
-        // Disable ADS for the rest of this game
-        this.#battlePowerManager?.removePowerType(POWER_TYPES.ADS);
-        // Also remove ADS from enemy's available powers to stop contamination
-        if (this.#battleManager?.enemy) {
-          this.#battleManager.enemy.availablePowers =
-            this.#battleManager.enemy.availablePowers.filter((p) => p !== POWER_TYPES.ADS);
-        }
-        // Clear any ADS powers already assigned to tiles
-        for (const tile of this.#gm.grid.getAllTiles()) {
-          if (tile.power === POWER_TYPES.ADS) tile.power = null;
-        }
+        this.#disableAds();
         this.#gm.syncTileDom(this.#battlePowerManager?.windDirection ?? null);
       }
     } else {
@@ -2337,120 +2343,185 @@ export class GameScene extends Phaser.Scene {
       right: `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M13 6 L7 1 V4 H1 V8 H7 V11 Z" fill="currentColor"/></svg>`,
     };
 
-    /** @type {string[]} */
-    const lines = [];
+    /**
+     * Build prediction line HTML strings.
+     * @param {number} maxTiles - max tiles per pill row (use Infinity for modal)
+     * @returns {string[]}
+     */
+    const buildLines = (maxTiles) => {
+      const buildPills = (values) => {
+        if (!values || values.length === 0) return '';
+        const sorted = [...values].sort((a, b) => b - a);
+        const shown = isFinite(maxTiles) ? sorted.slice(0, maxTiles) : sorted;
+        return `<div class="fm-power-info-tiles">${shown.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('')}</div>`;
+      };
 
-    for (const dir of directions) {
-      const predictions = pm.predictForDirection(dir, this.#gm.grid);
-      if (predictions.length === 0) continue;
+      /** @type {string[]} */
+      const result = [];
 
-      for (const pred of predictions) {
-        const cat = pred.exits ? 'danger' : getPowerCategory(pred.powerType);
-        // Danger powers: skip if no tiles would be destroyed (e.g. fire on an empty row)
-        if (
-          !pred.exits &&
-          cat === 'danger' &&
-          pred.powerType !== POWER_TYPES.LIGHTNING &&
-          (!pred.destroyedValues || pred.destroyedValues.length === 0)
-        ) continue;
+      for (const dir of directions) {
+        const predictions = pm.predictForDirection(dir, this.#gm.grid);
+        if (predictions.length === 0) continue;
 
-        const meta = POWER_META[pred.powerType];
-        const powerName = i18n.t(meta.nameKey);
-        // Badge matches the edge indicator style exactly
-        const badgeHtml = `<div class="fm-power-dot tiny ${cat}"><span class="fm-edge-warn">!</span></div>`;
+        for (const pred of predictions) {
+          const cat = pred.exits ? 'danger' : getPowerCategory(pred.powerType);
+          // Danger powers: skip if no tiles would be destroyed (e.g. fire on an empty row)
+          if (
+            !pred.exits &&
+            cat === 'danger' &&
+            pred.powerType !== POWER_TYPES.LIGHTNING &&
+            (!pred.destroyedValues || pred.destroyedValues.length === 0)
+          ) continue;
 
-        let tilesHtml = '';
+          const meta = POWER_META[pred.powerType];
 
-        if (pred.exits) {
-          // Expel exit: show the tile value that will leave the grid
-          const pill = `<span class="fm-power-info-tile fm-t${pred.tileValue}">${pred.tileValue}</span>`;
-          tilesHtml = `<div class="fm-power-info-tiles">${pill}<span class="fm-range-sep">✕</span></div>`;
-        } else if (
-          (pred.powerType === POWER_TYPES.EXPEL_V || pred.powerType === POWER_TYPES.EXPEL_H) &&
-          pred.mergeSourceValue
-        ) {
-          // Expel merge trigger: show source → source = result
-          const src = pred.mergeSourceValue;
-          const res = pred.tileValue;
-          tilesHtml = `<div class="fm-power-info-tiles">
-            <span class="fm-power-info-tile fm-t${src}">${src}</span>
-            <span class="fm-range-sep">→</span>
-            <span class="fm-power-info-tile fm-t${src}">${src}</span>
-            <span class="fm-range-sep">=</span>
-            <span class="fm-power-info-tile fm-t${res}">${res}</span>
-          </div>`;
-        } else if (pred.powerType === POWER_TYPES.LIGHTNING && pred.lightningRange) {
-          const { min, max } = pred.lightningRange;
-          const minPills = min.length > 0
-            ? min.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('')
-            : `<span class="fm-range-empty">∅</span>`;
-          const maxPills = max.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('');
-          tilesHtml = `<div class="fm-power-info-range">
-              <span class="fm-range-label">min</span>
-              <div class="fm-power-info-tiles">${minPills}</div>
-              <span class="fm-range-sep">–</span>
-              <span class="fm-range-label">max</span>
-              <div class="fm-power-info-tiles">${maxPills}</div>
-             </div>`;
-        } else if (pred.destroyedValues && pred.destroyedValues.length > 0) {
-          const pills = pred.destroyedValues
-            .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
-            .join('');
-          tilesHtml = `<div class="fm-power-info-tiles">${pills}</div>`;
+          // Determine message key and tiles HTML
+          let msgKey;
+          let tilesHtml = '';
+          let noColon = false;
+
+          if (pred.exits) {
+            msgKey = pred.powerType === POWER_TYPES.EXPEL_V ? 'pred.expel_v_off' : 'pred.expel_h_off';
+            tilesHtml = buildPills([pred.tileValue]);
+          } else {
+            switch (pred.powerType) {
+              case POWER_TYPES.FIRE_H:
+              case POWER_TYPES.FIRE_V:
+              case POWER_TYPES.FIRE_X:
+              case POWER_TYPES.BOMB:
+                msgKey = 'pred.destroy';
+                tilesHtml = buildPills(pred.destroyedValues);
+                break;
+              case POWER_TYPES.ICE:
+                msgKey = 'pred.block';
+                tilesHtml = buildPills([pred.tileValue]);
+                break;
+              case POWER_TYPES.TELEPORT:
+                msgKey = 'pred.teleport';
+                tilesHtml = `<div class="fm-power-info-tiles">
+                  <span class="fm-power-info-tile fm-t${pred.tileValue}">${pred.tileValue}</span>
+                  <span class="fm-range-sep">↔</span>
+                  <span class="fm-power-info-tile fm-t-unk">?</span>
+                </div>`;
+                break;
+              case POWER_TYPES.EXPEL_V:
+                msgKey = 'pred.expel_v_on';
+                tilesHtml = buildPills([pred.tileValue]);
+                break;
+              case POWER_TYPES.EXPEL_H:
+                msgKey = 'pred.expel_h_on';
+                tilesHtml = buildPills([pred.tileValue]);
+                break;
+              case POWER_TYPES.WIND_UP:
+              case POWER_TYPES.WIND_DOWN:
+              case POWER_TYPES.WIND_LEFT:
+              case POWER_TYPES.WIND_RIGHT:
+                msgKey = 'pred.block';
+                tilesHtml = buildPills(pred.allGridValues);
+                break;
+              case POWER_TYPES.LIGHTNING: {
+                msgKey = 'pred.lightning';
+                const rawMin = [...(pred.lightningRange?.min ?? [])].sort((a, b) => b - a);
+                const rawMax = [...(pred.lightningRange?.max ?? [])].sort((a, b) => b - a);
+                const minArr = isFinite(maxTiles) ? rawMin.slice(0, maxTiles) : rawMin;
+                const maxArr = isFinite(maxTiles) ? rawMax.slice(0, maxTiles) : rawMax;
+                const minPills = rawMin.length > 0
+                  ? minArr.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('')
+                  : `<span class="fm-range-empty">∅</span>`;
+                const maxPills = maxArr.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('');
+                tilesHtml = `<div class="fm-power-info-range">
+                  <span class="fm-range-label">(Min</span>
+                  <div class="fm-power-info-tiles">${minPills}</div>
+                  <span class="fm-range-label">)</span>
+                  <span class="fm-range-label">(Max</span>
+                  <div class="fm-power-info-tiles">${maxPills}</div>
+                  <span class="fm-range-label">)</span>
+                </div>`;
+                break;
+              }
+              case POWER_TYPES.NUCLEAR:
+                msgKey = 'pred.nuclear';
+                tilesHtml = buildPills(pred.destroyedValues);
+                break;
+              case POWER_TYPES.BLIND:
+                msgKey = 'pred.blind';
+                tilesHtml = buildPills(pred.allGridValues);
+                break;
+              case POWER_TYPES.ADS: {
+                const adjs = i18n.t('pred.ads_adjectives');
+                const adj = Array.isArray(adjs) && adjs.length > 0
+                  ? adjs[Math.floor(Math.random() * adjs.length)]
+                  : '';
+                msgKey = 'pred.ads';
+                tilesHtml = `<span class="fm-pred-ads-adj">${adj}</span>`;
+                noColon = true;
+                break;
+              }
+              default:
+                msgKey = meta.nameKey;
+            }
+          }
+
+          const powerIconHtml = `<svg class="fm-pred-power-ico fm-pred-power-ico--${cat}" aria-hidden="true"><use href="#${meta.svgId}"/></svg>`;
+          const colonHtml = tilesHtml && !noColon ? `<span class="fm-pred-sep">:</span>` : '';
+
+          result.push(`
+            <div class="fm-power-info-line">
+              <span class="fm-power-info-dir">${dirArrows[dir]}</span>
+              ${powerIconHtml}
+              <span class="fm-power-info-name">${i18n.t(msgKey)}</span>
+              ${colonHtml}
+              ${tilesHtml}
+            </div>`);
         }
+      }
 
-        lines.push(`
-          <div class="fm-power-info-line">
-            <span class="fm-power-info-dir">${dirArrows[dir]}</span>
-            ${badgeHtml}
-            <span class="fm-power-info-name">${powerName}</span>
-            ${tilesHtml}
+      // Pending destruction row: tiles whose animation was cut mid-flight
+      if (this.#pendingDestructionTiles.size > 0) {
+        const sortedVals = [...this.#pendingDestructionTiles.values()].sort((a, b) => b - a);
+        const shownVals = isFinite(maxTiles) ? sortedVals.slice(0, maxTiles) : sortedVals;
+        const pills = shownVals
+          .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
+          .join('');
+        result.push(`
+          <div class="fm-power-info-line fm-power-info-destroying">
+            <span class="fm-info-destroy-icon">🗑</span>
+            <div class="fm-power-info-tiles">${pills}</div>
           </div>`);
       }
-    }
 
-    // Pending destruction row: tiles whose animation was cut mid-flight
-    if (this.#pendingDestructionTiles.size > 0) {
-      const pills = [...this.#pendingDestructionTiles.values()]
-        .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
-        .join('');
-      lines.push(`
-        <div class="fm-power-info-line fm-power-info-destroying">
-          <span class="fm-info-destroy-icon">🗑</span>
-          <div class="fm-power-info-tiles">${pills}</div>
-        </div>`);
-    }
+      return result;
+    };
+
+    const MAX_TILES_PANEL = 8;
+    const MAX_VISIBLE = 4;
+    const lines = buildLines(MAX_TILES_PANEL);
+    const linesAll = buildLines(Infinity);
 
     if (lines.length === 0) {
       this.#powerInfoEl.style.display = 'none';
       return;
     }
 
-    const MAX_VISIBLE = 4;
     const visible = lines.slice(0, MAX_VISIBLE);
-    const hidden = lines.slice(MAX_VISIBLE);
-
-    let html = visible.join('');
-
-    if (hidden.length > 0) {
-      html += `<button class="fm-power-info-more-btn" id="fm-power-info-more">…</button>`;
+    if (lines.length > MAX_VISIBLE) {
+      visible.push(`<span class="fm-power-info-more-text">...</span>`);
     }
 
     this.#powerInfoEl.style.display = 'flex';
-    this.#powerInfoEl.innerHTML = html;
+    this.#powerInfoEl.innerHTML = visible.join('');
+    this.#powerInfoEl.classList.add('fm-power-info--clickable');
 
-    if (hidden.length > 0) {
-      const moreBtn = this.#powerInfoEl.querySelector('#fm-power-info-more');
+    this.#powerInfoEl.onpointerdown = (e) => {
+      if (!e.target.closest('.fm-power-info-line')) return;
+      e.stopPropagation();
       const overlayEl = this.#powerInfoAllDom?.node.querySelector('#fm-power-info-all-overlay');
       const titleEl = this.#powerInfoAllDom?.node.querySelector('#fm-power-info-all-title');
       const linesEl = this.#powerInfoAllDom?.node.querySelector('#fm-power-info-all-lines');
-      moreBtn?.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();
-        if (titleEl) titleEl.textContent = i18n.t('power.predictions');
-        if (linesEl) linesEl.innerHTML = lines.join('');
-        if (overlayEl) overlayEl.style.display = 'flex';
-      });
-    }
+      if (titleEl) titleEl.textContent = i18n.t('power.predictions');
+      if (linesEl) linesEl.innerHTML = linesAll.join('');
+      if (overlayEl) overlayEl.style.display = 'flex';
+    };
   }
 
   // ─── GRID LIFE ────────────────────────────────────
