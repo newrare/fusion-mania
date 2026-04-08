@@ -71,6 +71,10 @@ To add a new animation: add a keyframe to `src/styles/main.css`, add a method to
 
 `RankingModal` (`src/components/ranking-modal.js`) provides a full-safe-zone leaderboard with tabs for Classic, Battle, and Free modes. Free mode scores display a row of power icons showing which powers were used. Rankings are stored and managed by `SaveManager`.
 
+### Help modal
+
+`HelpModal` (`src/components/help-modal.js`) is an in-game help/tutorial overlay accessible via the `?` button in the HUD (between stat3 and menu). Two-level navigation: index of 6 categories → detail view with back button. Categories: game modes, fusion, powers (with SVG icons), predictions, enemies, grid life. Fully i18n-aware (EN/FR) and keyboard-navigable. 29 unit tests in `tests/components/help-modal.test.js`.
+
 ### Battle mode
 
 `BattleManager` (`src/managers/battle-manager.js`) handles enemy spawn logic, contamination, damage, and level progression. `Enemy` (`src/entities/enemy.js`) is a pure data class with name (100 math-themed names), level, HP (via `GridLife`), and available powers. The game alternates between a classic phase (10 moves) and a battle phase (enemy active). See `docs/BATTLE.md` for the full system.

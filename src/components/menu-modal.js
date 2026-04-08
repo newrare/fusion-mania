@@ -127,9 +127,9 @@ export class MenuModal {
       }
     } else {
       // No game in progress: show mode selection + Load
-      html += `<button class="fm-btn" data-action="classic">${i18n.t('menu.classic')}</button>`;
-      html += `<button class="fm-btn" data-action="battle">${i18n.t('menu.battle')}</button>`;
-      html += `<button class="fm-btn" data-action="free">${i18n.t('menu.free')}</button>`;
+      html += `<button class="fm-btn fm-btn--mode" data-action="classic"><span class="fm-btn-mode-icon">🎲</span>${i18n.t('menu.classic')}</button>`;
+      html += `<button class="fm-btn fm-btn--mode" data-action="battle"><span class="fm-btn-mode-icon">⚔️</span>${i18n.t('menu.battle')}</button>`;
+      html += `<button class="fm-btn fm-btn--mode" data-action="free"><span class="fm-btn-mode-icon">✨</span>${i18n.t('menu.free')}</button>`;
       html += `<button class="fm-btn" data-action="loadgame">${i18n.t('menu.load')}</button>`;
       html += `<button class="fm-btn" data-action="ranking">${i18n.t('menu.ranking')}</button>`;
       html += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;

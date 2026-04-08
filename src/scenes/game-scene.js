@@ -20,6 +20,7 @@ import { PowerChoiceModal } from '../components/power-choice-modal.js';
 import { AdminModal } from '../components/admin-modal.js';
 import { VictoryModal } from '../components/victory-modal.js';
 import { EnemyInfoModal } from '../components/enemy-info-modal.js';
+import { HelpModal } from '../components/help-modal.js';
 import { GridLife } from '../entities/grid-life.js';
 import { BattleManager } from '../managers/battle-manager.js';
 import { getRandomFaceUrl } from '../configs/constants.js';
@@ -200,6 +201,12 @@ export class GameScene extends Phaser.Scene {
   /** @type {EnemyInfoModal | null} */
   #enemyInfoModal = null;
 
+  /** @type {HelpModal | null} */
+  #helpModal = null;
+
+  /** @type {Phaser.GameObjects.DOMElement | null} Floating "?" button (bottom-right safe zone) */
+  #helpBtnDom = null;
+
   /** @type {MatterJS.BodyType | null} Static floor body at viewport bottom */
   #physicsFloor = null;
 
@@ -253,6 +260,8 @@ export class GameScene extends Phaser.Scene {
     this.#prevBestScore = 0;
     this.#bestScoreNotified = false;
     this.#pendingSlotData = data?.slotData ?? null;
+    this.#helpModal = null;
+    this.#helpBtnDom = null;
     // Battle mode
     this.#battleManager = null;
     this.#enemyAreaEl = null;
@@ -296,6 +305,7 @@ export class GameScene extends Phaser.Scene {
       this.#createPowerInfoPanel();
     }
 
+    this.#createHelpBtn();
     this.#bindInput();
 
     // Cache CSS tile size for physics body sizing (read after container is in DOM)
@@ -395,6 +405,29 @@ export class GameScene extends Phaser.Scene {
       const node = el.querySelector(`#${id}`);
       if (node) node.textContent = i18n.t(key);
     }
+  }
+
+  // ─── HELP BUTTON (bottom-right safe zone) ───────
+
+  /** @type {{ classic: string, battle: string, free: string }} */
+  static #MODE_ICONS = { classic: '🎲', battle: '⚔️', free: '✨' };
+
+  #createHelpBtn() {
+    const modeIcon = GameScene.#MODE_ICONS[this.#mode] ?? '';
+    const html = `
+      <div class="fm-help-bar">
+        <button class="fm-mode-badge" id="fm-mode-badge" aria-label="Help">${modeIcon}</button>
+      </div>
+    `;
+    const x = layout.safe.right;
+    const y = layout.safe.bottom;
+    this.#helpBtnDom = this.add.dom(x, y).createFromHTML(html);
+    this.#helpBtnDom.setOrigin(1, 1);
+
+    this.#helpBtnDom.node.querySelector('#fm-mode-badge')?.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.#openHelp();
+    });
   }
 
   // ─── HUD CARD ROTATORS ───────────────────────────
@@ -1838,6 +1871,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ─── MODALS ──────────────────────────────────────
+  #openHelp() {
+    if (this.#helpModal) return;
+    this.#helpModal = new HelpModal(this, {
+      onClose: () => {
+        this.#helpModal?.destroy();
+        this.#helpModal = null;
+      },
+    });
+  }
+
   #openMenu() {
     if (this.#menuModal || this.#gameOverModal) return;
     saveManager.saveGame({ ...this.#gm.grid.serialize(), mode: this.#mode });
@@ -2535,6 +2578,10 @@ export class GameScene extends Phaser.Scene {
     this.#powerSelectModal?.destroy();
     this.#powerChoiceModal?.destroy();
     this.#adminModal?.destroy();
+    this.#helpModal?.destroy();
+    this.#helpModal = null;
+    this.#helpBtnDom?.destroy();
+    this.#helpBtnDom = null;
     this.#powerInfoDom?.destroy();
     this.#powerInfoAllDom?.destroy();
     this.#criticalOverlay?.remove();

@@ -629,6 +629,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding-top: 12px;
 }
 
 /* --- Button + Modal + HUD theme tokens --- */
@@ -740,6 +741,21 @@ html, body {
 
 .fm-btn--primary:active {
   box-shadow: 0 2px 0 var(--fm-btn-primary-shadow, #c4429a), 0 2px 8px var(--fm-btn-primary-glow, rgba(255,111,200,.3));
+}
+
+/* --- Mode buttons (Classic / Battle / Free) --- */
+
+.fm-btn--mode {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45em;
+}
+
+.fm-btn-mode-icon {
+  font-size: 1.15em;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 /* --- Game over overlay --- */
@@ -1952,6 +1968,406 @@ html, body {
 .fm-ei-close {
   align-self: center;
   margin-top: 4px;
+}
+
+/* --- Help modal --- */
+
+.fm-help-modal {
+  max-height: 80vh;
+  width: min(92vw, 400px);
+  display: flex;
+  flex-direction: column;
+}
+
+.fm-help-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.2rem 0.4rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+
+/* --- Help index list --- */
+
+.fm-help-index {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.fm-help-cat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.9);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+  font-family: inherit;
+}
+
+.fm-help-cat-item:hover,
+.fm-help-cat-item:focus-visible {
+  background: rgba(255,255,255,0.15);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+}
+
+.fm-help-cat-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  width: 1.6rem;
+  text-align: center;
+}
+
+.fm-help-cat-label {
+  flex: 1;
+  font-weight: 600;
+}
+
+.fm-help-cat-arrow {
+  font-size: 1.1rem;
+  opacity: 0.5;
+}
+
+/* --- Help detail view --- */
+
+.fm-help-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.fm-help-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.fm-help-detail-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--fm-modal-title, #e8c0ff);
+  margin-bottom: 0.2rem;
+}
+
+.fm-help-p {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: rgba(255,255,255,0.82);
+  margin-bottom: 0.25rem;
+}
+
+.fm-help-tip {
+  padding-left: 0.6rem;
+  border-left: 2px solid rgba(255,255,255,0.15);
+  margin-bottom: 0.35rem;
+}
+
+.fm-help-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.35rem;
+}
+
+.fm-help-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.fm-help-card-icon {
+  font-size: 1.1rem;
+}
+
+.fm-help-card-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--fm-modal-title, #e8c0ff);
+}
+
+/* --- Fusion example tiles --- */
+
+.fm-help-fusion-example {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0.4rem 0;
+}
+
+.fm-help-tile {
+  /* Size + layout only — fm-t* drives background, color, border-color */
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+  border: 2px solid; /* color from fm-t* */
+  flex-shrink: 0;
+  /* Reset any fm-tile absolute positioning */
+  position: static !important;
+  left: unset !important;
+  top: unset !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+.fm-help-op {
+  font-size: 1rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.6);
+}
+
+/* --- Powers list --- */
+
+.fm-help-power-group {
+  margin-bottom: 0.5rem;
+}
+
+.fm-help-power-group-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  margin-bottom: 0.3rem;
+}
+
+.fm-help-power-group--danger { background: rgba(239,68,68,0.2); color: #fca5a5; }
+.fm-help-power-group--warning { background: rgba(245,158,11,0.2); color: #fde68a; }
+.fm-help-power-group--info { background: rgba(59,130,246,0.2); color: #93c5fd; }
+
+.fm-help-power-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.3rem 0.2rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.fm-help-power-item:last-child {
+  border-bottom: none;
+}
+
+.fm-help-power-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+}
+
+.fm-help-power-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+}
+
+.fm-help-power-desc {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.35;
+}
+
+/* --- Predictions --- */
+
+.fm-help-prediction-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0.5rem 0;
+}
+
+.fm-help-prediction-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* The real .fm-power-dot.tiny is used directly — no custom overrides needed */
+.fm-help-prediction-row .fm-power-dot {
+  flex-shrink: 0;
+}
+
+/* --- Enemies --- */
+
+.fm-help-enemy-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.5rem 0;
+}
+
+.fm-help-enemy-tile {
+  /* Size matches a small tile; fm-t* drives border-color */
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 12px;
+  border: 3px solid; /* color from fm-t* */
+  /* Transparent fill like real enemy tile */
+  background: transparent !important;
+  background-image: none !important;
+  position: relative;
+  overflow: hidden;
+  /* Reset fm-tile layout side-effects */
+  display: block !important;
+  left: unset !important;
+  top: unset !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+.fm-help-enemy-liquid {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: #3b82f6;
+  opacity: 0.45;
+  border-radius: 0 0 9px 9px;
+}
+
+.fm-help-subsection-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.55);
+  margin: 0.6rem 0 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fm-help-enemy-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+}
+
+.fm-help-enemy-badge {
+  /* Size + layout only — fm-t* drives background, color, border-color */
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.58rem;
+  border: 2px solid; /* color from fm-t* */
+  /* Reset fm-tile absolute positioning */
+  position: static !important;
+  left: unset !important;
+  top: unset !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+/* --- HP tile illustrations --- */
+
+.fm-help-hp-tiles {
+  display: flex;
+  gap: 0.7rem;
+  justify-content: center;
+  margin: 0.55rem 0 0.65rem;
+}
+
+.fm-help-hp-tile-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.fm-help-hp-tile {
+  width: 2.8rem;
+  height: 3.4rem;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.fm-help-hp-liquid {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 0 0 9px 9px;
+  transition: height 0.3s;
+}
+
+.fm-help-hp-liquid--ok   { background: #3b82f6; opacity: 0.7; }
+.fm-help-hp-liquid--warn { background: #f59e0b; opacity: 0.7; }
+.fm-help-hp-liquid--crit { background: #ef4444; opacity: 0.7; }
+
+.fm-help-hp-pct {
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.55);
+}
+
+.fm-help-back {
+  font-size: 0.8rem;
+}
+
+/* --- Help bar (mode badge = help button, bottom-right safe zone) --- */
+
+.fm-help-bar {
+  display: flex;
+  align-items: center;
+}
+
+.fm-mode-badge {
+  width: var(--fm-hud-box-height, 46px);
+  height: var(--fm-hud-box-height, 46px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--fm-hud-box-bg, #2a1050);
+  border: 1px solid var(--fm-hud-border, rgba(255,255,255,0.2));
+  box-shadow: 0 3px 0 var(--fm-hud-shadow, rgba(10,4,30,0.8)), 0 4px 12px var(--fm-hud-glow, rgba(140,80,200,0.15));
+  border-radius: 14px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  user-select: none;
+  font-family: inherit;
+}
+
+.fm-mode-badge:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--fm-hud-shadow, rgba(10,4,30,0.8)), 0 2px 6px var(--fm-hud-glow, rgba(140,80,200,0.15));
+}
+
+/* --- Enemy face inside help illustration --- */
+
+.fm-help-enemy-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.fm-help-enemy-face img {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+  display: block;
 }
 
 /* ─── Dead enemy tiles (stay at physics-settled position on document.body) ── */

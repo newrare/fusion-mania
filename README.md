@@ -106,6 +106,14 @@ All player progress (game stats, counter move, tile position and value) is manag
    - Start New Game
    - Return to Menu
 
+5. **Help Modal** (in-game `?` button):
+   - Game Modes: objective of Classic, Free, and Battle
+   - Tile Fusion: how merging works with visual examples
+   - Powers: full list with icons, activation flow, effects per category
+   - Predictions: colored "!" edge indicators explained
+   - Enemies: spawn conditions, level progression, contamination
+   - Grid Life: HP system, damage formula, critical threshold
+
 ## 🎯 Game Mechanics
 
 ### Core Gameplay
