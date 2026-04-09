@@ -1,4 +1,9 @@
-import { POWER_TYPES, POWER_PLACEMENT_INTERVAL, POWER_DURATIONS, GRID_SIZE } from '../configs/constants.js';
+import {
+  POWER_TYPES,
+  POWER_PLACEMENT_INTERVAL,
+  POWER_DURATIONS,
+  GRID_SIZE,
+} from '../configs/constants.js';
 import { Power } from '../entities/power.js';
 
 /**
