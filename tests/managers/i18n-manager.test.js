@@ -4,8 +4,12 @@ import { STORAGE_KEYS } from '../../src/configs/constants.js';
 const store = {};
 const localStorageMock = {
   getItem: vi.fn((key) => store[key] ?? null),
-  setItem: vi.fn((key, value) => { store[key] = value; }),
-  removeItem: vi.fn((key) => { delete store[key]; }),
+  setItem: vi.fn((key, value) => {
+    store[key] = value;
+  }),
+  removeItem: vi.fn((key) => {
+    delete store[key];
+  }),
 };
 vi.stubGlobal('localStorage', localStorageMock);
 

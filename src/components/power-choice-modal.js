@@ -1,5 +1,5 @@
 import { i18n } from '../managers/i18n-manager.js';
-import { POWER_META, getPowerCategory } from '../configs/constants.js';
+import { Power } from '../entities/power.js';
 import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /**
@@ -26,12 +26,12 @@ export class PowerChoiceModal {
     this.#scene = scene;
     this.#onChoice = options.onChoice;
 
-    const metaA = POWER_META[options.powerTypeA];
-    const metaB = POWER_META[options.powerTypeB];
-    const nameA = i18n.t(metaA.nameKey);
-    const nameB = i18n.t(metaB.nameKey);
-    const catA = getPowerCategory(options.powerTypeA);
-    const catB = getPowerCategory(options.powerTypeB);
+    const svgIdA = Power.svgId(options.powerTypeA);
+    const svgIdB = Power.svgId(options.powerTypeB);
+    const nameA = i18n.t(Power.nameKey(options.powerTypeA));
+    const nameB = i18n.t(Power.nameKey(options.powerTypeB));
+    const catA = Power.category(options.powerTypeA);
+    const catB = Power.category(options.powerTypeB);
 
     const html = `
       <div class="fm-modal-overlay" id="fm-power-choice-overlay">
@@ -40,13 +40,13 @@ export class PowerChoiceModal {
           <div class="fm-power-choice-grid">
             <div class="fm-power-item fm-power-choice-item fm-clickable" data-type="${options.powerTypeA}" tabindex="0">
               <div class="fm-power-dot ${catA}">
-                <svg class="fm-power-icon" aria-hidden="true"><use href="#${metaA.svgId}"/></svg>
+                <svg class="fm-power-icon" aria-hidden="true"><use href="#${svgIdA}"/></svg>
               </div>
               <span class="fm-power-name">${nameA}</span>
             </div>
             <div class="fm-power-item fm-power-choice-item fm-clickable" data-type="${options.powerTypeB}" tabindex="0">
               <div class="fm-power-dot ${catB}">
-                <svg class="fm-power-icon" aria-hidden="true"><use href="#${metaB.svgId}"/></svg>
+                <svg class="fm-power-icon" aria-hidden="true"><use href="#${svgIdB}"/></svg>
               </div>
               <span class="fm-power-name">${nameB}</span>
             </div>

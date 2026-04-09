@@ -135,7 +135,9 @@ export class OptionsModal {
           if (successEl) {
             successEl.textContent = i18n.t('options.reset_success');
             successEl.style.display = 'block';
-            setTimeout(() => { if (successEl) successEl.style.display = 'none'; }, 2500);
+            setTimeout(() => {
+              if (successEl) successEl.style.display = 'none';
+            }, 2500);
           }
           break;
         }
@@ -169,7 +171,9 @@ export class OptionsModal {
     if (title) title.textContent = i18n.t('options.title');
     const labels = overlay.querySelectorAll('.fm-option-label');
     const labelKeys = ['options.music', 'options.sound', 'options.theme', 'options.language'];
-    labels.forEach((el, i) => { if (labelKeys[i]) el.textContent = i18n.t(labelKeys[i]); });
+    labels.forEach((el, i) => {
+      if (labelKeys[i]) el.textContent = i18n.t(labelKeys[i]);
+    });
     const resumeBtn = overlay.querySelector('[data-action="resume"]');
     if (resumeBtn) resumeBtn.textContent = i18n.t('menu.resume');
     const closeBtn = overlay.querySelector('[data-action="close"]');

@@ -5,18 +5,31 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 const store = {};
 const localStorageMock = {
   getItem: vi.fn((key) => store[key] ?? null),
-  setItem: vi.fn((key, value) => { store[key] = value; }),
-  removeItem: vi.fn((key) => { delete store[key]; }),
+  setItem: vi.fn((key, value) => {
+    store[key] = value;
+  }),
+  removeItem: vi.fn((key) => {
+    delete store[key];
+  }),
 };
 vi.stubGlobal('localStorage', localStorageMock);
 
 /* ── Stub Audio ──────────────────────────────────────────── */
 class MockAudio {
-  constructor() { this.loop = false; this.volume = 1; this.preload = ''; this.currentTime = 0; }
-  play() { return Promise.resolve(); }
+  constructor() {
+    this.loop = false;
+    this.volume = 1;
+    this.preload = '';
+    this.currentTime = 0;
+  }
+  play() {
+    return Promise.resolve();
+  }
   pause() {}
   addEventListener() {}
-  cloneNode() { return new MockAudio(); }
+  cloneNode() {
+    return new MockAudio();
+  }
 }
 vi.stubGlobal('Audio', MockAudio);
 

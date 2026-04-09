@@ -60,10 +60,10 @@ describe('TileRenderer', () => {
 
     it('maps each blocked direction to the correct CSS blow direction', () => {
       const cases = [
-        { blocked: 'down',  cssDir: 'up'    },
-        { blocked: 'up',    cssDir: 'down'  },
-        { blocked: 'right', cssDir: 'left'  },
-        { blocked: 'left',  cssDir: 'right' },
+        { blocked: 'down', cssDir: 'up' },
+        { blocked: 'up', cssDir: 'down' },
+        { blocked: 'right', cssDir: 'left' },
+        { blocked: 'left', cssDir: 'right' },
       ];
       for (const { blocked, cssDir } of cases) {
         const classes = TileRenderer.stateClasses(tile, { windDirection: blocked });

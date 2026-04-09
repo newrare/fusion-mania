@@ -188,8 +188,12 @@ export class AnimationManager {
       if (!el) continue;
       el.style.transition = 'none';
       el.classList.remove(
-        'fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed',
-        'fm-tile--lightning', 'fm-tile--bomb', 'fm-tile--nuclear',
+        'fm-tile--spawn',
+        'fm-tile--merge',
+        'fm-tile--consumed',
+        'fm-tile--lightning',
+        'fm-tile--bomb',
+        'fm-tile--nuclear',
       );
       // If the tile lost its power mid-animation (e.g. cut during merge), strip leftover power children
       if (!el.classList.contains('fm-tile-powered')) {
@@ -286,28 +290,36 @@ export class AnimationManager {
     if (!expelled.length || !this.#gridEl) return;
 
     const rect = this.#gridEl.getBoundingClientRect();
-    const dur  = ANIM.SLIDE_DURATION;
+    const dur = ANIM.SLIDE_DURATION;
 
     for (const tile of expelled) {
       const el = this.#tileElements.get(tile.id);
       if (!el) continue;
 
       const startLeft = parseFloat(el.style.left) || 0;
-      const startTop  = parseFloat(el.style.top)  || 0;
-      let   endLeft   = startLeft;
-      let   endTop    = startTop;
+      const startTop = parseFloat(el.style.top) || 0;
+      let endLeft = startLeft;
+      let endTop = startTop;
 
       switch (direction) {
-        case 'up':    endTop  = -(rect.top + tileSize + 20);                       break;
-        case 'down':  endTop  = window.innerHeight - rect.top + tileSize + 20;    break;
-        case 'left':  endLeft = -(rect.left + tileSize + 20);                     break;
-        case 'right': endLeft = window.innerWidth - rect.left + tileSize + 20;    break;
+        case 'up':
+          endTop = -(rect.top + tileSize + 20);
+          break;
+        case 'down':
+          endTop = window.innerHeight - rect.top + tileSize + 20;
+          break;
+        case 'left':
+          endLeft = -(rect.left + tileSize + 20);
+          break;
+        case 'right':
+          endLeft = window.innerWidth - rect.left + tileSize + 20;
+          break;
       }
 
       el.style.transition = `left ${dur}ms ease-in-out, top ${dur}ms ease-in-out`;
       void el.offsetWidth; // force reflow so start position commits before animation
       el.style.left = `${endLeft}px`;
-      el.style.top  = `${endTop}px`;
+      el.style.top = `${endTop}px`;
     }
   }
 
@@ -337,10 +349,15 @@ export class AnimationManager {
       if (!el) continue;
       el.className = `fm-tile fm-t${tile.value} fm-tile--merge`;
       // Remove all state/power children left from before merge
-      for (const child of el.querySelectorAll('.fm-snowflake, .fm-pw-face, .fm-pw-sparkle, .fm-wind-line')) child.remove();
+      for (const child of el.querySelectorAll(
+        '.fm-snowflake, .fm-pw-face, .fm-pw-sparkle, .fm-wind-line',
+      ))
+        child.remove();
       const valEl = el.querySelector('.fm-val');
       if (valEl) valEl.textContent = String(tile.value);
-      el.addEventListener('animationend', () => el.classList.remove('fm-tile--merge'), { once: true });
+      el.addEventListener('animationend', () => el.classList.remove('fm-tile--merge'), {
+        once: true,
+      });
     }
 
     // Safety net: remove any remaining orphaned elements
@@ -375,7 +392,9 @@ export class AnimationManager {
     }
 
     if (animate) {
-      el.addEventListener('animationend', () => el.classList.remove('fm-tile--spawn'), { once: true });
+      el.addEventListener('animationend', () => el.classList.remove('fm-tile--spawn'), {
+        once: true,
+      });
     }
 
     this.#gridEl?.appendChild(el);
@@ -419,7 +438,7 @@ export class AnimationManager {
     /* Apply pull animation to each tile toward the other.
      * A tile pulling in two opposing directions (e.g. left + right) gets no pull. */
     const pullA = axis === 'h' ? 'right' : 'down';
-    const pullB = axis === 'h' ? 'left'  : 'up';
+    const pullB = axis === 'h' ? 'left' : 'up';
     AnimationManager.#applyPull(elA, idA, pullA, this.#tilePullDirs);
     AnimationManager.#applyPull(elB, idB, pullB, this.#tilePullDirs);
 
@@ -433,8 +452,10 @@ export class AnimationManager {
     const defs = document.createElementNS(ns, 'defs');
     const filt = document.createElementNS(ns, 'filter');
     filt.setAttribute('id', filterId);
-    filt.setAttribute('x', '-50%'); filt.setAttribute('y', '-50%');
-    filt.setAttribute('width', '200%'); filt.setAttribute('height', '200%');
+    filt.setAttribute('x', '-50%');
+    filt.setAttribute('y', '-50%');
+    filt.setAttribute('width', '200%');
+    filt.setAttribute('height', '200%');
     const blur = document.createElementNS(ns, 'feGaussianBlur');
     blur.setAttribute('stdDeviation', '1.2');
     blur.setAttribute('result', 'coloredBlur');
@@ -471,7 +492,7 @@ export class AnimationManager {
       let svgX, svgY, svgW, svgH, points;
       if (axis === 'h') {
         svgX = rA.right - gridRect.left;
-        svgY = rA.top  - gridRect.top + rA.height * 0.2;
+        svgY = rA.top - gridRect.top + rA.height * 0.2;
         svgW = rB.left - rA.right;
         svgH = rA.height * 0.6;
         points = AnimationManager.#zigzag(0, svgH / 2, svgW, svgH / 2, 5, svgH * 0.3);
@@ -483,9 +504,9 @@ export class AnimationManager {
         points = AnimationManager.#zigzag(svgW / 2, 0, svgW / 2, svgH, 5, svgW * 0.3);
       }
 
-      svg.style.left   = `${svgX}px`;
-      svg.style.top    = `${svgY}px`;
-      svg.style.width  = `${Math.max(svgW, 1)}px`;
+      svg.style.left = `${svgX}px`;
+      svg.style.top = `${svgY}px`;
+      svg.style.width = `${Math.max(svgW, 1)}px`;
       svg.style.height = `${Math.max(svgH, 1)}px`;
       svg.setAttribute('viewBox', `0 0 ${Math.max(svgW, 1)} ${Math.max(svgH, 1)}`);
       line.setAttribute('points', points);
@@ -538,7 +559,8 @@ export class AnimationManager {
       const by = y1 + (y2 - y1) * t;
       /* Perpendicular displacement — random each frame for flicker */
       const perp = (Math.random() - 0.5) * 2 * jitter;
-      const dx = -(y2 - y1); const dy = (x2 - x1);
+      const dx = -(y2 - y1);
+      const dy = x2 - x1;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
       pts.push([bx + (dx / len) * perp, by + (dy / len) * perp]);
     }
@@ -551,7 +573,10 @@ export class AnimationManager {
    */
   #startArcLoop() {
     const tick = () => {
-      if (this.#arcElements.size === 0) { this.#arcRaf = null; return; }
+      if (this.#arcElements.size === 0) {
+        this.#arcRaf = null;
+        return;
+      }
       for (const svg of this.#arcElements.values()) svg._update?.();
       this.#arcRaf = requestAnimationFrame(tick);
     };
@@ -639,25 +664,25 @@ export class AnimationManager {
   playLightningAnimation(strikes, cellPosFn, tileSize, animDuration, strikeDelay) {
     if (!this.#gridEl) return;
 
-    const SCENE_W  = 130;
-    const SCENE_H  = 100; // px of bolt descent above the tile
+    const SCENE_W = 130;
+    const SCENE_H = 100; // px of bolt descent above the tile
 
     for (let i = 0; i < strikes.length; i++) {
       const strike = strikes[i];
-      const delay  = i * strikeDelay;
+      const delay = i * strikeDelay;
 
       setTimeout(() => {
         if (!this.#gridEl) return;
 
-        const pos    = cellPosFn(strike.row, strike.col);
+        const pos = cellPosFn(strike.row, strike.col);
         const sceneX = pos.x + tileSize / 2 - SCENE_W / 2;
         const sceneY = pos.y - SCENE_H;
 
         const scene = document.createElement('div');
         scene.className = 'fm-lightning-scene';
-        scene.style.left   = `${sceneX}px`;
-        scene.style.top    = `${sceneY}px`;
-        scene.style.width  = `${SCENE_W}px`;
+        scene.style.left = `${sceneX}px`;
+        scene.style.top = `${sceneY}px`;
+        scene.style.width = `${SCENE_W}px`;
         scene.style.height = `${SCENE_H}px`;
 
         scene.innerHTML = [
@@ -718,15 +743,15 @@ export class AnimationManager {
     const ringSize = Math.round(tileSize * 1.05);
     const coreSize = Math.round(tileSize * 0.65);
     // Arms cover the 4 neighbors' distance
-    const armW = Math.round(tileSize * 2.8);  // horizontal arm width
+    const armW = Math.round(tileSize * 2.8); // horizontal arm width
     const armH = Math.round(tileSize * 0.45); // arm height (narrow)
     const armHW = Math.round(tileSize * 0.45); // vertical arm width
-    const armHH = Math.round(tileSize * 2.8);  // vertical arm height
+    const armHH = Math.round(tileSize * 2.8); // vertical arm height
 
     const scene = document.createElement('div');
     scene.className = 'fm-bomb-scene';
     scene.style.left = `${sceneX}px`;
-    scene.style.top  = `${sceneY}px`;
+    scene.style.top = `${sceneY}px`;
 
     scene.innerHTML = [
       // Shockwave rings
@@ -786,16 +811,16 @@ export class AnimationManager {
       const el = this.#tileElements.get(tile.id);
       if (!el) continue;
 
-      const dx   = tile.col - CENTER;
-      const dy   = tile.row - CENTER;
+      const dx = tile.col - CENTER;
+      const dy = tile.row - CENTER;
       const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
       const spin = ((Math.random() - 0.5) * 520).toFixed(1);
       // Inner tiles fly first (small dist = small delay), outer tiles slightly later
       const delay = (dist * 0.08).toFixed(3);
 
-      el.style.setProperty('--nuc-dx',    (dx / dist).toFixed(4));
-      el.style.setProperty('--nuc-dy',    (dy / dist).toFixed(4));
-      el.style.setProperty('--nuc-spin',  `${spin}deg`);
+      el.style.setProperty('--nuc-dx', (dx / dist).toFixed(4));
+      el.style.setProperty('--nuc-dy', (dy / dist).toFixed(4));
+      el.style.setProperty('--nuc-spin', `${spin}deg`);
       el.style.setProperty('--nuc-delay', `${delay}s`);
 
       el.classList.remove('fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed');
@@ -830,8 +855,8 @@ export class AnimationManager {
     if (!this.#gridEl || !targetTile) return;
 
     const targetPos = cellPosFn(targetTile.row, targetTile.col);
-    const gridW     = this.#gridEl.offsetWidth;
-    const zapDur    = ANIM.FIRE_ZAP_DURATION;
+    const gridW = this.#gridEl.offsetWidth;
+    const zapDur = ANIM.FIRE_ZAP_DURATION;
 
     // Constant speed derived from reference duration over one grid width.
     // All fireballs travel at this px/ms rate regardless of total distance.
@@ -843,11 +868,11 @@ export class AnimationManager {
     // Launch fireballs — each travels to the screen edge at constant speed
     if (isH) {
       this.#launchFireball('right', targetPos, tileSize, speed);
-      this.#launchFireball('left',  targetPos, tileSize, speed);
+      this.#launchFireball('left', targetPos, tileSize, speed);
     }
     if (isV) {
       this.#launchFireball('down', targetPos, tileSize, speed);
-      this.#launchFireball('up',   targetPos, tileSize, speed);
+      this.#launchFireball('up', targetPos, tileSize, speed);
     }
 
     // Apply staggered ZAP: delay = distance-from-start / speed
@@ -858,25 +883,25 @@ export class AnimationManager {
       const el = this.#tileElements.get(tile.id);
       if (!el) continue;
 
-      const tilePos     = cellPosFn(tile.row, tile.col);
+      const tilePos = cellPosFn(tile.row, tile.col);
       const tileCenterX = tilePos.x + tileSize / 2;
       const tileCenterY = tilePos.y + tileSize / 2;
 
       let delay = 0;
 
       if (isH && tile.row === targetTile.row) {
-        const goingRight  = tileCenterX > targetCenterX;
-        const startEdge   = goingRight ? targetPos.x + tileSize : targetPos.x;
-        const tileDist    = Math.abs(tileCenterX - startEdge);
+        const goingRight = tileCenterX > targetCenterX;
+        const startEdge = goingRight ? targetPos.x + tileSize : targetPos.x;
+        const tileDist = Math.abs(tileCenterX - startEdge);
         delay = tileDist / speed;
       } else if (isV && tile.col === targetTile.col) {
-        const goingDown   = tileCenterY > targetCenterY;
-        const startEdge   = goingDown ? targetPos.y + tileSize : targetPos.y;
-        const tileDist    = Math.abs(tileCenterY - startEdge);
+        const goingDown = tileCenterY > targetCenterY;
+        const startEdge = goingDown ? targetPos.y + tileSize : targetPos.y;
+        const tileDist = Math.abs(tileCenterY - startEdge);
         delay = tileDist / speed;
       }
 
-      el.style.setProperty('--fm-zap-dur',   `${zapDur}ms`);
+      el.style.setProperty('--fm-zap-dur', `${zapDur}ms`);
       el.style.setProperty('--fm-zap-delay', `${Math.round(delay)}ms`);
       el.classList.remove('fm-tile--spawn', 'fm-tile--merge', 'fm-tile--consumed');
       el.classList.add('fm-tile--zap');
@@ -913,7 +938,10 @@ export class AnimationManager {
     return new Promise((resolve) => {
       const elA = this.#tileElements.get(tileA.id);
       const elB = this.#tileElements.get(tileB.id);
-      if (!elA || !elB) { resolve(); return; }
+      if (!elA || !elB) {
+        resolve();
+        return;
+      }
 
       // Pixel positions (top-left corner of tile)
       const posOldA = cellPosFn(oldA.row, oldA.col);
@@ -922,14 +950,14 @@ export class AnimationManager {
       const posNewB = cellPosFn(tileB.row, tileB.col); // same as posOldA
 
       // Delta for tileA: old → new
-      const dx  = posNewA.x - posOldA.x;
-      const dy  = posNewA.y - posOldA.y;
+      const dx = posNewA.x - posOldA.x;
+      const dy = posNewA.y - posOldA.y;
       const len = Math.hypot(dx, dy) || 1;
 
       // Perpendicular arc offset — larger for distant tiles
-      const h  = Math.max(55, len * 0.42);
+      const h = Math.max(55, len * 0.42);
       const pX = (-dy / len) * h;
-      const pY = ( dx / len) * h;
+      const pY = (dx / len) * h;
 
       elA.style.zIndex = '20';
       elB.style.zIndex = '10';
@@ -944,30 +972,36 @@ export class AnimationManager {
       // This means NO fill:'forwards' is needed and NO cancel() is required —
       // when the animation ends transform becomes '' and left/top are correct.
       elA.style.left = `${posNewA.x}px`;
-      elA.style.top  = `${posNewA.y}px`;
+      elA.style.top = `${posNewA.y}px`;
       elB.style.left = `${posNewB.x}px`;
-      elB.style.top  = `${posNewB.y}px`;
+      elB.style.top = `${posNewB.y}px`;
 
       // tileA transform keyframes: start at -(dx,dy) so its visual = posNewA-(dx,dy) = posOldA
       // midpoint arc: (-dx/2+pX, -dy/2+pY)  →  end: (0,0) = posNewA ✓
-      const animA = elA.animate([
-        { transform: `translate(${-dx}px, ${-dy}px)` },
-        { transform: `translate(${-dx / 2 + pX}px, ${-dy / 2 + pY}px)` },
-        { transform: 'translate(0px, 0px)' },
-      ], { duration, easing: 'cubic-bezier(0.4,0,0.6,1)', fill: 'none' });
+      const animA = elA.animate(
+        [
+          { transform: `translate(${-dx}px, ${-dy}px)` },
+          { transform: `translate(${-dx / 2 + pX}px, ${-dy / 2 + pY}px)` },
+          { transform: 'translate(0px, 0px)' },
+        ],
+        { duration, easing: 'cubic-bezier(0.4,0,0.6,1)', fill: 'none' },
+      );
 
       // tileB transform keyframes: start at (dx,dy) so its visual = posNewB+(dx,dy) = posOldB
       // midpoint arc: (dx/2-pX, dy/2-pY)  →  end: (0,0) = posNewB ✓
-      elB.animate([
-        { transform: `translate(${dx}px, ${dy}px)` },
-        { transform: `translate(${dx / 2 - pX}px, ${dy / 2 - pY}px)` },
-        { transform: 'translate(0px, 0px)' },
-      ], { duration, easing: 'cubic-bezier(0.4,0,0.6,1)', fill: 'none' });
+      elB.animate(
+        [
+          { transform: `translate(${dx}px, ${dy}px)` },
+          { transform: `translate(${dx / 2 - pX}px, ${dy / 2 - pY}px)` },
+          { transform: 'translate(0px, 0px)' },
+        ],
+        { duration, easing: 'cubic-bezier(0.4,0,0.6,1)', fill: 'none' },
+      );
 
       animA.onfinish = () => {
         // transform is already '' (fill:'none'), left/top already at new positions
-        elA.style.zIndex     = '';
-        elB.style.zIndex     = '';
+        elA.style.zIndex = '';
+        elB.style.zIndex = '';
         elA.style.transition = '';
         elB.style.transition = '';
         resolve();
@@ -1002,37 +1036,37 @@ export class AnimationManager {
     switch (dir) {
       case 'right':
         startLeft = targetPos.x + tileSize - 6;
-        startTop  = targetPos.y + tileSize / 2 - 14;
-        endLeft   = (window.innerWidth - rect.left) + 40;
-        endTop    = startTop;
+        startTop = targetPos.y + tileSize / 2 - 14;
+        endLeft = window.innerWidth - rect.left + 40;
+        endTop = startTop;
         break;
       case 'left':
         startLeft = targetPos.x - 6;
-        startTop  = targetPos.y + tileSize / 2 - 14;
-        endLeft   = -(rect.left + 40);
-        endTop    = startTop;
+        startTop = targetPos.y + tileSize / 2 - 14;
+        endLeft = -(rect.left + 40);
+        endTop = startTop;
         break;
       case 'down':
         startLeft = targetPos.x + tileSize / 2 - 6;
-        startTop  = targetPos.y + tileSize - 14;
-        endLeft   = startLeft;
-        endTop    = (window.innerHeight - rect.top) + 40;
+        startTop = targetPos.y + tileSize - 14;
+        endLeft = startLeft;
+        endTop = window.innerHeight - rect.top + 40;
         break;
       case 'up':
         startLeft = targetPos.x + tileSize / 2 - 6;
-        startTop  = targetPos.y - 14;
-        endLeft   = startLeft;
-        endTop    = -(rect.top + 40);
+        startTop = targetPos.y - 14;
+        endLeft = startLeft;
+        endTop = -(rect.top + 40);
         break;
       default:
         return;
     }
 
-    const dist     = Math.hypot(endLeft - startLeft, endTop - startTop);
+    const dist = Math.hypot(endLeft - startLeft, endTop - startTop);
     const duration = Math.round(dist / speed);
 
     el.style.left = `${startLeft}px`;
-    el.style.top  = `${startTop}px`;
+    el.style.top = `${startTop}px`;
     el.style.transition = `left ${duration}ms linear, top ${duration}ms linear`;
 
     this.#gridEl.appendChild(el);
@@ -1041,7 +1075,7 @@ export class AnimationManager {
     void el.offsetWidth;
 
     el.style.left = `${endLeft}px`;
-    el.style.top  = `${endTop}px`;
+    el.style.top = `${endTop}px`;
 
     // Self-remove after the transition ends
     setTimeout(() => {

@@ -11,7 +11,7 @@
  * ambient indicator, coloured by category (danger / warning / info).
  */
 
-import { POWER_META, getPowerCategory } from '../configs/constants.js';
+import { Power } from '../entities/power.js';
 
 /** All state-related CSS classes that may appear on a tile element. */
 const STATE_CLASSES = [
@@ -40,14 +40,13 @@ const WIND_CSS_DIR = { up: 'down', down: 'up', left: 'right', right: 'left' };
  * Horizontal wind (right/left): position = top%. Vertical wind (up/down): position = left%.
  */
 const WIND_LINE_LAYOUT = [
-  { pos: 12, dur: 0.90, dl:  0.00 },
-  { pos: 27, dur: 1.20, dl: -0.55 },
-  { pos: 44, dur: 0.80, dl: -1.10 },
-  { pos: 58, dur: 1.10, dl: -0.35 },
-  { pos: 70, dur: 0.95, dl: -1.70 },
-  { pos: 83, dur: 1.30, dl: -0.85 },
+  { pos: 12, dur: 0.9, dl: 0.0 },
+  { pos: 27, dur: 1.2, dl: -0.55 },
+  { pos: 44, dur: 0.8, dl: -1.1 },
+  { pos: 58, dur: 1.1, dl: -0.35 },
+  { pos: 70, dur: 0.95, dl: -1.7 },
+  { pos: 83, dur: 1.3, dl: -0.85 },
 ];
-
 
 /**
  * Deterministic spread of sparkle positions across the tile.
@@ -55,9 +54,9 @@ const WIND_LINE_LAYOUT = [
  * 6 particles gives good coverage without clutter.
  */
 const SPARKLE_LAYOUT = [
-  { left: 12, top: 10, size: 9,  dur: 2.1, dl: 0    },
+  { left: 12, top: 10, size: 9, dur: 2.1, dl: 0 },
   { left: 72, top: 14, size: 11, dur: 3.4, dl: -1.1 },
-  { left: 28, top: 68, size: 8,  dur: 2.7, dl: -0.5 },
+  { left: 28, top: 68, size: 8, dur: 2.7, dl: -0.5 },
   { left: 60, top: 55, size: 13, dur: 3.9, dl: -2.0 },
   { left: 80, top: 38, size: 10, dur: 2.4, dl: -1.6 },
   { left: 18, top: 40, size: 12, dur: 4.2, dl: -3.0 },
@@ -196,15 +195,15 @@ export class TileRenderer {
       return;
     }
 
-    const meta = POWER_META[tile.power];
-    if (!meta) return;
+    const svgId = Power.svgId(tile.power);
+    if (!svgId) return;
 
-    const category = getPowerCategory(tile.power);
+    const category = Power.category(tile.power);
 
     if (hasPower) {
-      TileRenderer.#updatePowerStructure(el, tile, meta, category);
+      TileRenderer.#updatePowerStructure(el, tile, svgId, category);
     } else {
-      TileRenderer.#buildPowerStructure(el, tile, meta, category);
+      TileRenderer.#buildPowerStructure(el, tile, svgId, category);
     }
   }
 
@@ -213,17 +212,17 @@ export class TileRenderer {
    * Injects sparkle particles (small power icons) as ambient category indicator.
    * @param {HTMLElement} el
    * @param {import('../entities/tile.js').Tile} tile
-   * @param {{ svgId: string }} meta
+   * @param {string} svgId
    * @param {'danger' | 'warning' | 'info'} category
    */
-  static #buildPowerStructure(el, tile, meta, category) {
+  static #buildPowerStructure(el, tile, svgId, category) {
     el.classList.add('fm-tile-powered');
     const valText = tile.state === 'blind' ? '?' : String(tile.value);
     el.innerHTML = `
-      ${TileRenderer.#sparklesHtml(meta.svgId)}
+      ${TileRenderer.#sparklesHtml(svgId)}
       <span class="fm-val">${valText}</span>
       <div class="fm-pw-face fm-pw-${category}">
-        <svg><use href="#${meta.svgId}"/></svg>
+        <svg><use href="#${svgId}"/></svg>
       </div>`;
   }
 
@@ -232,10 +231,10 @@ export class TileRenderer {
    * Re-colours sparkles if the category has changed.
    * @param {HTMLElement} el
    * @param {import('../entities/tile.js').Tile} tile
-   * @param {{ svgId: string }} meta
+   * @param {string} svgId
    * @param {'danger' | 'warning' | 'info'} category
    */
-  static #updatePowerStructure(el, tile, meta, category) {
+  static #updatePowerStructure(el, tile, svgId, category) {
     const valEl = el.querySelector('.fm-val');
     if (valEl) valEl.textContent = tile.state === 'blind' ? '?' : String(tile.value);
 
@@ -244,7 +243,6 @@ export class TileRenderer {
       face.classList.remove('fm-pw-danger', 'fm-pw-warning', 'fm-pw-info');
       face.classList.add(`fm-pw-${category}`);
     }
-
   }
 
   /**
@@ -265,8 +263,9 @@ export class TileRenderer {
    * @returns {string}
    */
   static #sparklesHtml(svgId) {
-    return SPARKLE_LAYOUT.map(({ left, top, size, dur, dl }) =>
-      `<svg class="fm-pw-sparkle" style="left:${left}%;top:${top}%;width:${size}px;height:${size}px;--fm-sp-dur:${dur}s;--fm-sp-dl:${dl}s"><use href="#${svgId}"/></svg>`
+    return SPARKLE_LAYOUT.map(
+      ({ left, top, size, dur, dl }) =>
+        `<svg class="fm-pw-sparkle" style="left:${left}%;top:${top}%;width:${size}px;height:${size}px;--fm-sp-dur:${dur}s;--fm-sp-dl:${dl}s"><use href="#${svgId}"/></svg>`,
     ).join('');
   }
 
@@ -276,19 +275,18 @@ export class TileRenderer {
    */
   static #injectSnowflakes(el) {
     const flakes = [
-      { top: '8%',  left: '12%', sz: '0.75rem', sd: '3.2s', sdl: '0s'   },
-      { top: '14%', left: '60%', sz: '0.55rem', sd: '2.8s', sdl: '-1s'  },
-      { top: '35%', left: '80%', sz: '0.85rem', sd: '3.6s', sdl: '-2s'  },
-      { top: '52%', left: '25%', sz: '0.65rem', sd: '2.5s', sdl: '-0.6s'},
-      { top: '70%', left: '55%', sz: '0.70rem', sd: '3.0s', sdl: '-1.4s'},
-      { top: '20%', left: '42%', sz: '0.50rem', sd: '4.0s', sdl: '-2.5s'},
+      { top: '8%', left: '12%', sz: '0.75rem', sd: '3.2s', sdl: '0s' },
+      { top: '14%', left: '60%', sz: '0.55rem', sd: '2.8s', sdl: '-1s' },
+      { top: '35%', left: '80%', sz: '0.85rem', sd: '3.6s', sdl: '-2s' },
+      { top: '52%', left: '25%', sz: '0.65rem', sd: '2.5s', sdl: '-0.6s' },
+      { top: '70%', left: '55%', sz: '0.70rem', sd: '3.0s', sdl: '-1.4s' },
+      { top: '20%', left: '42%', sz: '0.50rem', sd: '4.0s', sdl: '-2.5s' },
     ];
     for (const f of flakes) {
       const span = document.createElement('span');
       span.className = 'fm-snowflake';
       span.textContent = '❄';
-      span.style.cssText =
-        `top:${f.top};left:${f.left};font-size:${f.sz};--fm-sd:${f.sd};--fm-sdl:${f.sdl}`;
+      span.style.cssText = `top:${f.top};left:${f.left};font-size:${f.sz};--fm-sd:${f.sd};--fm-sdl:${f.sdl}`;
       el.appendChild(span);
     }
   }

@@ -207,7 +207,7 @@ describe('AnimationManager', () => {
       // The DOM element still has fm-t512; snapToFinalState must update it to fm-t1024.
       const tile = new Tile(1024, 0, 0); // grid data: already doubled
       const el = document.createElement('div');
-      el.className = 'fm-tile fm-t512';   // stale DOM value class
+      el.className = 'fm-tile fm-t512'; // stale DOM value class
       el.innerHTML = '<span class="fm-val">512</span>';
       gridEl.appendChild(el);
       tileElements.set(tile.id, el);
@@ -436,7 +436,10 @@ describe('AnimationManager', () => {
       tileElements.set(c2.id, el2);
 
       controller.processMerges(
-        [{ tile, consumedId: c1.id }, { tile, consumedId: c2.id }],
+        [
+          { tile, consumedId: c1.id },
+          { tile, consumedId: c2.id },
+        ],
         [tile],
       );
       controller.clearConsumedElements();
@@ -488,9 +491,7 @@ describe('AnimationManager', () => {
   describe('spawnMergeParticles', () => {
     it('does not throw with a valid tile and tileSize', () => {
       const tile = new Tile(4, 1, 1);
-      expect(() =>
-        controller.spawnMergeParticles([{ tile }], cellPosFn, 80),
-      ).not.toThrow();
+      expect(() => controller.spawnMergeParticles([{ tile }], cellPosFn, 80)).not.toThrow();
     });
   });
 });

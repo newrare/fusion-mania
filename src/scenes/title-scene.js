@@ -23,9 +23,11 @@ export class TitleScene extends Phaser.Scene {
   create() {
     // Clean up any DOM nodes left over from GameScene (dead enemies, critical
     // overlay, etc.) — simpler than relying solely on GameScene.shutdown().
-    document.querySelectorAll(
-      '.fm-dead-enemy, .fm-enemy-area, .fm-contaminate-particle, .fm-critical-overlay'
-    ).forEach((el) => el.remove());
+    document
+      .querySelectorAll(
+        '.fm-dead-enemy, .fm-enemy-area, .fm-contaminate-particle, .fm-critical-overlay',
+      )
+      .forEach((el) => el.remove());
 
     // Recalculate layout with real viewport dimensions at the moment create() runs.
     layout.update(window.innerWidth, window.innerHeight);
@@ -34,9 +36,7 @@ export class TitleScene extends Phaser.Scene {
     layout.drawDebugSafeZone(this);
 
     // Logo + dev credit — full-screen CSS flex overlay, no layout calculations needed
-    this.#titleOverlay = this.add
-      .dom(0, 0)
-      .createFromHTML(`
+    this.#titleOverlay = this.add.dom(0, 0).createFromHTML(`
         <div class="fm-title-overlay">
           <div class="fm-title-logo-wrapper">
             <img class="fm-title-logo-img" src="/images/logo.png" alt="Fusion Mania" />
@@ -53,7 +53,7 @@ export class TitleScene extends Phaser.Scene {
     this.#titleOverlay.setOrigin(0, 0);
 
     const { safe } = layout;
-    const promptY = safe.top + safe.height * 0.70;
+    const promptY = safe.top + safe.height * 0.7;
 
     this.#promptElement = this.add
       .dom(safe.cx, promptY)

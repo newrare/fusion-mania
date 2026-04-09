@@ -1,10 +1,5 @@
-import {
-  POWER_TYPES,
-  POWER_PLACEMENT_INTERVAL,
-  POWER_DURATIONS,
-  GRID_SIZE,
-  getPowerCategory,
-} from '../configs/constants.js';
+import { POWER_TYPES, POWER_PLACEMENT_INTERVAL, POWER_DURATIONS, GRID_SIZE } from '../configs/constants.js';
+import { Power } from '../entities/power.js';
 
 /**
  * Manages the power system during Free Mode gameplay.
@@ -140,7 +135,7 @@ export class PowerManager {
    * @returns {{ destroyed: import('../entities/tile.js').Tile[], stateApplied: string | null, teleported?: object }}
    */
   executeEffect(powerType, grid, target) {
-    if (!target && !this.#isGridWideEffect(powerType)) {
+    if (!target && !Power.isGridWide(powerType)) {
       return { destroyed: [], stateApplied: null };
     }
 
@@ -416,7 +411,12 @@ export class PowerManager {
           seenIds.add(centerCell.id);
           destroyed.push(centerCell.value);
         }
-        const bombNeighbors = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+        const bombNeighbors = [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+        ];
         for (const [dr, dc] of bombNeighbors) {
           const cell = simGrid[targetRow + dr]?.[targetCol + dc];
           if (cell && !seenIds.has(cell.id)) {
@@ -475,7 +475,7 @@ export class PowerManager {
     // Expel exits always count as danger regardless of their base category.
     const visible = predictions.filter((p) => {
       if (p.exits) return true;
-      if (getPowerCategory(p.powerType) === 'danger') {
+      if (Power.category(p.powerType) === 'danger') {
         return p.destroyedValues && p.destroyedValues.length > 0;
       }
       return true;
@@ -485,7 +485,7 @@ export class PowerManager {
     let highest = 'info';
     for (const p of visible) {
       if (p.exits) return 'danger';
-      const cat = getPowerCategory(p.powerType);
+      const cat = Power.category(p.powerType);
       if (cat === 'danger') return 'danger';
       if (cat === 'warning') highest = 'warning';
     }
@@ -542,7 +542,12 @@ export class PowerManager {
     if (!target) return { destroyed: [], stateApplied: null };
     const destroyed = [];
     // Destroy the 4 orthogonal neighbors first
-    const neighbors = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    const neighbors = [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ];
     for (const [dr, dc] of neighbors) {
       const r = target.row + dr;
       const c = target.col + dc;
@@ -586,8 +591,10 @@ export class PowerManager {
       destroyed: [],
       stateApplied: 'teleport',
       teleported: {
-        tileA: target, oldA: { row: tr, col: tc },
-        tileB: other, oldB: { row: or, col: oc },
+        tileA: target,
+        oldA: { row: tr, col: tc },
+        tileB: other,
+        oldB: { row: or, col: oc },
       },
     };
   }
@@ -658,15 +665,6 @@ export class PowerManager {
   }
 
   // ─── Private: Helpers ────────────────────────────
-
-  #isGridWideEffect(type) {
-    return (
-      type === POWER_TYPES.NUCLEAR ||
-      type === POWER_TYPES.BLIND ||
-      type === POWER_TYPES.ADS ||
-      type === POWER_TYPES.LIGHTNING
-    );
-  }
 
   #getIceIds(grid) {
     const ids = new Set();

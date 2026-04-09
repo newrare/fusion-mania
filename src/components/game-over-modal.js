@@ -1,7 +1,7 @@
 import { layout } from '../managers/layout-manager.js';
 import { i18n } from '../managers/i18n-manager.js';
 import { saveManager } from '../managers/save-manager.js';
-import { POWER_META } from '../configs/constants.js';
+import { Power } from '../entities/power.js';
 import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /**
@@ -143,10 +143,14 @@ export class GameOverModal {
     // Powers triggered
     if ((isBattle || isFree) && s.powers?.length > 0) {
       const distinct = [...new Set(s.powers)];
-      const iconsHtml = distinct.map((p) => {
-        const meta = POWER_META[p];
-        return meta ? `<svg class="fm-gameover-power-icon" aria-hidden="true"><use href="#${meta.svgId}"/></svg>` : '';
-      }).join('');
+      const iconsHtml = distinct
+        .map((p) => {
+          const svgId = Power.svgId(p);
+          return svgId
+            ? `<svg class="fm-gameover-power-icon" aria-hidden="true"><use href="#${svgId}"/></svg>`
+            : '';
+        })
+        .join('');
       html += `<div class="fm-gameover-stat-row"><span class="fm-gameover-stat-label">${i18n.t('ranking.powers_used')}</span><span class="fm-gameover-stat-value fm-gameover-powers">${iconsHtml}</span></div>`;
     }
 
@@ -166,7 +170,8 @@ export class GameOverModal {
     if (this.#mode === 'battle') {
       const lvl = s.enemyMaxLevel ?? 0;
       for (let i = 0; i < rankings.length; i++) {
-        if ((rankings[i].enemyMaxLevel ?? 0) === lvl && rankings[i].score === this.#score) lastIdx = i;
+        if ((rankings[i].enemyMaxLevel ?? 0) === lvl && rankings[i].score === this.#score)
+          lastIdx = i;
       }
     } else {
       for (let i = 0; i < rankings.length; i++) {
@@ -198,7 +203,17 @@ export class GameOverModal {
     const container = this.#domElement?.node.querySelector('#fm-gameover-particles');
     if (!container) return;
 
-    const colors = ['#ff2200', '#ff4400', '#cc0000', '#ff6600', '#aa0000', '#ff3300', '#880000', '#ff1100', '#dd0000'];
+    const colors = [
+      '#ff2200',
+      '#ff4400',
+      '#cc0000',
+      '#ff6600',
+      '#aa0000',
+      '#ff3300',
+      '#880000',
+      '#ff1100',
+      '#dd0000',
+    ];
 
     const spawn = () => {
       const p = document.createElement('div');
@@ -232,7 +247,8 @@ export class GameOverModal {
     const statsEl = overlay.querySelector('#fm-gameover-stats');
     if (statsEl) statsEl.innerHTML = this.#renderStats();
     const rankingEl = overlay.querySelector('#fm-gameover-ranking');
-    if (rankingEl) rankingEl.innerHTML = `<div class="fm-gameover-ranking-title">${i18n.t('ranking.title')}</div>${this.#renderRankObtained()}`;
+    if (rankingEl)
+      rankingEl.innerHTML = `<div class="fm-gameover-ranking-title">${i18n.t('ranking.title')}</div>${this.#renderRankObtained()}`;
   }
 
   destroy() {

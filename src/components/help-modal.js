@@ -1,5 +1,6 @@
 import { i18n } from '../managers/i18n-manager.js';
-import { POWER_META, POWER_CATEGORIES, getPowerCategory, BATTLE } from '../configs/constants.js';
+import { POWER_CATEGORIES, BATTLE } from '../configs/constants.js';
+import { Power } from '../entities/power.js';
 import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /**
@@ -171,7 +172,9 @@ export class HelpModal {
     const icons = { classic: '\u{1F3B2}', free: '\u{2728}', battle: '\u{2694}\u{FE0F}' };
     return `
       <p class="fm-help-p">${i18n.t('help.modes_intro')}</p>
-      ${modes.map((m) => `
+      ${modes
+        .map(
+          (m) => `
         <div class="fm-help-card fm-help-card--${m}">
           <div class="fm-help-card-header">
             <span class="fm-help-card-icon">${icons[m]}</span>
@@ -179,7 +182,9 @@ export class HelpModal {
           </div>
           <p class="fm-help-p">${i18n.t(`help.mode_${m}_desc`)}</p>
         </div>
-      `).join('')}
+      `,
+        )
+        .join('')}
     `;
   }
 
@@ -223,16 +228,17 @@ export class HelpModal {
 
     for (const { key, label } of catOrder) {
       const powers = POWER_CATEGORIES[key] ?? [];
-      const items = powers.map((type) => {
-        const meta = POWER_META[type];
-        if (!meta) return '';
-        const name = i18n.t(meta.nameKey);
-        const descKey = `help.power_${type.replace(/-/g, '_')}_desc`;
-        const desc = i18n.t(descKey);
-        return `
+      const items = powers
+        .map((type) => {
+          const svgId = Power.svgId(type);
+          if (!svgId) return '';
+          const name = i18n.t(Power.nameKey(type));
+          const descKey = `help.power_${type.replace(/-/g, '_')}_desc`;
+          const desc = i18n.t(descKey);
+          return `
           <div class="fm-help-power-item">
             <div class="fm-power-dot ${key} tiny">
-              <svg class="fm-power-icon" aria-hidden="true"><use href="#${meta.svgId}"/></svg>
+              <svg class="fm-power-icon" aria-hidden="true"><use href="#${svgId}"/></svg>
             </div>
             <div class="fm-help-power-text">
               <span class="fm-help-power-name">${name}</span>
@@ -240,7 +246,8 @@ export class HelpModal {
             </div>
           </div>
         `;
-      }).join('');
+        })
+        .join('');
 
       powersHtml += `
         <div class="fm-help-power-group">
@@ -257,18 +264,22 @@ export class HelpModal {
     /* Use the exact same markup the game uses for edge badges:
        .fm-power-dot.tiny.{cat} > .fm-edge-warn  — CSS vars drive colors automatically. */
     const rows = [
-      { cat: 'danger',  key: 'help.predictions_danger' },
+      { cat: 'danger', key: 'help.predictions_danger' },
       { cat: 'warning', key: 'help.predictions_warning' },
-      { cat: 'info',    key: 'help.predictions_info' },
+      { cat: 'info', key: 'help.predictions_info' },
     ];
-    const rowsHtml = rows.map(({ cat, key }) => `
+    const rowsHtml = rows
+      .map(
+        ({ cat, key }) => `
       <div class="fm-help-prediction-row">
         <div class="fm-power-dot tiny ${cat}">
           <span class="fm-edge-warn">!</span>
         </div>
         <span class="fm-help-p">${i18n.t(key)}</span>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
     return `
       <p class="fm-help-p">${i18n.t('help.predictions_desc')}</p>
@@ -279,9 +290,9 @@ export class HelpModal {
 
   #renderEnemies() {
     const levels = BATTLE.LEVELS;
-    const levelBadges = levels.map((lvl) =>
-      `<div class="fm-help-enemy-badge fm-tile fm-t${lvl}">${lvl}</div>`
-    ).join('');
+    const levelBadges = levels
+      .map((lvl) => `<div class="fm-help-enemy-badge fm-tile fm-t${lvl}">${lvl}</div>`)
+      .join('');
 
     /* Mini enemy illustration: transparent tile with colored border (fm-t32),
        liquid HP fill at ~60% + a face image, mimicking the actual enemy tile in-game. */
@@ -317,18 +328,22 @@ export class HelpModal {
     /* Three mini "grid tiles" with liquid fill rising from the bottom,
        matching the real .fm-grid-life-liquid visual at ok / warn / crit levels. */
     const demos = [
-      { pct: 75, cls: 'ok',   label: '75%' },
+      { pct: 75, cls: 'ok', label: '75%' },
       { pct: 35, cls: 'warn', label: '35%' },
-      { pct: 8,  cls: 'crit', label: '8%'  },
+      { pct: 8, cls: 'crit', label: '8%' },
     ];
-    const demosHtml = demos.map(({ pct, cls, label }) => `
+    const demosHtml = demos
+      .map(
+        ({ pct, cls, label }) => `
       <div class="fm-help-hp-tile-wrap">
         <div class="fm-help-hp-tile">
           <div class="fm-help-hp-liquid fm-help-hp-liquid--${cls}" style="height:${pct}%"></div>
         </div>
         <span class="fm-help-hp-pct">${label}</span>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
     return `
       <p class="fm-help-p">${i18n.t('help.hp_desc')}</p>

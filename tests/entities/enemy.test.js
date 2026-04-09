@@ -56,8 +56,10 @@ describe('Enemy', () => {
     it('assigns correct available powers for level 4', () => {
       const enemy = new Enemy(4);
       expect(enemy.availablePowers).toEqual([
-        POWER_TYPES.WIND_UP, POWER_TYPES.WIND_DOWN,
-        POWER_TYPES.WIND_LEFT, POWER_TYPES.WIND_RIGHT,
+        POWER_TYPES.WIND_UP,
+        POWER_TYPES.WIND_DOWN,
+        POWER_TYPES.WIND_LEFT,
+        POWER_TYPES.WIND_RIGHT,
       ]);
     });
 

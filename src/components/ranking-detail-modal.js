@@ -1,5 +1,5 @@
 import { i18n } from '../managers/i18n-manager.js';
-import { POWER_META } from '../configs/constants.js';
+import { Power } from '../entities/power.js';
 
 /**
  * Detail modal for a single ranking entry — shows extended stats.
@@ -168,10 +168,10 @@ export class RankingDetailModal {
       html += `<div class="fm-rdd-section-title">${i18n.t('ranking.powers_used')}</div>`;
       html += `<div class="fm-rdd-powers">`;
       for (const p of distinctPowers) {
-        const meta = POWER_META[p];
-        if (meta) {
-          html += `<div class="fm-rdd-power-item" title="${i18n.t(meta.nameKey)}">
-            <svg class="fm-rdd-power-icon" aria-hidden="true"><use href="#${meta.svgId}"/></svg>
+        const svgId = Power.svgId(p);
+        if (svgId) {
+          html += `<div class="fm-rdd-power-item" title="${i18n.t(Power.nameKey(p))}">
+            <svg class="fm-rdd-power-icon" aria-hidden="true"><use href="#${svgId}"/></svg>
           </div>`;
         }
       }
@@ -192,7 +192,7 @@ export class RankingDetailModal {
         (e) => `<div class="fm-rdd-enemy-row">
           <span class="fm-tile fm-ranking-enemy-lvl fm-t${e.level}">${e.level}</span>
           <span class="fm-rdd-enemy-name">${e.name}</span>
-        </div>`
+        </div>`,
       )
       .join('');
 

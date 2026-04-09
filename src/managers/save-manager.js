@@ -1,6 +1,41 @@
 import { STORAGE_KEYS, MAX_SAVE_SLOTS } from '../configs/constants.js';
 
 class SaveManager {
+  // ─── AUTO-SAVE ─────────────────────────────────────
+
+  /**
+   * Save game state to the auto-save slot.
+   * @param {object} state — Full game state (same format as manual save slots)
+   */
+  autoSave(state) {
+    localStorage.setItem(STORAGE_KEYS.AUTOSAVE, JSON.stringify({ ...state, date: Date.now() }));
+  }
+
+  /**
+   * Load the auto-save slot.
+   * @returns {object | null}
+   */
+  loadAutoSave() {
+    const raw = localStorage.getItem(STORAGE_KEYS.AUTOSAVE);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  /** @returns {boolean} */
+  hasAutoSave() {
+    return localStorage.getItem(STORAGE_KEYS.AUTOSAVE) !== null;
+  }
+
+  /** Clear the auto-save slot. */
+  clearAutoSave() {
+    localStorage.removeItem(STORAGE_KEYS.AUTOSAVE);
+  }
+
+  // ─── LEGACY SAVE (quick save on menu open) ────────
   /**
    * Save current game state to localStorage.
    * @param {{ grid: number[][], score: number, moves: number, mode: string }} state
@@ -179,7 +214,10 @@ class SaveManager {
         let oldestDate = Infinity;
         for (let i = 0; i < slots.length; i++) {
           const d = slots[i]?.date ?? 0;
-          if (d < oldestDate) { oldestDate = d; idx = i; }
+          if (d < oldestDate) {
+            oldestDate = d;
+            idx = i;
+          }
         }
       }
     }

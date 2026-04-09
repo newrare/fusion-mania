@@ -27,7 +27,7 @@ export class SaveLoadModal {
   /** @type {{ destroy: () => void } | null} */
   #keyNav = null;
 
-  /** @type {number | null} Currently expanded slot row index */
+  /** @type {number | 'auto' | null} Currently expanded slot row index */
   #expandedIdx = null;
 
   /** @type {boolean} True while a confirm-delete prompt is active */
@@ -72,6 +72,8 @@ export class SaveLoadModal {
         const action = btn.dataset.action;
         if (action === 'close') {
           this.#onClose?.();
+        } else if (action === 'load-auto') {
+          this.#handleLoadAutoSave();
         } else if (action === 'load') {
           const idx = parseInt(btn.dataset.slot, 10);
           this.#handleLoad(idx);
@@ -85,8 +87,12 @@ export class SaveLoadModal {
       // Click on a filled row → toggle action bar
       const row = /** @type {HTMLElement} */ (e.target).closest('[data-slot-row]');
       if (row) {
-        const idx = parseInt(row.dataset.slotRow, 10);
-        this.#toggleExpand(idx);
+        const rawIdx = row.dataset.slotRow;
+        if (rawIdx === 'auto') {
+          this.#toggleExpand('auto');
+        } else {
+          this.#toggleExpand(parseInt(rawIdx, 10));
+        }
       }
     });
 
@@ -103,7 +109,7 @@ export class SaveLoadModal {
     this.#unsubI18n = i18n.onChange(() => this.#refresh());
   }
 
-  /** @param {number} idx */
+  /** @param {number | 'auto'} idx */
   #toggleExpand(idx) {
     if (this.#confirmingDelete) return;
     const overlay = this.#domElement?.node.querySelector('#fm-saveload-overlay');
@@ -125,7 +131,7 @@ export class SaveLoadModal {
 
   /**
    * @param {Element} overlay
-   * @param {number} idx
+   * @param {number | 'auto'} idx
    */
   #expandRow(overlay, idx) {
     const actionBar = overlay.querySelector(`[data-action-bar="${idx}"]`);
@@ -138,7 +144,7 @@ export class SaveLoadModal {
 
   /**
    * @param {Element} overlay
-   * @param {number} idx
+   * @param {number | 'auto'} idx
    */
   #collapseRow(overlay, idx) {
     const actionBar = overlay.querySelector(`[data-action-bar="${idx}"]`);
@@ -162,6 +168,11 @@ export class SaveLoadModal {
     if (data) this.#onLoad?.(data);
   }
 
+  #handleLoadAutoSave() {
+    const data = saveManager.loadAutoSave();
+    if (data) this.#onLoad?.(data);
+  }
+
   /** @param {number} idx */
   #handleDelete(idx) {
     if (this.#confirmingDelete) return;
@@ -171,7 +182,10 @@ export class SaveLoadModal {
     if (!overlay) return;
 
     const actionBar = overlay.querySelector(`[data-action-bar="${idx}"]`);
-    if (!actionBar) { this.#confirmingDelete = false; return; }
+    if (!actionBar) {
+      this.#confirmingDelete = false;
+      return;
+    }
 
     const original = actionBar.innerHTML;
     actionBar.innerHTML = `
@@ -208,6 +222,7 @@ export class SaveLoadModal {
     if (!wrap) return;
 
     const slots = saveManager.getSlots();
+    const autoSave = saveManager.loadAutoSave();
     const locale = i18n.locale === 'fr' ? 'fr-FR' : 'en-GB';
 
     let html = `
@@ -219,9 +234,35 @@ export class SaveLoadModal {
       </div>
       <div class="fm-ranking-rows">`;
 
+    // ── Auto-save slot (always first row) ──
+    if (autoSave) {
+      const modeLabel = this.#modeLabel(autoSave.mode);
+      const dateStr = this.#formatDate(autoSave.date, locale);
+      const mainHtml = this.#buildMainCell(autoSave);
+      html += `
+        <div class="fm-ranking-row fm-saveload-row fm-saveload-row--autosave fm-clickable" data-slot-row="auto" tabindex="0">
+          <span class="fm-ranking-cell fm-ranking-rank">⟳</span>
+          <span class="fm-ranking-cell fm-saveload-mode-col">${modeLabel}</span>
+          <span class="fm-ranking-cell fm-ranking-main-col">${mainHtml}</span>
+          <span class="fm-ranking-cell fm-ranking-date-col">${dateStr}</span>
+        </div>
+        <div class="fm-saveload-action-bar" data-action-bar="auto">
+          <button class="fm-btn fm-btn--small fm-btn--primary" data-action="load-auto">${i18n.t('save.load')}</button>
+        </div>`;
+    } else {
+      html += `
+        <div class="fm-ranking-row fm-saveload-empty fm-saveload-row--autosave">
+          <span class="fm-ranking-cell fm-ranking-rank">⟳</span>
+          <span class="fm-ranking-cell fm-saveload-mode-col">${i18n.t('save.autosave')}</span>
+          <span class="fm-ranking-cell fm-ranking-main-col">-</span>
+          <span class="fm-ranking-cell fm-ranking-date-col">-</span>
+        </div>`;
+    }
+
+    // ── Manual save slots ──
     for (let i = 0; i < MAX_SAVE_SLOTS; i++) {
-      const s = (i < slots.length) ? slots[i] : null;
-      const isEven = i % 2 === 1;
+      const s = i < slots.length ? slots[i] : null;
+      const isEven = (i + 1) % 2 === 1;
       const evenClass = isEven ? ' fm-ranking-row--alt' : '';
 
       if (!s) {
@@ -259,7 +300,12 @@ export class SaveLoadModal {
     if (this.#expandedIdx !== null) {
       const overlay = this.#domElement?.node.querySelector('#fm-saveload-overlay');
       if (overlay) {
-        const slotStillExists = this.#expandedIdx < slots.length && slots[this.#expandedIdx] != null;
+        let slotStillExists;
+        if (this.#expandedIdx === 'auto') {
+          slotStillExists = autoSave != null;
+        } else {
+          slotStillExists = this.#expandedIdx < slots.length && slots[this.#expandedIdx] != null;
+        }
         if (slotStillExists) {
           this.#expandRow(overlay, this.#expandedIdx);
         } else {
@@ -279,9 +325,7 @@ export class SaveLoadModal {
   #buildMainCell(s) {
     if (s.mode === 'battle') {
       const bm = s.battleManager;
-      const lvl = bm?.defeatedLevels?.length > 0
-        ? Math.max(...bm.defeatedLevels)
-        : null;
+      const lvl = bm?.defeatedLevels?.length > 0 ? Math.max(...bm.defeatedLevels) : null;
       if (lvl) {
         return `<span class="fm-tile fm-ranking-enemy-lvl fm-t${lvl}">${lvl}</span>`;
       }
@@ -298,10 +342,14 @@ export class SaveLoadModal {
    */
   #modeLabel(mode) {
     switch (mode) {
-      case 'classic': return i18n.t('ranking.classic');
-      case 'battle':  return i18n.t('ranking.battle');
-      case 'free':    return i18n.t('ranking.free');
-      default:        return mode;
+      case 'classic':
+        return i18n.t('ranking.classic');
+      case 'battle':
+        return i18n.t('ranking.battle');
+      case 'free':
+        return i18n.t('ranking.free');
+      default:
+        return mode;
     }
   }
 

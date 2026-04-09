@@ -5,8 +5,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 const store = {};
 const localStorageMock = {
   getItem: vi.fn((key) => store[key] ?? null),
-  setItem: vi.fn((key, value) => { store[key] = value; }),
-  removeItem: vi.fn((key) => { delete store[key]; }),
+  setItem: vi.fn((key, value) => {
+    store[key] = value;
+  }),
+  removeItem: vi.fn((key) => {
+    delete store[key];
+  }),
 };
 vi.stubGlobal('localStorage', localStorageMock);
 
@@ -157,7 +161,8 @@ describe('HelpModal', () => {
   // ─── CATEGORY: MODES ─────────────────────────────
 
   it('modes category shows 3 mode cards', () => {
-    document.querySelector('[data-category="modes"]')
+    document
+      .querySelector('[data-category="modes"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     const cards = document.querySelectorAll('.fm-help-card');
     expect(cards.length).toBe(3);
@@ -166,14 +171,16 @@ describe('HelpModal', () => {
   // ─── CATEGORY: FUSION ────────────────────────────
 
   it('fusion category shows tile examples', () => {
-    document.querySelector('[data-category="fusion"]')
+    document
+      .querySelector('[data-category="fusion"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     const tiles = document.querySelectorAll('.fm-help-tile');
     expect(tiles.length).toBeGreaterThanOrEqual(4);
   });
 
   it('fusion category shows fusion example rows', () => {
-    document.querySelector('[data-category="fusion"]')
+    document
+      .querySelector('[data-category="fusion"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     const examples = document.querySelectorAll('.fm-help-fusion-example');
     expect(examples.length).toBe(2);
@@ -182,14 +189,16 @@ describe('HelpModal', () => {
   // ─── CATEGORY: POWERS ────────────────────────────
 
   it('powers category shows 3 power groups', () => {
-    document.querySelector('[data-category="powers"]')
+    document
+      .querySelector('[data-category="powers"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     const groups = document.querySelectorAll('.fm-help-power-group');
     expect(groups.length).toBe(3);
   });
 
   it('powers category shows all power items with icons', () => {
-    document.querySelector('[data-category="powers"]')
+    document
+      .querySelector('[data-category="powers"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     const items = document.querySelectorAll('.fm-help-power-item');
     // 6 danger + 4 warning + 5 info = 15 (without ads counted in categories)
@@ -197,7 +206,8 @@ describe('HelpModal', () => {
   });
 
   it('each power item has a name and description', () => {
-    document.querySelector('[data-category="powers"]')
+    document
+      .querySelector('[data-category="powers"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     const items = document.querySelectorAll('.fm-help-power-item');
     for (const item of items) {
@@ -207,7 +217,8 @@ describe('HelpModal', () => {
   });
 
   it('each power item has an SVG icon', () => {
-    document.querySelector('[data-category="powers"]')
+    document
+      .querySelector('[data-category="powers"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     const items = document.querySelectorAll('.fm-help-power-item');
     for (const item of items) {
@@ -218,14 +229,16 @@ describe('HelpModal', () => {
   // ─── CATEGORY: PREDICTIONS ───────────────────────
 
   it('predictions category shows 3 indicator examples', () => {
-    document.querySelector('[data-category="predictions"]')
+    document
+      .querySelector('[data-category="predictions"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     const rows = document.querySelectorAll('.fm-help-prediction-row');
     expect(rows.length).toBe(3);
   });
 
   it('predictions shows danger/warning/info dots using real power-dot classes', () => {
-    document.querySelector('[data-category="predictions"]')
+    document
+      .querySelector('[data-category="predictions"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     expect(document.querySelector('.fm-power-dot.danger')).not.toBeNull();
     expect(document.querySelector('.fm-power-dot.warning')).not.toBeNull();
@@ -235,14 +248,16 @@ describe('HelpModal', () => {
   // ─── CATEGORY: ENEMIES ───────────────────────────
 
   it('enemies category shows level badges', () => {
-    document.querySelector('[data-category="enemies"]')
+    document
+      .querySelector('[data-category="enemies"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     const badges = document.querySelectorAll('.fm-help-enemy-badge');
     expect(badges.length).toBe(11); // 2..2048
   });
 
   it('enemies category shows level progression', () => {
-    document.querySelector('[data-category="enemies"]')
+    document
+      .querySelector('[data-category="enemies"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     const badges = [...document.querySelectorAll('.fm-help-enemy-badge')];
     const values = badges.map((b) => parseInt(b.textContent, 10));
@@ -252,14 +267,16 @@ describe('HelpModal', () => {
   // ─── CATEGORY: HP ────────────────────────────────
 
   it('hp category shows 3 demo HP tiles', () => {
-    document.querySelector('[data-category="hp"]')
+    document
+      .querySelector('[data-category="hp"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     const tiles = document.querySelectorAll('.fm-help-hp-tile-wrap');
     expect(tiles.length).toBe(3);
   });
 
   it('hp category shows ok/warn/crit liquid fill colors', () => {
-    document.querySelector('[data-category="hp"]')
+    document
+      .querySelector('[data-category="hp"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     expect(document.querySelector('.fm-help-hp-liquid--ok')).not.toBeNull();
     expect(document.querySelector('.fm-help-hp-liquid--warn')).not.toBeNull();
@@ -269,16 +286,19 @@ describe('HelpModal', () => {
   // ─── SWITCHING CATEGORIES ────────────────────────
 
   it('navigating between categories replaces content', () => {
-    document.querySelector('[data-category="modes"]')
+    document
+      .querySelector('[data-category="modes"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     expect(document.querySelectorAll('.fm-help-card').length).toBe(3);
 
     // Go back
-    document.querySelector('[data-action="back"]')
+    document
+      .querySelector('[data-action="back"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
 
     // Switch to hp
-    document.querySelector('[data-category="hp"]')
+    document
+      .querySelector('[data-category="hp"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     expect(document.querySelectorAll('.fm-help-hp-tile-wrap').length).toBe(3);
     expect(document.querySelectorAll('.fm-help-card').length).toBeLessThan(3);

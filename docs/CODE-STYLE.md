@@ -2,7 +2,7 @@
 
 ## Project Overview
 Fusion Mania is a **mobile game** (vertical-only) built with **Phaser 3** and native web technologies.
-It is bundled with **Vite**, tested with **Vitest**, and compiled to iOS/Android via **Capacitor**.
+It is bundled with **Vite**, tested with **Vitest**, and designed for future mobile builds via **Capacitor**.
 
 ## Language & Style
 - All code, comments and documentation must be written in **English**.
@@ -26,9 +26,8 @@ It is bundled with **Vite**, tested with **Vitest**, and compiled to iOS/Android
 - **Utilities** go in `src/utils/` — pure helper functions with no side effects.
 - **Configs** go in `src/configs/` — game configuration, constants, and settings.
 - **Locales** go in `src/locales/` — one file per language (`en.js`, `fr.js`). Keys are dot-separated (e.g. `menu.play`).
-- **Assets** go in `public/assets/` with sub-folders: `images/`, `audio/music/`, `audio/sfx/`, `spritesheets/`.
-- Load assets in `PreloadScene` using root-relative paths: `this.load.image('key', 'assets/images/file.png')`.
-- Keep `index.js` barrel files in each module folder to simplify imports.
+- **Assets** go in `public/` with sub-folders: `images/`, `sounds/`, `others/`.
+- Import modules directly from their file paths (no barrel `index.js` re-exports).
 
 ## Coding Best Practices
 - Keep files short and focused: one class or one responsibility per file.
@@ -53,7 +52,7 @@ It is bundled with **Vite**, tested with **Vitest**, and compiled to iOS/Android
 - Use Phaser's object pooling for frequently created/destroyed objects.
 - Test on real mobile devices regularly via Capacitor.
 
-## Capacitor (iOS / Android)
-- Platform folders (`android/`, `ios/`) are generated — do not manually edit them unless necessary.
+## Capacitor (iOS / Android) — Planned
+- Not yet set up. The game is designed for future Capacitor wrapping.
+- Platform folders (`android/`, `ios/`) will be generated — do not manually edit them.
 - Use `npx cap sync` after changing web assets or plugins.
-- Keep native-specific config in `capacitor.config.js`.

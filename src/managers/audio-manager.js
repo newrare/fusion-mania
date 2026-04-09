@@ -58,7 +58,9 @@ class AudioManager {
     if (raw) {
       try {
         Object.assign(this.#options, JSON.parse(raw));
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -78,7 +80,13 @@ class AudioManager {
     this.#music.loop = true;
     this.#music.volume = AUDIO.MUSIC_VOLUME;
     this.#music.preload = 'auto';
-    this.#music.addEventListener('canplaythrough', () => { this.#musicReady = true; }, { once: true });
+    this.#music.addEventListener(
+      'canplaythrough',
+      () => {
+        this.#musicReady = true;
+      },
+      { once: true },
+    );
 
     // SFX
     for (const [key, path] of Object.entries(AUDIO.SFX)) {
@@ -112,10 +120,14 @@ class AudioManager {
     // Capture phase (true) ensures stopPropagation() in modals doesn't block this listener.
     // fm-clickable is a sentinel class for non-button interactive elements (tabs, rows, items).
     const INTERACTIVE = '.fm-btn, .fm-theme-btn, .fm-clickable';
-    document.addEventListener('pointerdown', (e) => {
-      const btn = /** @type {HTMLElement} */ (e.target).closest(INTERACTIVE);
-      if (btn) this.playSfx('click');
-    }, true);
+    document.addEventListener(
+      'pointerdown',
+      (e) => {
+        const btn = /** @type {HTMLElement} */ (e.target).closest(INTERACTIVE);
+        if (btn) this.playSfx('click');
+      },
+      true,
+    );
 
     // Global hover SFX — fires once per new interactive element entered
     let lastHovered = null;
@@ -130,7 +142,9 @@ class AudioManager {
       if (/** @type {HTMLElement} */ (e.target).closest(INTERACTIVE) !== lastHovered) return;
       // Only reset if the pointer is leaving the interactive element entirely,
       // not just moving to a child element within it.
-      const dest = e.relatedTarget ? /** @type {HTMLElement} */ (e.relatedTarget).closest(INTERACTIVE) : null;
+      const dest = e.relatedTarget
+        ? /** @type {HTMLElement} */ (e.relatedTarget).closest(INTERACTIVE)
+        : null;
       if (dest !== lastHovered) lastHovered = null;
     });
   }
@@ -139,7 +153,9 @@ class AudioManager {
 
   #resumeMusic() {
     if (!this.#music || !this.#unlocked) return;
-    this.#music.play().catch(() => { /* blocked by browser policy — ignore */ });
+    this.#music.play().catch(() => {
+      /* blocked by browser policy — ignore */
+    });
   }
 
   #pauseMusic() {
@@ -167,7 +183,9 @@ class AudioManager {
     // Clone to allow overlapping playback
     const clone = /** @type {HTMLAudioElement} */ (audio.cloneNode());
     clone.volume = AUDIO.SFX_VOLUME;
-    clone.play().catch(() => { /* ignore */ });
+    clone.play().catch(() => {
+      /* ignore */
+    });
   }
 
   /**
@@ -189,7 +207,6 @@ class AudioManager {
     }
     this.playSfx(key);
   }
-
 }
 
 export const audioManager = new AudioManager();

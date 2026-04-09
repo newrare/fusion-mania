@@ -78,7 +78,10 @@ describe('PowerManager', () => {
 
     it('assigned power is from selectedTypes', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
-      for (let i = 0; i < POWER_PLACEMENT_INTERVAL - 1; i++) { pm.tickMove(grid); pm.onMove(grid); }
+      for (let i = 0; i < POWER_PLACEMENT_INTERVAL - 1; i++) {
+        pm.tickMove(grid);
+        pm.onMove(grid);
+      }
       pm.tickMove(grid);
       const tile = pm.onMove(grid);
       expect([POWER_TYPES.FIRE_H, POWER_TYPES.BOMB]).toContain(tile.power);
@@ -91,7 +94,10 @@ describe('PowerManager', () => {
       const t2 = new Tile(4, 0, 1);
       grid.cells[0][1] = t2;
 
-      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) { pm.tickMove(grid); pm.onMove(grid); }
+      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) {
+        pm.tickMove(grid);
+        pm.onMove(grid);
+      }
       // t2 should have received the power, not t1
       expect(t2.power).toBeTruthy();
     });
@@ -103,14 +109,20 @@ describe('PowerManager', () => {
       const t2 = new Tile(4, 0, 1); // normal — valid candidate
       grid.cells[0][1] = t2;
 
-      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) { pm.tickMove(grid); pm.onMove(grid); }
+      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) {
+        pm.tickMove(grid);
+        pm.onMove(grid);
+      }
       expect(t2.power).toBeTruthy();
       expect(t1.power).toBeFalsy();
     });
 
     it('resets placement counter after assigning', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
-      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) { pm.tickMove(grid); pm.onMove(grid); }
+      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) {
+        pm.tickMove(grid);
+        pm.onMove(grid);
+      }
       pm.tickMove(grid);
       expect(pm.onMove(grid)).toBeNull();
     });
@@ -121,11 +133,16 @@ describe('PowerManager', () => {
       grid.cells[0][0] = t1;
       // Only tile has power, so no candidate
 
-      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) { pm.tickMove(grid); pm.onMove(grid); }
+      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) {
+        pm.tickMove(grid);
+        pm.onMove(grid);
+      }
       // Should have tried but failed since t1 already has power
       // Actually the counter resets even when assignment fails — let's test the next interval
       grid.cells[0][0] = t1; // ensure still there
-      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) { pm.tickMove(grid); }
+      for (let i = 0; i < POWER_PLACEMENT_INTERVAL; i++) {
+        pm.tickMove(grid);
+      }
       const result = pm.onMove(grid);
       expect(result).toBeNull();
     });
@@ -153,7 +170,9 @@ describe('PowerManager', () => {
     it('returns empty array when no powered tiles merge', () => {
       const survivor = new Tile(4, 0, 0);
       grid.cells[0][0] = survivor;
-      const merges = [{ tile: survivor, fromRow: 0, fromCol: 1, consumedId: 'some-id', consumedPower: null }];
+      const merges = [
+        { tile: survivor, fromRow: 0, fromCol: 1, consumedId: 'some-id', consumedPower: null },
+      ];
       expect(pm.checkMergeTriggers(merges, grid)).toEqual([]);
     });
 
@@ -161,7 +180,9 @@ describe('PowerManager', () => {
       const survivor = new Tile(4, 0, 0);
       survivor.power = POWER_TYPES.BOMB;
       grid.cells[0][0] = survivor;
-      const merges = [{ tile: survivor, fromRow: 0, fromCol: 1, consumedId: 'some-id', consumedPower: null }];
+      const merges = [
+        { tile: survivor, fromRow: 0, fromCol: 1, consumedId: 'some-id', consumedPower: null },
+      ];
 
       const triggers = pm.checkMergeTriggers(merges, grid);
       expect(triggers.length).toBe(1);
@@ -173,7 +194,15 @@ describe('PowerManager', () => {
     it('triggers when consumed tile had a power', () => {
       const survivor = new Tile(4, 0, 0);
       grid.cells[0][0] = survivor;
-      const merges = [{ tile: survivor, fromRow: 0, fromCol: 1, consumedId: 'some-id', consumedPower: POWER_TYPES.ICE }];
+      const merges = [
+        {
+          tile: survivor,
+          fromRow: 0,
+          fromCol: 1,
+          consumedId: 'some-id',
+          consumedPower: POWER_TYPES.ICE,
+        },
+      ];
 
       const triggers = pm.checkMergeTriggers(merges, grid);
       expect(triggers.length).toBe(1);
@@ -185,7 +214,15 @@ describe('PowerManager', () => {
       const survivor = new Tile(4, 0, 0);
       survivor.power = POWER_TYPES.FIRE_H;
       grid.cells[0][0] = survivor;
-      const merges = [{ tile: survivor, fromRow: 0, fromCol: 1, consumedId: 'some-id', consumedPower: POWER_TYPES.FIRE_H }];
+      const merges = [
+        {
+          tile: survivor,
+          fromRow: 0,
+          fromCol: 1,
+          consumedId: 'some-id',
+          consumedPower: POWER_TYPES.FIRE_H,
+        },
+      ];
 
       const triggers = pm.checkMergeTriggers(merges, grid);
       expect(triggers.length).toBe(1);
@@ -197,7 +234,15 @@ describe('PowerManager', () => {
       const survivor = new Tile(4, 0, 0);
       survivor.power = POWER_TYPES.FIRE_H;
       grid.cells[0][0] = survivor;
-      const merges = [{ tile: survivor, fromRow: 0, fromCol: 1, consumedId: 'some-id', consumedPower: POWER_TYPES.BOMB }];
+      const merges = [
+        {
+          tile: survivor,
+          fromRow: 0,
+          fromCol: 1,
+          consumedId: 'some-id',
+          consumedPower: POWER_TYPES.BOMB,
+        },
+      ];
 
       const triggers = pm.checkMergeTriggers(merges, grid);
       expect(triggers.length).toBe(1);
@@ -416,8 +461,8 @@ describe('PowerManager', () => {
 
       it('destroys the top tile of each struck column', () => {
         fillGrid(grid, [
-          [2,    4,    8,    16],
-          [32,   64,   null, null],
+          [2, 4, 8, 16],
+          [32, 64, null, null],
           [null, null, null, null],
           [null, null, null, null],
         ]);
@@ -468,7 +513,7 @@ describe('PowerManager', () => {
             }
           }
           // Restore cleared cells
-          for (let c = 0; c < GRID_SIZE; c++) grid.cells[2][c] = new Tile([8,16,32,64][c], 2, c);
+          for (let c = 0; c < GRID_SIZE; c++) grid.cells[2][c] = new Tile([8, 16, 32, 64][c], 2, c);
         }
       });
     });

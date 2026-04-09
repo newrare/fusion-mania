@@ -1,8 +1,6 @@
 import Phaser from 'phaser';
 import {
   SCENE_KEYS,
-  SWIPE_THRESHOLD,
-  COMBO_COLORS,
   POWER_META,
   POWER_TYPES,
   ANIM,
@@ -13,6 +11,8 @@ import { layout } from '../managers/layout-manager.js';
 import { saveManager } from '../managers/save-manager.js';
 import { GridManager } from '../managers/grid-manager.js';
 import { PowerManager } from '../managers/power-manager.js';
+import { InputManager } from '../managers/input-manager.js';
+import { HudManager } from '../managers/hud-manager.js';
 import { MenuModal } from '../components/menu-modal.js';
 import { GameOverModal } from '../components/game-over-modal.js';
 import { PowerSelectModal } from '../components/power-select-modal.js';
@@ -39,17 +39,11 @@ export class GameScene extends Phaser.Scene {
   /** @type {string} Game mode */
   #mode = 'classic';
 
-  /** @type {HTMLElement | null} HUD container */
-  #hudEl = null;
+  /** @type {InputManager | null} */
+  #inputManager = null;
 
-  /** @type {Phaser.GameObjects.DOMElement | null} */
-  #hudDom = null;
-
-  /**
-   * State for each rotating HUD card.
-   * @type {Array<{slots: HTMLElement[], current: number}>}
-   */
-  #hudCardStates = [];
+  /** @type {HudManager | null} */
+  #hudManager = null;
 
   /** @type {boolean} Game over state */
   #gameOver = false;
@@ -59,10 +53,6 @@ export class GameScene extends Phaser.Scene {
 
   /** @type {GameOverModal | null} */
   #gameOverModal = null;
-
-  /** Swipe tracking */
-  #pointerStartX = 0;
-  #pointerStartY = 0;
 
   /** @type {number} Total tile fusions this game */
   #fusions = 0;
@@ -95,15 +85,6 @@ export class GameScene extends Phaser.Scene {
   /** @type {number} Score before the current combo started */
   #comboScoreStart = 0;
 
-  /** @type {HTMLElement | null} Combo display element */
-  #comboEl = null;
-
-  /** @type {HTMLElement | null} Score bonus float popup */
-  #scoreBonusEl = null;
-
-  /** @type {Phaser.Time.TimerEvent | null} Timer that ends the combo on inactivity */
-  #comboTimer = null;
-
   /** @type {boolean} True while the hurt/break animation is playing */
   #comboBreaking = false;
 
@@ -124,9 +105,6 @@ export class GameScene extends Phaser.Scene {
 
   /** @type {boolean} True once the victory modal has been shown this game */
   #victoryShown = false;
-
-  /** Skip first pointerup after power-select Start tap */
-  #skipNextPointerUp = false;
 
   /** @type {HTMLElement | null} Power info panel below grid */
   #powerInfoEl = null;
@@ -179,9 +157,6 @@ export class GameScene extends Phaser.Scene {
   /** @type {boolean} True once the new-best notification has been shown this game */
   #bestScoreNotified = false;
 
-  /** @type {Function | null} Unsubscribe from i18n locale changes */
-  #unsubI18n = null;
-
   // ─── BATTLE MODE FIELDS ──────────────────────────
 
   /** @type {BattleManager | null} Battle system (Battle mode only) */
@@ -204,9 +179,6 @@ export class GameScene extends Phaser.Scene {
 
   /** @type {HelpModal | null} */
   #helpModal = null;
-
-  /** @type {Phaser.GameObjects.DOMElement | null} Floating "?" button (bottom-right safe zone) */
-  #helpBtnDom = null;
 
   /** @type {MatterJS.BodyType | null} Static floor body at viewport bottom */
   #physicsFloor = null;
@@ -234,10 +206,9 @@ export class GameScene extends Phaser.Scene {
     this.#combo = 0;
     this.#comboMax = 0;
     this.#comboScoreStart = 0;
-    this.#comboEl = null;
-    this.#scoreBonusEl = null;
-    this.#comboTimer = null;
     this.#comboBreaking = false;
+    this.#inputManager = null;
+    this.#hudManager = null;
     this.#powerManager = null;
     this.#powerSelectModal = null;
     this.#powerChoiceModal = null;
@@ -248,7 +219,6 @@ export class GameScene extends Phaser.Scene {
     this.#powerInfoDom = null;
     this.#powerInfoAllDom = null;
     this.#pendingPowerTypes = data?.selectedPowers ?? null;
-    this.#skipNextPointerUp = false;
     this.#pendingDestructionTiles = new Map();
     this.#gridLife = null;
     this.#liquidEl = null;
@@ -262,7 +232,6 @@ export class GameScene extends Phaser.Scene {
     this.#bestScoreNotified = false;
     this.#pendingSlotData = data?.slotData ?? null;
     this.#helpModal = null;
-    this.#helpBtnDom = null;
     // Battle mode
     this.#battleManager = null;
     this.#enemyAreaEl = null;
@@ -270,16 +239,16 @@ export class GameScene extends Phaser.Scene {
     this.#battlePowerManager = null;
     this.#deadEnemyBodies = [];
     this.#physicsFloor = null;
-    // HUD card rotators — no timers, just reset state
-    this.#hudCardStates = [];
   }
 
   create() {
     // Defensive cleanup: remove any DOM nodes from a previous game that may
     // have survived shutdown (e.g. if an animation was in flight).
-    document.querySelectorAll(
-      '.fm-dead-enemy, .fm-enemy-area, .fm-contaminate-particle, .fm-critical-overlay'
-    ).forEach((el) => el.remove());
+    document
+      .querySelectorAll(
+        '.fm-dead-enemy, .fm-enemy-area, .fm-contaminate-particle, .fm-critical-overlay',
+      )
+      .forEach((el) => el.remove());
 
     // The Phaser DOM container is position:absolute with a CSS transform, which
     // creates an isolated stacking context. Without an explicit z-index it sits at
@@ -294,7 +263,9 @@ export class GameScene extends Phaser.Scene {
     this.#gm = new GridManager();
     addBackground(this);
     layout.drawDebugSafeZone(this);
-    this.#createHUD();
+    this.#hudManager = new HudManager(this, this.#mode);
+    this.#hudManager.createHUD({ onMenuOpen: () => this.#openMenu() });
+    this.#hudManager.onComboTimeout = () => this.#endCombo();
     this.#gm.createContainer(this);
 
     if (this.#mode === 'free') {
@@ -306,15 +277,30 @@ export class GameScene extends Phaser.Scene {
       this.#createPowerInfoPanel();
     }
 
-    this.#createHelpBtn();
-    this.#bindInput();
+    this.#hudManager.createHelpBtn({ onHelpOpen: () => this.#openHelp() });
+    this.#inputManager = new InputManager(this, {
+      onDirection: (dir) => this.#executeMove(dir),
+      onMenu: () => this.#openMenu(),
+      isBlocked: () =>
+        !!(
+          this.#gameOver ||
+          this.#menuModal ||
+          this.#powerChoiceModal ||
+          this.#powerSelectModal ||
+          this.#showingAds ||
+          this.#victoryModal
+        ),
+    });
+    this.#inputManager.bind();
 
     // Cache CSS tile size for physics body sizing (read after container is in DOM)
     this.events.once('create', () => {
-      this.#tileSizePx = parseInt(
-        getComputedStyle(document.getElementById('game-container') ?? document.body)
-          .getPropertyValue('--fm-tile-size'),
-      ) || 64;
+      this.#tileSizePx =
+        parseInt(
+          getComputedStyle(
+            document.getElementById('game-container') ?? document.body,
+          ).getPropertyValue('--fm-tile-size'),
+        ) || 64;
     });
 
     if (this.#pendingSlotData) {
@@ -332,193 +318,10 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // ─── HUD ─────────────────────────────────────────
-  #createHUD() {
-    const html = `
-      <div class="fm-hud">
-        <div class="fm-hud-row">
-          <div class="fm-score-box fm-hud-card" id="fm-card-stat1">
-            <div class="fm-hud-slot" id="fm-card-stat1-a">
-              <span class="fm-score-label" id="fm-label-moves">${i18n.t('game.moves')}</span>
-              <span class="fm-score-value" id="fm-moves">0</span>
-            </div>
-            <div class="fm-hud-slot fm-hud-slot--hidden" id="fm-card-stat1-b" aria-hidden="true">
-              <span class="fm-score-label" id="fm-label-fusions">${i18n.t('game.fusions')}</span>
-              <span class="fm-score-value" id="fm-fusions">0</span>
-            </div>
-            <div class="fm-hud-slot fm-hud-slot--hidden" id="fm-card-stat1-c" aria-hidden="true">
-              <span class="fm-score-label" id="fm-label-max-tile">${i18n.t('game.max_tile')}</span>
-              <span class="fm-score-value" id="fm-max-tile">0</span>
-            </div>
-          </div>
-          <div class="fm-score-wrap">
-            <div class="fm-score-box" id="fm-card-stat2">
-              <span class="fm-score-label" id="fm-label-score">${i18n.t('game.score')}</span>
-              <span class="fm-score-value" id="fm-score">0</span>
-            </div>
-            <div class="fm-combo-display" id="fm-combo-display" style="display:none"></div>
-            <div class="fm-score-bonus" id="fm-score-bonus"></div>
-          </div>
-          <div class="fm-score-box fm-hud-card" id="fm-card-stat3">
-            <div class="fm-hud-slot" id="fm-card-stat3-a">
-              <span class="fm-score-label" id="fm-label-best">${i18n.t('game.best')}</span>
-              <span class="fm-score-value" id="fm-best">${saveManager.getBestScore(this.#mode)}</span>
-            </div>
-            <div class="fm-hud-slot fm-hud-slot--hidden" id="fm-card-stat3-b" aria-hidden="true">
-              <span class="fm-score-label" id="fm-label-best-tile">${i18n.t('game.best_tile')}</span>
-              <span class="fm-score-value" id="fm-best-max-tile">${saveManager.getBestMaxTile(this.#mode)}</span>
-            </div>
-          </div>
-          <div class="fm-menu-btn" id="fm-menu-btn">☰</div>
-        </div>
-      </div>
-    `;
-
-    this.#hudDom = this.add.dom(layout.safe.cx, layout.safe.top).createFromHTML(html);
-    this.#hudDom.setOrigin(0.5, 0);
-    this.#hudEl = this.#hudDom.node;
-
-    const menuBtn = this.#hudEl.querySelector('#fm-menu-btn');
-    menuBtn?.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      this.#openMenu();
-    });
-
-    this.#comboEl = this.#hudEl.querySelector('#fm-combo-display');
-    this.#scoreBonusEl = this.#hudEl.querySelector('#fm-score-bonus');
-
-    this.#unsubI18n = i18n.onChange(() => this.#refreshHUDLabels());
-    this.#initHudCardRotations();
-  }
-
-  #refreshHUDLabels() {
-    const el = this.#hudEl;
-    if (!el) return;
-    const map = {
-      'fm-label-moves':     'game.moves',
-      'fm-label-fusions':   'game.fusions',
-      'fm-label-max-tile':  'game.max_tile',
-      'fm-label-score':     'game.score',
-      'fm-label-best':      'game.best',
-      'fm-label-best-tile': 'game.best_tile',
-    };
-    for (const [id, key] of Object.entries(map)) {
-      const node = el.querySelector(`#${id}`);
-      if (node) node.textContent = i18n.t(key);
-    }
-  }
-
-  // ─── HELP BUTTON (bottom-right safe zone) ───────
-
-  /** @type {{ classic: string, battle: string, free: string }} */
-  static #MODE_ICONS = { classic: '🎲', battle: '⚔️', free: '✨' };
-
-  #createHelpBtn() {
-    const modeIcon = GameScene.#MODE_ICONS[this.#mode] ?? '';
-    const html = `
-      <div class="fm-help-bar">
-        <button class="fm-mode-badge fm-clickable" id="fm-mode-badge" aria-label="Help">${modeIcon}</button>
-      </div>
-    `;
-    const x = layout.safe.right;
-    const y = layout.safe.bottom;
-    this.#helpBtnDom = this.add.dom(x, y).createFromHTML(html);
-    this.#helpBtnDom.setOrigin(1, 1);
-
-    this.#helpBtnDom.node.querySelector('#fm-mode-badge')?.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      this.#openHelp();
-    });
-  }
-
-  // ─── HUD CARD ROTATORS ───────────────────────────
-
-  /**
-   * Set up the two rotating HUD cards (direction-driven, no timers):
-   *   0 — Moves / Fusions / Max Tile (3-slot cycle)
-   *   1 — Best Score ↔ Best Tile
-   * Card 2 (Score) is fixed — no rotation.
-   */
-  #initHudCardRotations() {
-    const el = this.#hudEl;
-    if (!el) return;
-
-    const defs = [
-      { slotIds: ['fm-card-stat1-a', 'fm-card-stat1-b', 'fm-card-stat1-c'] },
-      { slotIds: ['fm-card-stat3-a', 'fm-card-stat3-b'] },
-    ];
-
-    for (const { slotIds } of defs) {
-      this.#hudCardStates.push({
-        slots: slotIds.map((id) => el.querySelector(`#${id}`)),
-        current: 0,
-        swapTimer: null,
-      });
-    }
-  }
-
-  /**
-   * Advance all HUD cards in the direction matching the player's move.
-   * Right → content scrolls left (shows « next » stat).
-   * Left  → content scrolls right (shows « previous » stat).
-   * Up/Down are ignored.
-   * @param {'left' | 'right' | 'up' | 'down'} direction
-   */
-  #advanceHudCards(direction) {
-    if (direction !== 'left' && direction !== 'right') return;
-    const forward = direction === 'left';
-    for (const card of this.#hudCardStates) {
-      const n = card.slots.length;
-      const next = forward
-        ? (card.current + 1) % n
-        : (card.current - 1 + n) % n;
-      const exitSlot  = card.slots[card.current];
-      const enterSlot = card.slots[next];
-      card.current = next;
-      this.#animateHudSlotSwap(card, exitSlot, enterSlot, forward);
-    }
-  }
-
-  /**
-   * Slide exitSlot out and enterSlot in.
-   * forward=true  → exit goes left,  enter comes from right (player moved right).
-   * forward=false → exit goes right, enter comes from left  (player moved left).
-   * @param {HTMLElement} exitSlot
-   * @param {HTMLElement} enterSlot
-   * @param {boolean} [forward=true]
-   */
-  #animateHudSlotSwap(activeCard, exitSlot, enterSlot, forward = true) {
-    if (!exitSlot || !enterSlot) return;
-
-    // Cancel any pending swap cleanup for this card to avoid conflicts on rapid direction changes
-    if (activeCard.swapTimer) {
-      activeCard.swapTimer.remove(false);
-      activeCard.swapTimer = null;
-    }
-
-    const allAnimClasses = [
-      'fm-hud-slot--exit', 'fm-hud-slot--enter',
-      'fm-hud-slot--exit-rev', 'fm-hud-slot--enter-rev',
-    ];
-    const exitClass  = forward ? 'fm-hud-slot--exit-rev' : 'fm-hud-slot--exit';
-    const enterClass = forward ? 'fm-hud-slot--enter-rev' : 'fm-hud-slot--enter';
-    for (const cls of allAnimClasses) exitSlot.classList.remove(cls);
-    exitSlot.classList.remove('fm-hud-slot--hidden');
-    exitSlot.classList.add(exitClass);
-    for (const cls of allAnimClasses) enterSlot.classList.remove(cls);
-    enterSlot.classList.remove('fm-hud-slot--hidden');
-    enterSlot.classList.add(enterClass);
-    activeCard.swapTimer = this.time.delayedCall(140, () => {
-      activeCard.swapTimer = null;
-      exitSlot.classList.remove(exitClass);
-      exitSlot.classList.add('fm-hud-slot--hidden');
-      enterSlot.classList.remove(enterClass);
-    });
-  }
   #showPowerSelectModal() {
     this.#powerSelectModal = new PowerSelectModal(this, {
       onStart: (selectedTypes) => {
-        this.#skipNextPointerUp = true;
+        this.#inputManager.skipNextPointerUp = true;
         this.#powerSelectModal?.destroy();
         this.#powerSelectModal = null;
         this.#selectedPowers = selectedTypes;
@@ -573,15 +376,8 @@ export class GameScene extends Phaser.Scene {
     this.#comboScoreStart = 0;
     this.#prevBestScore = saveManager.getBestScore(this.#mode);
     this.#bestScoreNotified = false;
-    this.#cancelComboTimer();
-    if (this.#comboEl) {
-      this.#comboEl.style.removeProperty('animation');
-      this.#comboEl.style.display = 'none';
-      this.#comboEl.classList.remove('fm-combo-hurt');
-    }
-    if (this.#scoreBonusEl) {
-      this.#scoreBonusEl.classList.remove('fm-bonus-active');
-    }
+    this.#hudManager?.cancelComboTimer();
+    this.#hudManager?.resetComboDisplay();
     this.#gm.startNewGame();
 
     // Grid Life system (Free mode only)
@@ -599,62 +395,6 @@ export class GameScene extends Phaser.Scene {
     this.#updateHUD();
     this.#gm.updateFusionIndicators();
   }
-
-  // ─── INPUT ───────────────────────────────────────
-  #bindInput() {
-    this.input.keyboard.on('keydown', this.#handleKey, this);
-    this.input.on('pointerdown', this.#onPointerDown, this);
-    this.input.on('pointerup', this.#onPointerUp, this);
-  }
-
-  /** @param {Phaser.Input.Keyboard.Key} event */
-  #handleKey = (event) => {
-    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal || this.#powerSelectModal || this.#showingAds || this.#victoryModal) return;
-
-    /** @type {'up' | 'down' | 'left' | 'right' | null} */
-    let direction = null;
-    switch (event.code) {
-      case 'ArrowUp':    case 'KeyW': direction = 'up';    break;
-      case 'ArrowDown':  case 'KeyS': direction = 'down';  break;
-      case 'ArrowLeft':  case 'KeyA': direction = 'left';  break;
-      case 'ArrowRight': case 'KeyD': direction = 'right'; break;
-      case 'Escape': this.#openMenu(); return;
-    }
-    if (direction) {
-      event.preventDefault?.();
-      this.#executeMove(direction);
-    }
-  };
-
-  /** @param {Phaser.Input.Pointer} pointer */
-  #onPointerDown = (pointer) => {
-    this.#pointerStartX = pointer.x;
-    this.#pointerStartY = pointer.y;
-  };
-
-  /** @param {Phaser.Input.Pointer} pointer */
-  #onPointerUp = (pointer) => {
-    if (this.#skipNextPointerUp) {
-      this.#skipNextPointerUp = false;
-      this.#pointerStartX = pointer.x;
-      this.#pointerStartY = pointer.y;
-      return;
-    }
-    if (this.#gameOver || this.#menuModal || this.#powerChoiceModal || this.#powerSelectModal || this.#showingAds || this.#victoryModal) return;
-
-    const dx = pointer.x - this.#pointerStartX;
-    const dy = pointer.y - this.#pointerStartY;
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-    if (Math.max(absDx, absDy) < SWIPE_THRESHOLD) return;
-
-    /** @type {'up' | 'down' | 'left' | 'right'} */
-    const direction = absDx > absDy
-      ? (dx > 0 ? 'right' : 'left')
-      : (dy > 0 ? 'down' : 'up');
-
-    this.#executeMove(direction);
-  };
 
   // ─── MOVE EXECUTION ──────────────────────────────
   /**
@@ -687,7 +427,7 @@ export class GameScene extends Phaser.Scene {
     const moveResult = await this.#gm.executeMove(
       direction,
       waitFn,
-      () => this.#advanceHudCards(direction),
+      () => this.#hudManager.advanceCards(direction),
       (merges) => {
         // Play fusion SFX at the moment the merge bounce animation starts,
         // but only if no power SFX will override it on this move.
@@ -733,7 +473,9 @@ export class GameScene extends Phaser.Scene {
         for (const trigger of triggers) {
           const chosenPower = trigger.needsChoice ? trigger.powerType : trigger.powerType;
           const effectResult = this.#powerManager.executeEffect(
-            chosenPower, this.#gm.grid, trigger.tile,
+            chosenPower,
+            this.#gm.grid,
+            trigger.tile,
           );
           // Remove destroyed tiles from DOM immediately (no animation)
           for (const tile of effectResult.destroyed) {
@@ -780,9 +522,12 @@ export class GameScene extends Phaser.Scene {
       }
       this.#combo++;
       if (this.#combo > this.#comboMax) this.#comboMax = this.#combo;
-      this.#updateComboDisplay(true);
+      this.#hudManager.updateComboDisplay(this.#combo, true);
     } else if (hasMergePossible) {
-      this.#breakComboWithHurt();
+      if (this.#combo > 0) {
+        this.#hudManager.hurtCombo();
+        this.#comboBreaking = true;
+      }
     }
 
     // ── Power system ──
@@ -837,7 +582,7 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.#powersTriggered.push(chosenPower);
-        await this.#executeBattlePowerEffect(chosenPower, trigger.tile);
+        await this.#executePowerEffect(chosenPower, trigger.tile, this.#battlePowerManager);
       }
 
       this.#gm.syncTileDom(this.#battlePowerManager.windDirection);
@@ -860,6 +605,9 @@ export class GameScene extends Phaser.Scene {
     this.#gm.updateFusionIndicators();
     this.#gm.animating = false;
 
+    // Auto-save after every successful move
+    this.#autoSave();
+
     // Check for victory (2048 tile reached) — classic and free modes only.
     // Battle mode victory is handled in #onEnemyDefeated when the level-2048 enemy is killed.
     if (!this.#victoryShown && this.#mode !== 'battle' && this.#maxTile >= 2048) {
@@ -877,17 +625,26 @@ export class GameScene extends Phaser.Scene {
    * @param {string} powerType
    * @param {import('../entities/tile.js').Tile} target
    */
-  async #executePowerEffect(powerType, target) {
+  /**
+   * Execute a power effect and play its animation.
+   * @param {string} powerType
+   * @param {import('../entities/tile.js').Tile} target
+   * @param {PowerManager} [pm] — PowerManager to use (defaults to free-mode #powerManager)
+   */
+  async #executePowerEffect(powerType, target, pm) {
+    const mgr = pm ?? this.#powerManager;
+    if (!mgr) return;
     // Lightning SFX is played per-strike inside the animation block below.
     if (powerType !== POWER_TYPES.LIGHTNING) {
       audioManager.playPowerSfx(powerType);
     }
 
-    const isFirePower = powerType === POWER_TYPES.FIRE_H
-      || powerType === POWER_TYPES.FIRE_V
-      || powerType === POWER_TYPES.FIRE_X;
+    const isFirePower =
+      powerType === POWER_TYPES.FIRE_H ||
+      powerType === POWER_TYPES.FIRE_V ||
+      powerType === POWER_TYPES.FIRE_X;
 
-    const effectResult = this.#powerManager.executeEffect(powerType, this.#gm.grid, target);
+    const effectResult = mgr.executeEffect(powerType, this.#gm.grid, target);
 
     // Track tiles being destroyed so the info panel can warn the player,
     // and so a safety flush at the next move can clean up unfinished animations.
@@ -909,10 +666,14 @@ export class GameScene extends Phaser.Scene {
       const numStrikes = effectResult.lightningStrikes.length;
       // Play SFX at the exact moment the bolt impacts (26% into the animation)
       for (let i = 0; i < numStrikes; i++) {
-        setTimeout(() => audioManager.playSfx('power:lightning'), i * ANIM.LIGHTNING_STRIKE_DELAY + ANIM.LIGHTNING_IMPACT_AT);
+        setTimeout(
+          () => audioManager.playSfx('power:lightning'),
+          i * ANIM.LIGHTNING_STRIKE_DELAY + ANIM.LIGHTNING_IMPACT_AT,
+        );
       }
       this.#gm.playLightningAnimation(effectResult.lightningStrikes);
-      const totalDuration = (numStrikes - 1) * ANIM.LIGHTNING_STRIKE_DELAY + ANIM.LIGHTNING_ANIM_DURATION;
+      const totalDuration =
+        (numStrikes - 1) * ANIM.LIGHTNING_STRIKE_DELAY + ANIM.LIGHTNING_ANIM_DURATION;
       await this.#wait(totalDuration);
       this.#gm.removeTiles(effectResult.destroyed);
     } else if (powerType === POWER_TYPES.BOMB) {
@@ -935,7 +696,7 @@ export class GameScene extends Phaser.Scene {
         await this.#showAdsModal();
         this.#adsShown = true;
         this.#disableAds();
-        this.#gm.syncTileDom(this.#powerManager?.windDirection ?? null);
+        this.#gm.syncTileDom(mgr.windDirection ?? null);
       }
     } else {
       this.#gm.applyDangerOverlay(effectResult.destroyed);
@@ -972,7 +733,7 @@ export class GameScene extends Phaser.Scene {
         onChoice: (chosenType) => {
           this.#powerChoiceModal?.destroy();
           this.#powerChoiceModal = null;
-          this.#skipNextPointerUp = true;
+          this.#inputManager.skipNextPointerUp = true;
           resolve(chosenType);
         },
       });
@@ -987,8 +748,9 @@ export class GameScene extends Phaser.Scene {
     this.#powerManager?.removePowerType(POWER_TYPES.ADS);
     this.#battlePowerManager?.removePowerType(POWER_TYPES.ADS);
     if (this.#battleManager?.enemy) {
-      this.#battleManager.enemy.availablePowers =
-        this.#battleManager.enemy.availablePowers.filter((p) => p !== POWER_TYPES.ADS);
+      this.#battleManager.enemy.availablePowers = this.#battleManager.enemy.availablePowers.filter(
+        (p) => p !== POWER_TYPES.ADS,
+      );
     }
     for (const tile of this.#gm.grid.getAllTiles()) {
       if (tile.power === POWER_TYPES.ADS) tile.power = null;
@@ -1047,79 +809,30 @@ export class GameScene extends Phaser.Scene {
   // ─── HUD UPDATE ──────────────────────────────────
   #updateHUD() {
     const grid = this.#gm.grid;
-    const scoreEl = this.#hudEl?.querySelector('#fm-score');
-    const movesEl = this.#hudEl?.querySelector('#fm-moves');
-    const bestEl = this.#hudEl?.querySelector('#fm-best');
-    const fusionsEl = this.#hudEl?.querySelector('#fm-fusions');
-    if (scoreEl) scoreEl.textContent = String(grid.score);
-    if (movesEl) movesEl.textContent = String(grid.moves);
-    if (bestEl) {
-      const best = Math.max(saveManager.getBestScore(this.#mode), grid.score);
-      bestEl.textContent = String(best);
-    }
-    if (fusionsEl) fusionsEl.textContent = String(this.#fusions);
 
     // Track max tile
     for (const tile of grid.getAllTiles()) {
       if (tile.value > this.#maxTile) this.#maxTile = tile.value;
     }
-    const maxTileEl = this.#hudEl?.querySelector('#fm-max-tile');
-    if (maxTileEl) maxTileEl.textContent = String(this.#maxTile);
-    const bestMaxTileEl = this.#hudEl?.querySelector('#fm-best-max-tile');
-    if (bestMaxTileEl) {
-      const bestMax = Math.max(saveManager.getBestMaxTile(this.#mode), this.#maxTile);
-      bestMaxTileEl.textContent = String(bestMax);
-    }
+
+    const { newBest } = this.#hudManager.updateStats({
+      score: grid.score,
+      moves: grid.moves,
+      fusions: this.#fusions,
+      maxTile: this.#maxTile,
+      prevBestScore: this.#prevBestScore,
+    });
 
     // New best score notification — fire once per game when current score beats the record
-    if (!this.#bestScoreNotified && this.#prevBestScore > 0 && grid.score > this.#prevBestScore) {
+    if (newBest && !this.#bestScoreNotified) {
       this.#bestScoreNotified = true;
-      this.#showNewBestNotification();
+      this.#hudManager.showNewBestNotification();
     }
-  }
-
-  /** Show a transient banner when the player beats their previous best score. */
-  #showNewBestNotification() {
-    audioManager.playSfx('notification');
-    const el = document.createElement('div');
-    el.className = 'fm-new-best-notif';
-    el.textContent = i18n.t('game.new_best');
-    document.body.appendChild(el);
-
-    this.time.delayedCall(2500, () => {
-      el.classList.add('fm-new-best-notif--out');
-      this.time.delayedCall(400, () => el.remove());
-    });
   }
 
   // ─── COMBO ───────────────────────────────────────
-  #updateComboDisplay(animate) {
-    if (!this.#comboEl) return;
-    this.#cancelComboTimer();
-    this.#comboEl.classList.remove('fm-combo-hurt');
-    this.#comboEl.style.removeProperty('animation');
-    void this.#comboEl.offsetWidth;
-    const color = COMBO_COLORS[(this.#combo - 1) % COMBO_COLORS.length];
-    this.#comboEl.style.display = 'block';
-    this.#comboEl.style.color = color;
-    this.#comboEl.style.textShadow =
-      `-1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 8px ${color}`;
-    this.#comboEl.style.borderColor = color;
-    this.#comboEl.innerHTML =
-      `<span class="fm-hit-number">${this.#combo}</span><span class="fm-hit-label">HIT</span>`;
-    const fade = 'fm-combo-fade 3s linear forwards';
-    if (animate && this.#combo >= 3) {
-      this.#comboEl.style.animation = `fm-combo-shake 0.5s ease-in-out both, ${fade}`;
-    } else if (animate) {
-      this.#comboEl.style.animation = `fm-combo-pop 0.45s ease-out both, ${fade}`;
-    } else {
-      this.#comboEl.style.animation = fade;
-    }
-    this.#comboTimer = this.time.delayedCall(3000, () => this.#endCombo());
-  }
-
   #endCombo() {
-    this.#cancelComboTimer();
+    this.#hudManager?.cancelComboTimer();
     this.#comboBreaking = false;
     if (this.#combo <= 0) return;
     if (this.#comboMax >= 2) {
@@ -1129,50 +842,14 @@ export class GameScene extends Phaser.Scene {
         const bonus = scoreGained * (this.#comboMax - 1);
         grid.score += bonus;
         this.#comboScoreTotal += bonus;
-        this.#showScoreBonus(bonus);
+        this.#hudManager?.showScoreBonus(bonus);
         this.#updateHUD();
       }
     }
     this.#combo = 0;
     this.#comboMax = 0;
     this.#comboScoreStart = 0;
-    if (this.#comboEl) {
-      this.#comboEl.style.removeProperty('animation');
-      this.#comboEl.style.display = 'none';
-      this.#comboEl.classList.remove('fm-combo-hurt');
-    }
-  }
-
-  #breakComboWithHurt() {
-    if (this.#combo <= 0) return;
-    this.#cancelComboTimer();
-    this.#comboBreaking = true;
-    if (this.#comboEl) {
-      this.#comboEl.classList.remove('fm-combo-hurt');
-      this.#comboEl.style.removeProperty('animation');
-      void this.#comboEl.offsetWidth;
-      this.#comboEl.classList.add('fm-combo-hurt');
-    }
-    this.#comboTimer = this.time.delayedCall(600, () => this.#endCombo());
-  }
-
-  #cancelComboTimer() {
-    if (this.#comboTimer) {
-      this.#comboTimer.remove(false);
-      this.#comboTimer = null;
-    }
-  }
-
-  /** @param {number} amount */
-  #showScoreBonus(amount) {
-    if (!this.#scoreBonusEl || amount <= 0) return;
-    const color = '#ffdd00';
-    this.#scoreBonusEl.textContent = `+${amount}`;
-    this.#scoreBonusEl.style.color = color;
-    this.#scoreBonusEl.style.textShadow = `0 0 10px ${color}, 0 2px 6px rgba(0,0,0,0.6)`;
-    this.#scoreBonusEl.classList.remove('fm-bonus-active');
-    void this.#scoreBonusEl.offsetWidth;
-    this.#scoreBonusEl.classList.add('fm-bonus-active');
+    this.#hudManager?.resetComboDisplay();
   }
 
   // ─── BATTLE MODE ────────────────────────────────
@@ -1195,7 +872,7 @@ export class GameScene extends Phaser.Scene {
    */
   #positionEnemyArea() {
     if (!this.#enemyAreaEl) return;
-    const hudRect = this.#hudEl?.getBoundingClientRect();
+    const hudRect = this.#hudManager?.hudEl?.getBoundingClientRect();
     const gridRect = this.#gm.gridEl?.getBoundingClientRect();
     if (!hudRect || !gridRect) return;
     const spaceCenter = hudRect.bottom + (gridRect.top - hudRect.bottom) / 2;
@@ -1217,11 +894,13 @@ export class GameScene extends Phaser.Scene {
     const H = window.innerHeight;
     const thickness = 100;
     // Top edge of the body sits exactly at viewport bottom (H)
-    this.#physicsFloor = this.matter.add.rectangle(
-      W / 2, H + thickness / 2,
-      W * 4, thickness,
-      { isStatic: true, label: 'floor', friction: 1.0, frictionStatic: 10.0, restitution: 0.02 },
-    );
+    this.#physicsFloor = this.matter.add.rectangle(W / 2, H + thickness / 2, W * 4, thickness, {
+      isStatic: true,
+      label: 'floor',
+      friction: 1.0,
+      frictionStatic: 10.0,
+      restitution: 0.02,
+    });
   }
 
   /**
@@ -1373,7 +1052,12 @@ export class GameScene extends Phaser.Scene {
     /* Read size from the tile wrapper (offsetWidth/offsetHeight are reliable on
        visible elements). Fall back to #tileSizePx if layout hasn't settled yet. */
     const size = tileEl?.offsetWidth || this.#tileSizePx;
-    this.#enemyWave = new LiquidWave(liquidEl, { category, alpha: 0.65, width: size, height: size });
+    this.#enemyWave = new LiquidWave(liquidEl, {
+      category,
+      alpha: 0.65,
+      width: size,
+      height: size,
+    });
     this.#enemyWave.snapLevel(0);
     this.#enemyWave.level = level;
   }
@@ -1512,10 +1196,10 @@ export class GameScene extends Phaser.Scene {
     if (!enemyTileEl) return;
 
     const enemyRect = enemyTileEl.getBoundingClientRect();
-    const ex = enemyRect.left + enemyRect.width  / 2;
-    const ey = enemyRect.top  + enemyRect.height / 2;
+    const ex = enemyRect.left + enemyRect.width / 2;
+    const ey = enemyRect.top + enemyRect.height / 2;
 
-    const COUNT    = 12; // particles per merged tile
+    const COUNT = 12; // particles per merged tile
     const DURATION = 560; // ms — all particles guaranteed to arrive
 
     /** Quadratic Bézier position at parameter t ∈ [0,1]. */
@@ -1525,7 +1209,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     const cvs = document.createElement('canvas');
-    cvs.width  = window.innerWidth;
+    cvs.width = window.innerWidth;
     cvs.height = window.innerHeight;
     cvs.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1000;';
     document.body.appendChild(cvs);
@@ -1536,28 +1220,31 @@ export class GameScene extends Phaser.Scene {
       const tileEl = this.#gm.tileElements.get(merge.tile.id);
       if (!tileEl) continue;
       const tileRect = tileEl.getBoundingClientRect();
-      const sx = tileRect.left + tileRect.width  / 2;
-      const sy = tileRect.top  + tileRect.height / 2;
+      const sx = tileRect.left + tileRect.width / 2;
+      const sy = tileRect.top + tileRect.height / 2;
 
       for (let i = 0; i < COUNT; i++) {
         // Evenly distributed burst angles with slight jitter
-        const angle     = (i / COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+        const angle = (i / COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
         const burstDist = 55 + Math.random() * 55;
         particles.push({
           p0: { x: sx + (Math.random() - 0.5) * 6, y: sy + (Math.random() - 0.5) * 6 },
           p1: { x: sx + Math.cos(angle) * burstDist, y: sy + Math.sin(angle) * burstDist },
-          p2: { x: ex + (Math.random() - 0.5) * 4,  y: ey + (Math.random() - 0.5) * 4  },
-          size:  3 + Math.random() * 2,
+          p2: { x: ex + (Math.random() - 0.5) * 4, y: ey + (Math.random() - 0.5) * 4 },
+          size: 3 + Math.random() * 2,
           delay: Math.random() * 0.1, // slight stagger between particles
         });
       }
     }
 
-    if (!particles.length) { cvs.remove(); return; }
+    if (!particles.length) {
+      cvs.remove();
+      return;
+    }
 
     const startTime = performance.now();
 
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       const frame = (now) => {
         const globalT = Math.min((now - startTime) / DURATION, 1);
         ctx.clearRect(0, 0, cvs.width, cvs.height);
@@ -1571,19 +1258,19 @@ export class GameScene extends Phaser.Scene {
 
           // Trail: sample the curve behind the current position
           const TRAIL_STEPS = 14;
-          const TRAIL_SPAN  = 0.18; // how far back the trail reaches on the curve
+          const TRAIL_SPAN = 0.18; // how far back the trail reaches on the curve
           for (let i = 1; i <= TRAIL_STEPS; i++) {
             const progress = i / TRAIL_STEPS;
             const tA = Math.max(0, t - TRAIL_SPAN * (1 - (i - 1) / TRAIL_STEPS));
-            const tB = Math.max(0, t - TRAIL_SPAN * (1 - i       / TRAIL_STEPS));
-            const a  = bezier(p.p0, p.p1, p.p2, tA);
-            const b  = bezier(p.p0, p.p1, p.p2, tB);
+            const tB = Math.max(0, t - TRAIL_SPAN * (1 - i / TRAIL_STEPS));
+            const a = bezier(p.p0, p.p1, p.p2, tA);
+            const b = bezier(p.p0, p.p1, p.p2, tB);
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);
             ctx.strokeStyle = `rgba(255,200,30,${progress * 0.65})`;
-            ctx.lineWidth   = p.size * progress * 0.85;
-            ctx.lineCap     = 'round';
+            ctx.lineWidth = p.size * progress * 0.85;
+            ctx.lineCap = 'round';
             ctx.stroke();
           }
 
@@ -1631,14 +1318,14 @@ export class GameScene extends Phaser.Scene {
     if (!tileEl) return;
 
     const enemyRect = this.#enemyAreaEl.getBoundingClientRect();
-    const tileRect  = tileEl.getBoundingClientRect();
+    const tileRect = tileEl.getBoundingClientRect();
 
-    const sx = enemyRect.left + enemyRect.width  / 2;
-    const sy = enemyRect.top  + enemyRect.height / 2;
-    const ex = tileRect.left  + tileRect.width   / 2;
-    const ey = tileRect.top   + tileRect.height  / 2;
+    const sx = enemyRect.left + enemyRect.width / 2;
+    const sy = enemyRect.top + enemyRect.height / 2;
+    const ex = tileRect.left + tileRect.width / 2;
+    const ey = tileRect.top + tileRect.height / 2;
 
-    const COUNT    = 10;
+    const COUNT = 10;
     const DURATION = 550;
 
     /** Quadratic Bézier position at parameter t ∈ [0,1]. */
@@ -1648,7 +1335,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     const cvs = document.createElement('canvas');
-    cvs.width  = window.innerWidth;
+    cvs.width = window.innerWidth;
     cvs.height = window.innerHeight;
     cvs.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1000;';
     document.body.appendChild(cvs);
@@ -1656,20 +1343,20 @@ export class GameScene extends Phaser.Scene {
 
     const particles = [];
     for (let i = 0; i < COUNT; i++) {
-      const angle     = (i / COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const angle = (i / COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
       const burstDist = 45 + Math.random() * 45;
       particles.push({
         p0: { x: sx + (Math.random() - 0.5) * 6, y: sy + (Math.random() - 0.5) * 6 },
         p1: { x: sx + Math.cos(angle) * burstDist, y: sy + Math.sin(angle) * burstDist },
-        p2: { x: ex + (Math.random() - 0.5) * 4,  y: ey + (Math.random() - 0.5) * 4  },
-        size:  2.5 + Math.random() * 2,
+        p2: { x: ex + (Math.random() - 0.5) * 4, y: ey + (Math.random() - 0.5) * 4 },
+        size: 2.5 + Math.random() * 2,
         delay: Math.random() * 0.12,
       });
     }
 
     const startTime = performance.now();
 
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       let impactSoundPlayed = false;
       const frame = (now) => {
         const globalT = Math.min((now - startTime) / DURATION, 1);
@@ -1689,19 +1376,19 @@ export class GameScene extends Phaser.Scene {
 
           // Trail sampled from the Bézier curve
           const TRAIL_STEPS = 12;
-          const TRAIL_SPAN  = 0.2;
+          const TRAIL_SPAN = 0.2;
           for (let i = 1; i <= TRAIL_STEPS; i++) {
             const progress = i / TRAIL_STEPS;
             const tA = Math.max(0, t - TRAIL_SPAN * (1 - (i - 1) / TRAIL_STEPS));
-            const tB = Math.max(0, t - TRAIL_SPAN * (1 - i       / TRAIL_STEPS));
-            const a  = bezier(p.p0, p.p1, p.p2, tA);
-            const b  = bezier(p.p0, p.p1, p.p2, tB);
+            const tB = Math.max(0, t - TRAIL_SPAN * (1 - i / TRAIL_STEPS));
+            const a = bezier(p.p0, p.p1, p.p2, tA);
+            const b = bezier(p.p0, p.p1, p.p2, tB);
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);
             ctx.strokeStyle = `rgba(130,0,210,${progress * 0.6})`;
-            ctx.lineWidth   = p.size * progress * 0.85;
-            ctx.lineCap     = 'round';
+            ctx.lineWidth = p.size * progress * 0.85;
+            ctx.lineCap = 'round';
             ctx.stroke();
           }
 
@@ -1737,9 +1424,13 @@ export class GameScene extends Phaser.Scene {
 
     // Dark shadow pulse on the newly contaminated tile
     tileEl.classList.add('fm-tile-hit-contaminate');
-    tileEl.addEventListener('animationend', () => {
-      tileEl.classList.remove('fm-tile-hit-contaminate');
-    }, { once: true });
+    tileEl.addEventListener(
+      'animationend',
+      () => {
+        tileEl.classList.remove('fm-tile-hit-contaminate');
+      },
+      { once: true },
+    );
   }
 
   /**
@@ -1757,9 +1448,9 @@ export class GameScene extends Phaser.Scene {
 
     // Find the tile wrapper to get its exact center position
     const tileWrap = this.#enemyAreaEl.querySelector('.fm-enemy-tile');
-    const srcRect  = (tileWrap ?? this.#enemyAreaEl).getBoundingClientRect();
-    const cx = srcRect.left + srcRect.width  / 2;
-    const cy = srcRect.top  + srcRect.height / 2;
+    const srcRect = (tileWrap ?? this.#enemyAreaEl).getBoundingClientRect();
+    const cx = srcRect.left + srcRect.width / 2;
+    const cy = srcRect.top + srcRect.height / 2;
 
     // ── DOM element (visual only) ──────────────────────────────────────────
     // Hide the live enemy tile immediately so there is no overlap between the
@@ -1768,11 +1459,12 @@ export class GameScene extends Phaser.Scene {
 
     const deadTile = document.createElement('div');
     deadTile.className = 'fm-dead-enemy';
-    deadTile.style.cssText = `position:fixed;width:${tileSize}px;height:${tileSize}px;` +
-                             `pointer-events:none;transform-origin:center center;`;
+    deadTile.style.cssText =
+      `position:fixed;width:${tileSize}px;height:${tileSize}px;` +
+      `pointer-events:none;transform-origin:center center;`;
     deadTile.style.left = `${cx - tileSize / 2}px`;
-    deadTile.style.top  = `${cy - tileSize / 2}px`;
-    deadTile.innerHTML  = `
+    deadTile.style.top = `${cy - tileSize / 2}px`;
+    deadTile.innerHTML = `
       <div class="fm-tile fm-dead-enemy-inner ${tileClass}">
         <span class="fm-dead-enemy-label">${enemy.name}</span>
         <div class="fm-dead-enemy-face">
@@ -1784,24 +1476,22 @@ export class GameScene extends Phaser.Scene {
     // ── Matter.js physics body ─────────────────────────────────────────────
     // this.matter.add.rectangle() creates a raw Matter Body and adds it to the world.
     const body = this.matter.add.rectangle(cx, cy, tileSize, tileSize, {
-      chamfer       : { radius: 14 }, // match CSS border-radius: 14px
-      restitution   : 0.30,   // light bounce — natural fall feel
-      friction      : 0.90,   // friction against floor/other bodies
-      frictionAir   : 0.008,  // low air resistance — falls at normal speed
-      density       : 0.002,
-      label         : 'dead-enemy',
+      chamfer: { radius: 14 }, // match CSS border-radius: 14px
+      restitution: 0.3, // light bounce — natural fall feel
+      friction: 0.9, // friction against floor/other bodies
+      frictionAir: 0.008, // low air resistance — falls at normal speed
+      density: 0.002,
+      label: 'dead-enemy',
     });
 
     // Initial impulse: random horizontal kick + spin
-    const M      = Phaser.Physics.Matter.Matter;
-    const vxDir  = Math.random() > 0.5 ? 1 : -1;
+    const M = Phaser.Physics.Matter.Matter;
+    const vxDir = Math.random() > 0.5 ? 1 : -1;
     M.Body.setVelocity(body, {
-      x: vxDir * (Math.random()),
+      x: vxDir * Math.random(),
       y: 0,
     });
-    M.Body.setAngularVelocity(body,
-      (Math.random() > 0.5 ? 1 : -1) * (0.08 + Math.random() * 0.18),
-    );
+    M.Body.setAngularVelocity(body, (Math.random() > 0.5 ? 1 : -1) * (0.08 + Math.random() * 0.18));
 
     this.#deadEnemyBodies.push({ el: deadTile, body });
 
@@ -1819,10 +1509,10 @@ export class GameScene extends Phaser.Scene {
   #nudgeDeadEnemies(direction) {
     if (this.#deadEnemyBodies.length === 0) return;
     const M = Phaser.Physics.Matter.Matter;
-    const BASE   = 1.5; // base velocity delta (pixels/frame) — keep subtle
+    const BASE = 1.5; // base velocity delta (pixels/frame) — keep subtle
     const JITTER = 0.8; // per-body random variation for natural feel
     const dx = direction === 'right' ? BASE : direction === 'left' ? -BASE : 0;
-    const dy = direction === 'down'  ? BASE : direction === 'up'   ? -BASE : 0;
+    const dy = direction === 'down' ? BASE : direction === 'up' ? -BASE : 0;
     for (const { body } of this.#deadEnemyBodies) {
       // Wake sleeping bodies first — setVelocity has no effect on sleeping bodies
       // (enableSleeping is true in the Matter world config).
@@ -1833,89 +1523,6 @@ export class GameScene extends Phaser.Scene {
         x: body.velocity.x + dx + jx,
         y: body.velocity.y + dy + jy,
       });
-    }
-  }
-
-  /**
-   * Execute a power effect triggered by a contaminated tile in battle mode.
-   * Same as #executePowerEffect but uses battlePowerManager.
-   * @param {string} powerType
-   * @param {import('../entities/tile.js').Tile} target
-   */
-  async #executeBattlePowerEffect(powerType, target) {
-    if (!this.#battlePowerManager) return;
-    // Lightning SFX is played per-strike inside the animation block below.
-    if (powerType !== POWER_TYPES.LIGHTNING) {
-      audioManager.playPowerSfx(powerType);
-    }
-
-    const isFirePower = powerType === POWER_TYPES.FIRE_H
-      || powerType === POWER_TYPES.FIRE_V
-      || powerType === POWER_TYPES.FIRE_X;
-
-    const effectResult = this.#battlePowerManager.executeEffect(powerType, this.#gm.grid, target);
-
-    for (const tile of effectResult.destroyed) {
-      this.#pendingDestructionTiles.set(tile.id, tile.value);
-    }
-    if (effectResult.destroyed.length > 0) {
-      this.#updatePowerVisuals();
-    }
-
-    if (isFirePower && target && effectResult.destroyed.length > 0) {
-      this.#gm.playFireAnimation(powerType, target, effectResult.destroyed);
-      await this.#wait(ANIM.FIRE_BALL_DURATION + ANIM.FIRE_ZAP_DURATION);
-      this.#gm.removeTiles(effectResult.destroyed);
-    } else if (effectResult.teleported) {
-      const { tileA, tileB, oldA, oldB } = effectResult.teleported;
-      await this.#gm.playTeleportAnimation(tileA, tileB, oldA, oldB, ANIM.TELEPORT_DURATION);
-    } else if (powerType === POWER_TYPES.LIGHTNING && effectResult.lightningStrikes) {
-      const numStrikes = effectResult.lightningStrikes.length;
-      // Play SFX at the exact moment the bolt impacts (26% into the animation)
-      for (let i = 0; i < numStrikes; i++) {
-        setTimeout(() => audioManager.playSfx('power:lightning'), i * ANIM.LIGHTNING_STRIKE_DELAY + ANIM.LIGHTNING_IMPACT_AT);
-      }
-      this.#gm.playLightningAnimation(effectResult.lightningStrikes);
-      const totalDuration = (numStrikes - 1) * ANIM.LIGHTNING_STRIKE_DELAY + ANIM.LIGHTNING_ANIM_DURATION;
-      await this.#wait(totalDuration);
-      this.#gm.removeTiles(effectResult.destroyed);
-    } else if (powerType === POWER_TYPES.BOMB) {
-      if (effectResult.destroyed.length > 0) {
-        this.#gm.playBombAnimation(target, effectResult.destroyed);
-        await this.#wait(ANIM.BOMB_DURATION);
-        this.#gm.removeTiles(effectResult.destroyed);
-      }
-    } else if (powerType === POWER_TYPES.NUCLEAR) {
-      if (effectResult.destroyed.length > 0) {
-        this.#gm.playNuclearAnimation(effectResult.destroyed);
-        await this.#wait(ANIM.NUCLEAR_TILE_REMOVE_AT);
-        this.#gm.removeTiles(effectResult.destroyed);
-        await this.#wait(ANIM.NUCLEAR_DURATION - ANIM.NUCLEAR_TILE_REMOVE_AT);
-      }
-    } else if (powerType === POWER_TYPES.ADS) {
-      if (!this.#adsShown) {
-        await this.#showAdsModal();
-        this.#adsShown = true;
-        this.#disableAds();
-        this.#gm.syncTileDom(this.#battlePowerManager?.windDirection ?? null);
-      }
-    } else {
-      this.#gm.applyDangerOverlay(effectResult.destroyed);
-      if (effectResult.destroyed.length > 0) {
-        await this.#wait(400);
-        this.#gm.removeTiles(effectResult.destroyed);
-      }
-    }
-
-    for (const tile of effectResult.destroyed) {
-      this.#pendingDestructionTiles.delete(tile.id);
-    }
-
-    // Grid Life: damage from power effects during battle
-    if (this.#gridLife && effectResult.destroyed.length > 0) {
-      const values = effectResult.destroyed.map((t) => t.value);
-      const damage = this.#gridLife.takeDamage(values);
-      this.#onGridLifeDamage(damage);
     }
   }
 
@@ -1937,9 +1544,18 @@ export class GameScene extends Phaser.Scene {
     this.#menuModal = new MenuModal(this, {
       showResume: true,
       onResume: () => this.#destroyMenuModal(),
-      onClassic: () => { this.#destroyMenuModal(); this.scene.restart({ mode: 'classic' }); },
-      onBattle: () => { this.#destroyMenuModal(); this.scene.restart({ mode: 'battle' }); },
-      onFree: () => { this.#destroyMenuModal(); this.scene.restart({ mode: 'free' }); },
+      onClassic: () => {
+        this.#destroyMenuModal();
+        this.scene.restart({ mode: 'classic' });
+      },
+      onBattle: () => {
+        this.#destroyMenuModal();
+        this.scene.restart({ mode: 'battle' });
+      },
+      onFree: () => {
+        this.#destroyMenuModal();
+        this.scene.restart({ mode: 'free' });
+      },
       onClose: () => this.#destroyMenuModal(),
       onQuit: () => {
         this.#destroyMenuModal();
@@ -2006,6 +1622,11 @@ export class GameScene extends Phaser.Scene {
     this.#showToast(i18n.t('save.saved'));
   }
 
+  /** Persist the current game state to the auto-save slot. */
+  #autoSave() {
+    saveManager.autoSave(this.#buildFullSaveState());
+  }
+
   /**
    * Show a brief toast message at the bottom of the screen.
    * @param {string} message
@@ -2028,8 +1649,9 @@ export class GameScene extends Phaser.Scene {
     // Read the live CSS variable so tile size matches the actual rendered tiles,
     // even when this runs before events.once('create') sets #tileSizePx.
     const cssSize = parseInt(
-      getComputedStyle(document.getElementById('game-container') ?? document.body)
-        .getPropertyValue('--fm-tile-size'),
+      getComputedStyle(document.getElementById('game-container') ?? document.body).getPropertyValue(
+        '--fm-tile-size',
+      ),
       10,
     );
     const tileSize = cssSize || this.#tileSizePx || 64;
@@ -2053,7 +1675,7 @@ export class GameScene extends Phaser.Scene {
       deadTile.className = 'fm-dead-enemy';
       deadTile.style.cssText = `position:fixed;width:${tileSize}px;height:${tileSize}px;pointer-events:none;transform-origin:center center;`;
       deadTile.style.left = `${cx - tileSize / 2}px`;
-      deadTile.style.top  = `${cy - tileSize / 2}px`;
+      deadTile.style.top = `${cy - tileSize / 2}px`;
       deadTile.innerHTML = `
         <div class="fm-tile fm-dead-enemy-inner ${tileClass}">
           <span class="fm-dead-enemy-label">${name}</span>
@@ -2067,12 +1689,12 @@ export class GameScene extends Phaser.Scene {
       // but zero initial velocity — already settled on the floor.
       // Using dynamic (not static) so new enemies falling on top interact naturally.
       const body = this.matter.add.rectangle(cx, cy, tileSize, tileSize, {
-        chamfer      : { radius: 14 },
-        restitution  : 0.30,
-        friction     : 0.90,
-        frictionAir  : 0.008,
-        density      : 0.002,
-        label        : 'dead-enemy',
+        chamfer: { radius: 14 },
+        restitution: 0.3,
+        friction: 0.9,
+        frictionAir: 0.008,
+        density: 0.002,
+        label: 'dead-enemy',
       });
       // Already settled — no initial velocity or spin
       const M = Phaser.Physics.Matter.Matter;
@@ -2098,7 +1720,7 @@ export class GameScene extends Phaser.Scene {
     this.#victoryShown = data.victoryShown ?? false;
     this.#prevBestScore = saveManager.getBestScore(this.#mode);
     this.#bestScoreNotified = false;
-    this.#cancelComboTimer();
+    this.#hudManager?.cancelComboTimer();
 
     // Restore grid
     this.#gm.grid.restoreFull(data.grid);
@@ -2153,14 +1775,22 @@ export class GameScene extends Phaser.Scene {
     this.#gm.renderAllTiles();
     this.#gm.updateFusionIndicators();
     if (this.#powerManager || this.#battlePowerManager) {
-      this.#gm.syncTileDom(this.#powerManager?.windDirection ?? this.#battlePowerManager?.windDirection ?? null);
+      this.#gm.syncTileDom(
+        this.#powerManager?.windDirection ?? this.#battlePowerManager?.windDirection ?? null,
+      );
     }
     this.#updateHUD();
   }
 
   #destroyMenuModal() {
-    if (this.#adminModal) { this.#adminModal.destroy(); this.#adminModal = null; }
-    if (this.#menuModal) { this.#menuModal.destroy(); this.#menuModal = null; }
+    if (this.#adminModal) {
+      this.#adminModal.destroy();
+      this.#adminModal = null;
+    }
+    if (this.#menuModal) {
+      this.#menuModal.destroy();
+      this.#menuModal = null;
+    }
   }
 
   // ─── ADMIN (dev only) ────────────────────────────
@@ -2181,7 +1811,7 @@ export class GameScene extends Phaser.Scene {
         this.#gm.syncTileDom(this.#powerManager?.windDirection ?? null);
         this.#gm.updateFusionIndicators();
       },
-      onNewRecord: () => this.#showNewBestNotification(),
+      onNewRecord: () => this.#hudManager?.showNewBestNotification(),
       onShowVictory: () => {
         this.#adminModal?.destroy();
         this.#adminModal = null;
@@ -2193,7 +1823,10 @@ export class GameScene extends Phaser.Scene {
         this.#onGameOver();
       },
       onResume: () => this.#destroyMenuModal(),
-      onClose: () => { this.#adminModal?.destroy(); this.#adminModal = null; },
+      onClose: () => {
+        this.#adminModal?.destroy();
+        this.#adminModal = null;
+      },
     });
   }
 
@@ -2222,27 +1855,32 @@ export class GameScene extends Phaser.Scene {
       this.#endCombo();
       saveManager.addRanking(this.#mode, this.#gm.grid.score, extra);
       saveManager.clearGame();
+      saveManager.clearAutoSave();
     }
 
-    const provisionalEntry = isBattle ? null : {
-      score: this.#gm.grid.score,
-      date: Date.now(),
-      maxTile: extra.maxTile,
-      moves: extra.moves,
-      fusions: extra.fusions,
-      comboScore: extra.comboScore,
-    };
+    const provisionalEntry = isBattle
+      ? null
+      : {
+          score: this.#gm.grid.score,
+          date: Date.now(),
+          maxTile: extra.maxTile,
+          moves: extra.moves,
+          fusions: extra.fusions,
+          comboScore: extra.comboScore,
+        };
 
     this.#victoryModal = new VictoryModal(this, {
       score: this.#gm.grid.score,
       mode: this.#mode,
       stats: extra,
       provisionalEntry,
-      onContinue: isBattle ? undefined : () => {
-        this.#victoryModal?.destroy();
-        this.#victoryModal = null;
-        // Player continues — game is NOT over
-      },
+      onContinue: isBattle
+        ? undefined
+        : () => {
+            this.#victoryModal?.destroy();
+            this.#victoryModal = null;
+            // Player continues — game is NOT over
+          },
       onNewGame: () => {
         this.#victoryModal?.destroy();
         this.#victoryModal = null;
@@ -2276,6 +1914,7 @@ export class GameScene extends Phaser.Scene {
     }
     saveManager.addRanking(this.#mode, this.#gm.grid.score, extra);
     saveManager.clearGame();
+    saveManager.clearAutoSave();
 
     this.#criticalOverlay?.classList.add('fm-critical-overlay--stopped');
 
@@ -2382,9 +2021,9 @@ export class GameScene extends Phaser.Scene {
     const directions = /** @type {const} */ (['up', 'down', 'left', 'right']);
     // Thick SVG arrow per direction
     const dirArrows = {
-      up:    `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 1 L11 7 H8 V13 H4 V7 H1 Z" fill="currentColor"/></svg>`,
-      down:  `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 13 L11 7 H8 V1 H4 V7 H1 Z" fill="currentColor"/></svg>`,
-      left:  `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 6 L7 1 V4 H13 V8 H7 V11 Z" fill="currentColor"/></svg>`,
+      up: `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 1 L11 7 H8 V13 H4 V7 H1 Z" fill="currentColor"/></svg>`,
+      down: `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 13 L11 7 H8 V1 H4 V7 H1 Z" fill="currentColor"/></svg>`,
+      left: `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 6 L7 1 V4 H13 V8 H7 V11 Z" fill="currentColor"/></svg>`,
       right: `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M13 6 L7 1 V4 H1 V8 H7 V11 Z" fill="currentColor"/></svg>`,
     };
 
@@ -2416,7 +2055,8 @@ export class GameScene extends Phaser.Scene {
             cat === 'danger' &&
             pred.powerType !== POWER_TYPES.LIGHTNING &&
             (!pred.destroyedValues || pred.destroyedValues.length === 0)
-          ) continue;
+          )
+            continue;
 
           const meta = POWER_META[pred.powerType];
 
@@ -2426,7 +2066,8 @@ export class GameScene extends Phaser.Scene {
           let noColon = false;
 
           if (pred.exits) {
-            msgKey = pred.powerType === POWER_TYPES.EXPEL_V ? 'pred.expel_v_off' : 'pred.expel_h_off';
+            msgKey =
+              pred.powerType === POWER_TYPES.EXPEL_V ? 'pred.expel_v_off' : 'pred.expel_h_off';
             tilesHtml = buildPills([pred.tileValue]);
           } else {
             switch (pred.powerType) {
@@ -2470,10 +2111,15 @@ export class GameScene extends Phaser.Scene {
                 const rawMax = [...(pred.lightningRange?.max ?? [])].sort((a, b) => b - a);
                 const minArr = isFinite(maxTiles) ? rawMin.slice(0, maxTiles) : rawMin;
                 const maxArr = isFinite(maxTiles) ? rawMax.slice(0, maxTiles) : rawMax;
-                const minPills = rawMin.length > 0
-                  ? minArr.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('')
-                  : `<span class="fm-range-empty">∅</span>`;
-                const maxPills = maxArr.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('');
+                const minPills =
+                  rawMin.length > 0
+                    ? minArr
+                        .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
+                        .join('')
+                    : `<span class="fm-range-empty">∅</span>`;
+                const maxPills = maxArr
+                  .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
+                  .join('');
                 tilesHtml = `<div class="fm-power-info-range">
                   <span class="fm-range-label">(Min</span>
                   <div class="fm-power-info-tiles">${minPills}</div>
@@ -2494,9 +2140,10 @@ export class GameScene extends Phaser.Scene {
                 break;
               case POWER_TYPES.ADS: {
                 const adjs = i18n.t('pred.ads_adjectives');
-                const adj = Array.isArray(adjs) && adjs.length > 0
-                  ? adjs[Math.floor(Math.random() * adjs.length)]
-                  : '';
+                const adj =
+                  Array.isArray(adjs) && adjs.length > 0
+                    ? adjs[Math.floor(Math.random() * adjs.length)]
+                    : '';
                 msgKey = 'pred.ads';
                 tilesHtml = `<span class="fm-pred-ads-adj">${adj}</span>`;
                 noColon = true;
@@ -2670,7 +2317,12 @@ export class GameScene extends Phaser.Scene {
   /** Phaser game loop — called every frame. Syncs dead-enemy DOM elements to their Matter.js body positions. */
   update() {
     // Continuous empty-grid safety: catch any case the timer missed
-    if (!this.#gameOver && !this.#gm.animating && this.#gm.grid.getAllTiles().length === 0 && !this.#emptyGridTimer) {
+    if (
+      !this.#gameOver &&
+      !this.#gm.animating &&
+      this.#gm.grid.getAllTiles().length === 0 &&
+      !this.#emptyGridTimer
+    ) {
       this.#startEmptyGridTimer();
     }
 
@@ -2678,17 +2330,16 @@ export class GameScene extends Phaser.Scene {
     const half = this.#tileSizePx / 2;
     for (const { el, body } of this.#deadEnemyBodies) {
       if (!el.isConnected) continue;
-      el.style.left      = `${body.position.x - half}px`;
-      el.style.top       = `${body.position.y - half}px`;
+      el.style.left = `${body.position.x - half}px`;
+      el.style.top = `${body.position.y - half}px`;
       el.style.transform = `rotate(${body.angle}rad)`;
     }
   }
 
   shutdown() {
-    this.#cancelComboTimer();
+    this.#inputManager?.shutdown();
+    this.#hudManager?.shutdown();
     this.#cancelEmptyGridTimer();
-    this.#unsubI18n?.();
-    this.#unsubI18n = null;
     this.#gm.shutdown();
     this.#destroyMenuModal();
     this.#gameOverModal?.destroy();
@@ -2698,8 +2349,6 @@ export class GameScene extends Phaser.Scene {
     this.#adminModal?.destroy();
     this.#helpModal?.destroy();
     this.#helpModal = null;
-    this.#helpBtnDom?.destroy();
-    this.#helpBtnDom = null;
     this.#powerInfoDom?.destroy();
     this.#powerInfoAllDom?.destroy();
     this.#criticalOverlay?.remove();
@@ -2720,9 +2369,5 @@ export class GameScene extends Phaser.Scene {
     // we only need to null our reference.
     this.#physicsFloor = null;
     document.querySelectorAll('.fm-contaminate-particle').forEach((el) => el.remove());
-    this.#hudCardStates = [];
-    this.input.keyboard.off('keydown', this.#handleKey, this);
-    this.input.off('pointerdown', this.#onPointerDown, this);
-    this.input.off('pointerup', this.#onPointerUp, this);
   }
 }

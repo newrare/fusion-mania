@@ -69,7 +69,10 @@ export class Grid {
           if (!tile) return null;
           const t = { v: tile.value };
           if (tile.power) t.p = tile.power;
-          if (tile.state) { t.s = tile.state; t.st = tile.stateTurns; }
+          if (tile.state) {
+            t.s = tile.state;
+            t.st = tile.stateTurns;
+          }
           if (tile.targeted) t.tg = true;
           return t;
         }),
@@ -91,7 +94,10 @@ export class Grid {
         if (!data) return null;
         const tile = new Tile(data.v, r, c);
         if (data.p) tile.power = data.p;
-        if (data.s) { tile.state = data.s; tile.stateTurns = data.st ?? 0; }
+        if (data.s) {
+          tile.state = data.s;
+          tile.stateTurns = data.st ?? 0;
+        }
         if (data.tg) tile.targeted = true;
         return tile;
       }),
@@ -326,8 +332,7 @@ export class Grid {
 
     while (true) {
       const outOfBounds =
-        nextRow < 0 || nextRow >= GRID_SIZE ||
-        nextCol < 0 || nextCol >= GRID_SIZE;
+        nextRow < 0 || nextRow >= GRID_SIZE || nextCol < 0 || nextCol >= GRID_SIZE;
 
       if (outOfBounds) {
         if (canExit) {

@@ -10,7 +10,7 @@ const STAR_COUNT = 45;
 const CLOUD01_BASE_Y = 0.18; // upper area  — depth below rock
 const CLOUD02_BASE_Y = 0.58; // middle/slightly below — depth above rock, below ground
 /* Max vertical shift: ±20 % of screen height */
-const CLOUD_Y_VARIATION = 0.20;
+const CLOUD_Y_VARIATION = 0.2;
 
 /**
  * Add the layered parallax background to a Phaser scene.
@@ -79,7 +79,10 @@ export function addBackground(scene) {
     const x = rndInt(4, width - 4);
     const y = rndInt(4, Math.floor(height * 0.48));
     /* scene.add.arc: explicit arc API available in all Phaser 3 versions */
-    const star = scene.add.arc(x, y, rnd(1.0, 2.5), 0, 360, false, 0xffffff, 1).setAlpha(0).setDepth(1);
+    const star = scene.add
+      .arc(x, y, rnd(1.0, 2.5), 0, 360, false, 0xffffff, 1)
+      .setAlpha(0)
+      .setDepth(1);
 
     const twinkle = () => {
       const peak = rnd(0.55, 1.0);
@@ -172,12 +175,12 @@ export function addBackground(scene) {
     const opacity = rnd(0.1, 1.0);
     const flipX = Math.random() < 0.5;
     /* Random size: 60–100 % of the base size, no distortion */
-    const sizeFactor = rnd(0.60, 1.0);
+    const sizeFactor = rnd(0.6, 1.0);
     const yShift = rnd(-CLOUD_Y_VARIATION, CLOUD_Y_VARIATION) * height;
     const y = clamp(cfg.baseY + yShift, 0, height);
 
     const img = scene.textures.get(cfg.key).getSourceImage();
-    const cloudW = width * rnd(0.45, 0.90) * sizeFactor;
+    const cloudW = width * rnd(0.45, 0.9) * sizeFactor;
     const cloudH = (img.height / img.width) * cloudW;
 
     const startX = goRight ? -(cloudW / 2) : width + cloudW / 2;
@@ -224,7 +227,7 @@ export function addBackground(scene) {
     }
 
     /* Occasionally add a bonus cloud (independent, does not drive the loop) */
-    if (Math.random() < 0.30) {
+    if (Math.random() < 0.3) {
       scene.time.delayedCall(rndInt(400, 4000), () => spawnCloudOnce(cfg, undefined));
     }
 
@@ -236,9 +239,9 @@ export function addBackground(scene) {
 
   /* ── Kick off each cloud layer independently ─────────────────────────────── */
   scene.time.delayedCall(rndInt(0, 2000), () =>
-    cloudLoop({ key: 'bg-cloud01', depth: 2, baseY: height * CLOUD01_BASE_Y })
+    cloudLoop({ key: 'bg-cloud01', depth: 2, baseY: height * CLOUD01_BASE_Y }),
   );
   scene.time.delayedCall(rndInt(0, 2000), () =>
-    cloudLoop({ key: 'bg-cloud02', depth: 4, baseY: height * CLOUD02_BASE_Y })
+    cloudLoop({ key: 'bg-cloud02', depth: 4, baseY: height * CLOUD02_BASE_Y }),
   );
 }

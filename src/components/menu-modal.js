@@ -137,7 +137,7 @@ export class MenuModal {
       if (opts.onQuit) {
         html += `<button class="fm-btn" data-action="quit">${i18n.t('menu.quit')}</button>`;
       }
-      if (import.meta.env.DEV || ('ontouchstart' in window || navigator.maxTouchPoints > 0)) {
+      if (import.meta.env.DEV || 'ontouchstart' in window || navigator.maxTouchPoints > 0) {
         html += `<button class="fm-btn" data-action="exit">${i18n.t('menu.exit')}</button>`;
       }
     }

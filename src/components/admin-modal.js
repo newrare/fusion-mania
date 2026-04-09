@@ -4,7 +4,10 @@ import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /** @param {string} id */
 const stateLabel = (id) =>
-  id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+  id
+    .split('-')
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ');
 
 /**
  * Dev-only admin panel: clear the grid, inject tiles by value or state.
@@ -32,12 +35,16 @@ export class AdminModal {
    */
   constructor(scene, options = {}) {
     const valButtons = TILE_VALUES.map(
-      (v) => `<button class="fm-btn fm-admin-tile-btn" data-action="add-value" data-value="${v}">${v}</button>`,
+      (v) =>
+        `<button class="fm-btn fm-admin-tile-btn" data-action="add-value" data-value="${v}">${v}</button>`,
     ).join('');
 
-    const stateButtons = TILE_STATE_IDS.filter((id) => id !== 'normal' && id !== 'targeted').map(
-      (id) => `<button class="fm-btn fm-admin-tile-btn" data-action="add-state" data-state="${id}">${stateLabel(id)}</button>`,
-    ).join('');
+    const stateButtons = TILE_STATE_IDS.filter((id) => id !== 'normal' && id !== 'targeted')
+      .map(
+        (id) =>
+          `<button class="fm-btn fm-admin-tile-btn" data-action="add-state" data-state="${id}">${stateLabel(id)}</button>`,
+      )
+      .join('');
 
     const resumeBtn = options.onResume
       ? `<button class="fm-btn fm-btn--primary" data-action="resume">Resume</button>`

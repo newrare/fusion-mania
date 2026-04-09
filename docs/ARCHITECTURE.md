@@ -2,22 +2,19 @@
 
 ## Tech Stack
 
-| Layer        | Technology                  | Purpose                                |
-|--------------|-----------------------------|----------------------------------------|
-| Game Engine  | **Phaser 3**                | Rendering, physics, input, audio       |
-| Bundler      | **Vite**                    | Fast dev server with HMR / hot reload  |
-| Testing      | **Vitest**                  | Unit tests (mirrors Vite configuration)|
-| Linting      | **ESLint** + **Prettier**   | Code quality & consistent formatting   |
-| Mobile Build | **Capacitor**               | Wrap web app as native iOS / Android   |
-| Language     | **JavaScript (ES2022+)**    | Native web — JSDoc for type hints      |
+| Layer        | Technology               | Purpose                                 |
+| ------------ | ------------------------ | --------------------------------------- |
+| Game Engine  | **Phaser 3**             | Scene management, input, DOM overlay    |
+| Bundler      | **Vite**                 | Fast dev server with HMR / hot reload   |
+| Testing      | **Vitest**               | Unit tests (mirrors Vite configuration) |
+| Mobile Build | **Capacitor** (planned)  | Wrap web app as native iOS / Android    |
+| Language     | **JavaScript (ES2022+)** | Native web — JSDoc for type hints       |
 
 ## Folder Structure
 
 ```
-fusionMania/
-├── .copilot-instructions.md   # Copilot coding directives
-├── .gitignore
-├── .prettierrc
+fusion-mania/
+├── CLAUDE.md                  # AI assistant guidance
 ├── index.html                 # Entry HTML (Vite entrypoint)
 ├── package.json
 ├── vite.config.js             # Vite dev server & build config
@@ -28,78 +25,103 @@ fusionMania/
 │   ├── ARCHITECTURE.md        # ← You are here
 │   ├── ANIMATION.md           # Animation system, interruption model, testing guide
 │   ├── BATTLE.md              # Battle mode system, enemy progression, contamination
-│   ├── TRANSLATE.md           # Localization guide
-│   └── preview-game.html      # Visual reference for tile styles
+│   ├── CODE-STYLE.md          # Coding conventions and best practices
+│   ├── FREE.md                # Free mode power system
+│   ├── LAYOUT.md              # Responsive layout, safe zone, CSS properties
+│   ├── POWER.md               # Full power system documentation
+│   ├── SAVE.md                # Save/load system documentation
+│   └── TRANSLATE.md           # Localization guide
 │
 ├── public/                    # Static files served as-is — no build processing
-│   └── assets/                # Game assets loaded by Phaser at runtime
-│       ├── images/            # PNG, SVG, WebP
-│       ├── spritesheets/      # Texture atlases (PNG + JSON)
-│       └── audio/
-│           ├── music/         # Background music (MP3, OGG)
-│           └── sfx/           # Sound effects (MP3, OGG, WAV)
+│   ├── images/                # PNG (tile assets, enemy faces)
+│   │   └── faces/             # Enemy face images by emotion (ok, warning, danger, death)
+│   ├── others/                # Font files
+│   └── sounds/                # Music (WAV) and SFX (OGG)
 │
 ├── src/                       # Application source code
 │   ├── main.js                # Entry point — creates the Phaser.Game instance
 │   │
 │   ├── styles/
-│   │   └── main.css           # All game CSS (tiles, grid, HUD, modals)
+│   │   ├── main.css           # All game CSS (tiles, grid, HUD, modals)
+│   │   └── power.css          # Power-specific CSS (states, flip cards, indicators)
 │   │
 │   ├── configs/               # Configuration & constants
-│   │   ├── index.js           # Barrel export
 │   │   ├── game-config.js     # Phaser GameConfig object
-│   │   └── constants.js       # Shared constants (sizes, colors, scene keys…)
+│   │   └── constants.js       # Shared constants (sizes, durations, scene keys…)
 │   │
 │   ├── scenes/                # Phaser scenes (one per screen / state)
 │   │   ├── boot-scene.js      # Minimal boot, transitions to preload-scene
 │   │   ├── preload-scene.js   # Asset loading with progress bar
 │   │   ├── title-scene.js     # Title screen — tap/key → opens menu modal
-│   │   └── grid-scene.js      # Main 2048 gameplay (DOM tiles + CSS animations)
+│   │   └── game-scene.js      # Main 2048 gameplay (DOM tiles + CSS animations)
 │   │
-│   ├── components/            # Reusable UI components (DOM-based)
-│   │   ├── index.js           # Barrel export
-│   │   ├── menu-modal.js      # Main menu overlay (resume, modes, quit)
-│   │   └── game-over-modal.js # Game over overlay (score + actions)
+│   ├── components/            # DOM-based UI overlays (modals)
+│   │   ├── admin-modal.js     # Debug/admin panel (tile spawning, state testing)
+│   │   ├── enemy-info-modal.js# Enemy info display during battle
+│   │   ├── game-over-modal.js # Game over overlay (score + actions)
+│   │   ├── help-modal.js      # In-game help/tutorial (6 categories)
+│   │   ├── menu-modal.js      # Main menu overlay (resume, modes, save, quit)
+│   │   ├── options-modal.js   # Options (music, sound, theme, language, reset)
+│   │   ├── power-choice-modal.js  # Choose between 2 conflicting powers on merge
+│   │   ├── power-select-modal.js  # Pre-game power selection (Free mode)
+│   │   ├── ranking-detail-modal.js# Detailed ranking entry view
+│   │   ├── ranking-modal.js   # Leaderboard with tabs (Classic, Battle, Free)
+│   │   ├── save-load-modal.js # Save/Load game slots management
+│   │   ├── tile-renderer.js   # Tile DOM rendering helper (value, power, state)
+│   │   └── victory-modal.js   # 2048 victory celebration
 │   │
-│   ├── entities/              # Game objects — pure logic, no Phaser dependency
-│   │   ├── index.js           # Barrel export
-│   │   ├── tile.js            # Tile data class (value, row, col, id)
-│   │   ├── grid.js            # 4×4 grid logic (move, merge, spawn, canMove)
+│   ├── entities/              # Game objects — pure logic, no Phaser/DOM dependency
+│   │   ├── tile.js            # Tile data class (value, row, col, id, power, state)
+│   │   ├── grid.js            # 4×4 grid logic (move, merge, spawn, canMove, serialize)
 │   │   ├── grid-life.js       # HP system (Free / Battle modes)
-│   │   └── enemy.js           # Enemy data class (Battle mode)
+│   │   ├── enemy.js           # Enemy data class (name, level, HP, powers)
+│   │   └── power.js           # Power data class (type, side, svgId)
 │   │
 │   ├── managers/              # Cross-cutting singletons
-│   │   ├── index.js           # Barrel export
 │   │   ├── animation-manager.js # Tile DOM animations + cancellation system
-│   │   ├── audio-manager.js   # Music & SFX settings (persisted)
+│   │   ├── audio-manager.js   # Music & SFX via HTML5 Audio (singleton)
 │   │   ├── battle-manager.js  # Battle mode logic (enemy spawn, contamination, damage)
-│   │   ├── i18n-manager.js    # Locale switching & translation lookups
-│   │   └── save-manager.js    # Persistent game state + rankings (localStorage)
+│   │   ├── grid-manager.js    # Grid DOM, tile rendering, animation sequencing
+│   │   ├── hud-manager.js     # HUD stats, combo display, card rotations, help button
+│   │   ├── i18n-manager.js    # Locale switching & translation lookups (singleton)
+│   │   ├── input-manager.js   # Keyboard + swipe input handling
+│   │   ├── layout-manager.js  # Responsive layout & CSS custom properties (singleton)
+│   │   ├── power-manager.js   # Power assignment, activation, prediction (Free/Battle)
+│   │   ├── save-manager.js    # Persistence: rankings, save slots, auto-save (singleton)
+│   │   └── theme-manager.js   # Tile color theme switching (singleton)
 │   │
 │   ├── locales/               # Translation files (one per language)
-│   │   ├── index.js           # Barrel export
 │   │   ├── en.js              # English strings
 │   │   └── fr.js              # French strings
 │   │
 │   └── utils/                 # Pure helper functions
-│       ├── index.js           # Barrel export
+│       ├── background.js      # Scene background rendering
+│       ├── event-emitter.js   # Lightweight pub/sub event emitter + gameEvents singleton
+│       ├── keyboard-nav.js    # Modal keyboard navigation (arrows, enter, escape)
+│       ├── liquid-wave.js     # Canvas wave animation for HP bars
 │       └── math.js            # clamp, randomInt, shuffle, weightedPick
 │
-├── tests/                     # Unit tests (mirrors src/ structure)
-│   ├── entities/
-│   │   ├── tile.test.js
-│   │   ├── grid.test.js
-│   │   └── enemy.test.js
-│   ├── managers/
-│   │   ├── animation-manager.test.js
-│   │   ├── battle-manager.test.js
-│   │   ├── i18n-manager.test.js
-│   │   └── save-manager.test.js
-│   └── utils/
-│       └── math.test.js
-│
-├── android/                   # (generated) Capacitor Android project
-└── ios/                       # (generated) Capacitor iOS project
+└── tests/                     # Unit tests (mirrors src/ structure)
+    ├── components/
+    │   ├── help-modal.test.js
+    │   ├── options-modal.test.js
+    │   └── tile-renderer.test.js
+    ├── entities/
+    │   ├── enemy.test.js
+    │   ├── grid.test.js
+    │   ├── power.test.js
+    │   ├── tile-state.test.js
+    │   └── tile.test.js
+    ├── managers/
+    │   ├── animation-manager.test.js
+    │   ├── audio-manager.test.js
+    │   ├── battle-manager.test.js
+    │   ├── i18n-manager.test.js
+    │   ├── power-manager.test.js
+    │   └── save-manager.test.js
+    └── utils/
+        ├── keyboard-nav.test.js
+        └── math.test.js
 ```
 
 ## Key Design Decisions
@@ -117,40 +139,27 @@ Scenes should stay thin: delegate complex logic to **managers** and **entities**
 
 ### Components
 
-UI components (`MenuModal`, `GameOverModal`) are **plain JavaScript classes** — not Phaser scenes.
+UI components are **plain JavaScript classes** — not Phaser scenes.
 They receive a `scene` reference in their constructor and use Phaser's DOM element system to create
-HTML overlays. This allows full CSS styling matching the tile aesthetic from `preview-game.html`.
-
-Usage:
-```js
-import { MenuModal, GameOverModal } from '../components/index.js';
-
-// In a scene's create():
-const menu = new MenuModal(this, {
-  showResume: true,
-  onResume: () => menu.destroy(),
-  onClassic: () => this.scene.restart({ mode: 'classic' }),
-});
-
-new GameOverModal(this, {
-  score: 1200,
-  onNewGame: () => this.scene.restart(),
-  onMenu: () => this.scene.start('TitleScene'),
-});
-```
+HTML overlays. All modals support keyboard navigation via `enableKeyboardNav()`.
 
 ### Managers
 
 Managers are **singleton-ish** classes for cross-cutting concerns:
 
-- **AnimationManager** — manages all DOM tile animations (slides, merges, spawns, particles). Completely independent of Phaser. See [docs/ANIMATION.md](ANIMATION.md).
+- **AnimationManager** — manages all DOM tile animations (slides, merges, spawns, particles, power effects). Completely independent of Phaser. See [ANIMATION.md](ANIMATION.md).
 - **AudioManager** — singleton managing background music and SFX via HTML5 Audio (no Phaser dependency). Preloads all audio in `PreloadScene`, unlocks on first user gesture in `TitleScene`. Persists music/sound toggle preferences to localStorage. SFX keys map to `AUDIO.SFX` and `AUDIO.POWER_SFX` in `constants.js`.
-- **I18nManager** — singleton handling locale selection, translation lookups (`i18n.t('key')`), and persistence to `localStorage`. See [docs/TRANSLATE.md](TRANSLATE.md).
-- **StateManager** — observable key-value store for shared game state (score, settings, player data). Supports `on(key, callback)` subscriptions.
+- **GridManager** — orchestrates the 4×4 grid DOM, tile rendering via `TileRenderer`, and animation sequencing with generation-based cancellation.
+- **I18nManager** — singleton handling locale selection, translation lookups (`i18n.t('key')`), and persistence to `localStorage`. See [TRANSLATE.md](TRANSLATE.md).
+- **LayoutManager** — singleton computing responsive layout from viewport. See [LAYOUT.md](LAYOUT.md).
+- **PowerManager** — handles power assignment, activation of all 16 power types, and directional prediction for edge indicators. Used in Free and Battle modes.
+- **SaveManager** — singleton persisting game state to `localStorage`: auto-save, manual save slots (up to 10), and per-mode rankings (top 10). See [SAVE.md](SAVE.md).
+- **BattleManager** — handles enemy spawn logic, contamination, damage, and level progression. See [BATTLE.md](BATTLE.md).
+- **ThemeManager** — singleton managing tile color theme (`candy`, `chroma`) with `data-theme` CSS scoping.
 
 ### Entities
 
-Game objects (units, cards, grid tiles…) live in `src/entities/`. They typically extend `Phaser.GameObjects.Sprite` or `Phaser.GameObjects.Container`, or are plain classes that compose Phaser objects.
+Game objects live in `src/entities/`. They are **pure data/logic classes** with zero Phaser or DOM dependency, making them easy to unit test.
 
 ### Utils
 
@@ -159,16 +168,8 @@ Easy to unit test.
 
 ### Assets
 
-Assets live in `public/assets/` and are **served directly** without any build processing.
-Phaser loads them at runtime via root-relative URLs in `PreloadScene`:
-
-```js
-this.load.image('logo', 'assets/images/logo.png');
-this.load.audio('bgm', 'assets/audio/music/theme.mp3');
-this.load.atlas('sprites', 'assets/spritesheets/atlas.png', 'assets/spritesheets/atlas.json');
-```
-
-This approach is simpler and standard for Phaser projects: no import statements needed, paths work identically in the browser and in native builds (Capacitor copies `dist/` which includes `public/assets/`).
+Assets live in `public/` and are **served directly** without any build processing.
+Audio is loaded via HTML5 Audio in `AudioManager`. Images are referenced via root-relative URLs.
 
 ## Hot Reload
 
@@ -182,24 +183,7 @@ The dev server starts at `http://localhost:3000`. Any change to source files tri
 
 ## Mobile Builds (iOS / Android)
 
-The project uses **Capacitor** to wrap the web build into native mobile apps.
-
-```bash
-# Build web assets
-npm run build
-
-# Sync with native projects
-npx cap sync
-
-# Open in native IDE
-npx cap open android   # Opens Android Studio
-npx cap open ios       # Opens Xcode
-```
-
-The game is locked to **landscape orientation** via:
-- `capacitor.config.ts` → `ScreenOrientation` plugin
-- `<meta name="screen-orientation" content="landscape">` in `index.html`
-- Phaser `Scale.FIT` + `CENTER_BOTH` for responsive scaling to any screen size
+Capacitor mobile builds are planned but not yet set up. The game is designed as **vertical orientation only** (mobile-first).
 
 ## Testing
 
@@ -211,8 +195,10 @@ npm run test:watch # Watch mode
 ```
 
 Focus testing on:
+
 - `utils/` — pure functions, easy to test
 - `managers/` — state logic, subscriptions, animation primitives
 - `entities/` — game logic detached from rendering
+- `components/` — DOM rendering in happy-dom environment
 
-See [docs/ANIMATION.md](ANIMATION.md) for the full animation system documentation, including layers, interruption model, and testing guide.
+See [ANIMATION.md](ANIMATION.md) for the full animation system documentation, including layers, interruption model, and testing guide.

@@ -24,9 +24,9 @@ export class PreloadScene extends Phaser.Scene {
     });
 
     // Background layers
-    this.load.image('bg-sky',     'images/background_one_sky.png');
-    this.load.image('bg-rock',    'images/background_one_rock.png');
-    this.load.image('bg-ground',  'images/background_one_ground.png');
+    this.load.image('bg-sky', 'images/background_one_sky.png');
+    this.load.image('bg-rock', 'images/background_one_rock.png');
+    this.load.image('bg-ground', 'images/background_one_ground.png');
     this.load.image('bg-cloud02', 'images/background_one_cloud_02.png');
     this.load.image('bg-cloud01', 'images/background_one_cloud_01.png');
 

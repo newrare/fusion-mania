@@ -2,14 +2,7 @@
  * All valid tile state identifiers.
  * 'normal' maps to null/no-state internally; the others are named states.
  */
-export const TILE_STATE_IDS = [
-  'normal',
-  'ice',
-  'ghost-h',
-  'ghost-v',
-  'blind',
-  'targeted',
-];
+export const TILE_STATE_IDS = ['normal', 'ice', 'ghost-h', 'ghost-v', 'blind', 'targeted'];
 
 /**
  * Pure data class representing a single tile on the grid.

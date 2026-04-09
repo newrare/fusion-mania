@@ -1,5 +1,5 @@
 import { i18n } from '../managers/i18n-manager.js';
-import { POWER_META, getPowerCategory } from '../configs/constants.js';
+import { Power } from '../entities/power.js';
 import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /**
@@ -34,20 +34,22 @@ export class EnemyInfoModal {
     const hpPercent = enemy.life.percent * 100;
     const cat = enemy.life.getColorCategory();
 
-    const powersHtml = enemy.availablePowers.map(p => {
-      const meta = POWER_META[p];
-      if (!meta) return '';
-      const pcat = getPowerCategory(p);
-      const name = i18n.t(meta.nameKey);
-      return `
+    const powersHtml = enemy.availablePowers
+      .map((p) => {
+        const svgId = Power.svgId(p);
+        if (!svgId) return '';
+        const pcat = Power.category(p);
+        const name = i18n.t(Power.nameKey(p));
+        return `
         <div class="fm-ei-power-item">
           <div class="fm-power-dot ${pcat} tiny">
-            <svg class="fm-power-icon" aria-hidden="true"><use href="#${meta.svgId}"/></svg>
+            <svg class="fm-power-icon" aria-hidden="true"><use href="#${svgId}"/></svg>
           </div>
           <span class="fm-ei-power-name">${name}</span>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     const html = `
       <div class="fm-modal-overlay" id="fm-enemy-info-overlay">

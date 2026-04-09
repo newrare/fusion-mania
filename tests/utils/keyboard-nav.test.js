@@ -22,7 +22,9 @@ describe('enableKeyboardNav', () => {
     document.body.appendChild(container);
     registeredHandler = null;
     keyboard = {
-      on: vi.fn((event, handler) => { registeredHandler = handler; }),
+      on: vi.fn((event, handler) => {
+        registeredHandler = handler;
+      }),
       off: vi.fn(),
     };
   });

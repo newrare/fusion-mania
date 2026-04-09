@@ -43,9 +43,9 @@ function maybeStopLoop() {
 /* ── Colour presets by HP category ──────────────────────── */
 
 const COLOR_PRESETS = {
-  info:    { c1: { r: 80, g: 160, b: 255 }, c2: { r: 30, g: 80, b: 180 } },
-  warning: { c1: { r: 255, g: 180, b: 60 },  c2: { r: 200, g: 120, b: 0 } },
-  danger:  { c1: { r: 255, g: 60, b: 60 },  c2: { r: 200, g: 20, b: 20 } },
+  info: { c1: { r: 80, g: 160, b: 255 }, c2: { r: 30, g: 80, b: 180 } },
+  warning: { c1: { r: 255, g: 180, b: 60 }, c2: { r: 200, g: 120, b: 0 } },
+  danger: { c1: { r: 255, g: 60, b: 60 }, c2: { r: 200, g: 20, b: 20 } },
 };
 
 export class LiquidWave {
@@ -98,7 +98,7 @@ export class LiquidWave {
       freq: 0.025 + Math.random() * 0.015,
       phase: Math.random() * Math.PI * 2,
       speed: (i === 0 ? 1 : -0.7) * (0.8 + Math.random() * 0.5),
-      alpha: i === 0 ? 0.90 : 0.50,
+      alpha: i === 0 ? 0.9 : 0.5,
     }));
 
     // Bubbles
@@ -193,7 +193,7 @@ export class LiquidWave {
   #newBubble(init = false) {
     return {
       x: 5 + Math.random() * Math.max(1, this.#w - 10),
-      y: init ? (this.#h * 0.5 + Math.random() * this.#h * 0.5) : this.#h + 5,
+      y: init ? this.#h * 0.5 + Math.random() * this.#h * 0.5 : this.#h + 5,
       r: 1 + Math.random() * 3,
       vy: 0.2 + Math.random() * 0.5,
     };

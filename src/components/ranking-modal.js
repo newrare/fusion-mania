@@ -116,15 +116,21 @@ export class RankingModal {
           if (!overlay) break;
           const focusable = /** @type {HTMLElement[]} */ (
             [...overlay.querySelectorAll('button:not([disabled]), [data-action]')].filter(
-              (el) => !/** @type {HTMLElement} */ (el).closest('[style*="display:none"], [style*="display: none"]'),
+              (el) =>
+                !(
+                  /** @type {HTMLElement} */ (el).closest(
+                    '[style*="display:none"], [style*="display: none"]',
+                  )
+                ),
             )
           );
           if (focusable.length === 0) break;
           const active = /** @type {HTMLElement} */ (document.activeElement);
           const fidx = focusable.indexOf(active);
-          const next = event.code === 'ArrowDown'
-            ? (fidx + 1) % focusable.length
-            : ((fidx - 1) + focusable.length) % focusable.length;
+          const next =
+            event.code === 'ArrowDown'
+              ? (fidx + 1) % focusable.length
+              : (fidx - 1 + focusable.length) % focusable.length;
           focusable[next]?.focus();
           break;
         }
@@ -142,9 +148,7 @@ export class RankingModal {
     scene.input.keyboard.on('keydown', this.#keyHandler);
 
     // Auto-focus the active tab so ArrowDown immediately navigates from there
-    this.#domElement.node
-      .querySelector('.fm-ranking-tab--active')
-      ?.focus();
+    this.#domElement.node.querySelector('.fm-ranking-tab--active')?.focus();
 
     this.#unsubI18n = i18n.onChange(() => this.#refreshText());
   }
@@ -182,9 +186,7 @@ export class RankingModal {
     const isBattle = this.#activeTab === 'battle';
     const locale = i18n.locale === 'fr' ? 'fr-FR' : 'en-GB';
 
-    const headerMainLabel = isBattle
-      ? i18n.t('ranking.enemy_max_level')
-      : i18n.t('ranking.score');
+    const headerMainLabel = isBattle ? i18n.t('ranking.enemy_max_level') : i18n.t('ranking.score');
 
     let html = `
       <div class="fm-ranking-header" aria-hidden="true">
@@ -284,4 +286,3 @@ export class RankingModal {
     this.#domElement = null;
   }
 }
-

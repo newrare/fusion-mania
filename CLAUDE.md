@@ -13,11 +13,13 @@ npm run test:watch   # Run tests in watch mode
 ```
 
 To run a single test file:
+
 ```bash
 npx vitest run tests/managers/animation-manager.test.js
 ```
 
 Mobile builds (after `npm run build`):
+
 ```bash
 npx cap sync         # Sync web assets to native projects
 npx cap open android # Open Android Studio
@@ -32,12 +34,12 @@ Fusion Mania is a 2048-style puzzle game (mobile-first, vertical orientation) bu
 
 `BootScene` → `PreloadScene` → `TitleScene` → `GameScene`
 
-Scenes are thin and delegate everything to managers. The main gameplay scene is `src/scenes/game-scene.js`.
+Scenes are thin and delegate everything to managers. The main gameplay scene is `src/scenes/game-scene.js`. It delegates input to `InputManager` and HUD/combo to `HudManager`.
 
 ### Layer separation
 
 | Layer          | Location          | Rule                                                                |
-|----------------|-------------------|---------------------------------------------------------------------|
+| -------------- | ----------------- | ------------------------------------------------------------------- |
 | **Entities**   | `src/entities/`   | Pure data/logic, **zero** Phaser or DOM dependency                  |
 | **Managers**   | `src/managers/`   | Singletons for cross-cutting concerns                               |
 | **Components** | `src/components/` | DOM-based UI overlays (modals)                                      |
@@ -63,7 +65,7 @@ To add a new animation: add a keyframe to `src/styles/main.css`, add a method to
 
 ### Save & i18n
 
-- `SaveManager` — `localStorage` persistence for game state, per-mode rankings (top 10), and save slots (up to 10). Rankings store score, date, maxTile, moves, fusions, and (for free mode) selected powers, (for battle mode) enemies defeated. Save slots store full game state including tile powers, states, grid life, battle/power manager state.
+- `SaveManager` — `localStorage` persistence for game state, per-mode rankings (top 10), save slots (up to 10), and auto-save (after every move). Rankings store score, date, maxTile, moves, fusions, and (for free mode) selected powers, (for battle mode) enemies defeated. Save slots store full game state including tile powers, states, grid life, battle/power manager state.
 - `SaveLoadModal` (`src/components/save-load-modal.js`) — Modal listing saved game slots with mode, date, score, and max tile. Accessible from the title menu (Load) and in-game menu (Save).
 - `I18nManager` — English/French via `src/locales/`. Keys are dot-separated (`menu.play`). Never hardcode user-facing strings; always use `i18n.t('key')`.
 

@@ -1,6 +1,6 @@
 import { i18n } from '../managers/i18n-manager.js';
 import { saveManager } from '../managers/save-manager.js';
-import { POWER_META } from '../configs/constants.js';
+import { Power } from '../entities/power.js';
 import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /**
@@ -50,9 +50,10 @@ export class VictoryModal {
     const rankings = saveManager.getRankings(this.#mode);
     this.#currentRank = this.#computeProvisionalRank(rankings, options.score);
 
-    const continueBtn = !isBattle && options.onContinue
-      ? `<button class="fm-btn fm-btn--primary" data-action="continue">${i18n.t('victory.continue')}</button>`
-      : '';
+    const continueBtn =
+      !isBattle && options.onContinue
+        ? `<button class="fm-btn fm-btn--primary" data-action="continue">${i18n.t('victory.continue')}</button>`
+        : '';
 
     const html = `
       <div class="fm-modal-overlay" id="fm-victory-overlay">
@@ -134,10 +135,14 @@ export class VictoryModal {
 
     if ((isBattle || isFree) && s.powers?.length > 0) {
       const distinct = [...new Set(s.powers)];
-      const iconsHtml = distinct.map((p) => {
-        const meta = POWER_META[p];
-        return meta ? `<svg class="fm-gameover-power-icon" aria-hidden="true"><use href="#${meta.svgId}"/></svg>` : '';
-      }).join('');
+      const iconsHtml = distinct
+        .map((p) => {
+          const svgId = Power.svgId(p);
+          return svgId
+            ? `<svg class="fm-gameover-power-icon" aria-hidden="true"><use href="#${svgId}"/></svg>`
+            : '';
+        })
+        .join('');
       html += `<div class="fm-gameover-stat-row"><span class="fm-gameover-stat-label">${i18n.t('ranking.powers_used')}</span><span class="fm-gameover-stat-value fm-gameover-powers">${iconsHtml}</span></div>`;
     }
 
@@ -196,9 +201,18 @@ export class VictoryModal {
     if (!container) return;
 
     const colors = [
-      '#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff',
-      '#ff9ff3', '#feca57', '#48dbfb', '#ff6348',
-      '#1dd1a1', '#ee5a24', '#c8d6e5', '#f368e0',
+      '#ff6b6b',
+      '#ffd93d',
+      '#6bcb77',
+      '#4d96ff',
+      '#ff9ff3',
+      '#feca57',
+      '#48dbfb',
+      '#ff6348',
+      '#1dd1a1',
+      '#ee5a24',
+      '#c8d6e5',
+      '#f368e0',
     ];
 
     const spawn = () => {
@@ -234,7 +248,8 @@ export class VictoryModal {
     const statsEl = overlay.querySelector('#fm-victory-stats');
     if (statsEl) statsEl.innerHTML = this.#renderStats();
     const rankingEl = overlay.querySelector('#fm-victory-ranking');
-    if (rankingEl) rankingEl.innerHTML = `<div class="fm-gameover-ranking-title">${i18n.t('ranking.title')}</div>${this.#renderRankObtained()}`;
+    if (rankingEl)
+      rankingEl.innerHTML = `<div class="fm-gameover-ranking-title">${i18n.t('ranking.title')}</div>${this.#renderRankObtained()}`;
     const continueBtn = overlay.querySelector('[data-action="continue"]');
     if (continueBtn) continueBtn.textContent = i18n.t('victory.continue');
     const newGameBtn = overlay.querySelector('[data-action="new-game"]');

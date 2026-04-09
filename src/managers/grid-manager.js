@@ -80,7 +80,9 @@ export class GridManager {
     this.#gridDom.setOrigin(0.5);
     this.#gridEl = this.#gridDom.node.querySelector('#fm-grid');
 
-    const mergeCanvas = /** @type {HTMLCanvasElement} */ (this.#gridDom.node.querySelector('#fm-merge-canvas'));
+    const mergeCanvas = /** @type {HTMLCanvasElement} */ (
+      this.#gridDom.node.querySelector('#fm-merge-canvas')
+    );
     if (mergeCanvas && this.#gridEl) {
       mergeCanvas.width = this.#gridEl.offsetWidth;
       mergeCanvas.height = this.#gridEl.offsetHeight;
@@ -138,10 +140,7 @@ export class GridManager {
    * Snap the DOM to the true grid state (for interrupting an animation).
    */
   snapToGrid() {
-    this.#animator.snapToFinalState(
-      this.#grid.getAllTiles(),
-      (r, c) => this.cellPosition(r, c),
-    );
+    this.#animator.snapToFinalState(this.#grid.getAllTiles(), (r, c) => this.cellPosition(r, c));
     void this.#gridEl?.offsetWidth;
     this.#animator.restoreTransitions(ANIM.SLIDE_DURATION);
   }
@@ -181,7 +180,15 @@ export class GridManager {
 
     if (!result.moved) {
       this.#animating = false;
-      return { moved: false, merges: [], expelled: [], newTile: null, hasMergePossible, scoreBefore, cancelled: false };
+      return {
+        moved: false,
+        merges: [],
+        expelled: [],
+        newTile: null,
+        hasMergePossible,
+        scoreBefore,
+        cancelled: false,
+      };
     }
 
     // Spawn new tile in grid data before animations
@@ -196,7 +203,16 @@ export class GridManager {
     for (const tile of result.expelled) {
       this.removeTileById(tile.id);
     }
-    if (!this.#animator.isCurrent(gen)) return { moved: true, merges: result.merges, expelled: result.expelled, newTile, hasMergePossible, scoreBefore, cancelled: true };
+    if (!this.#animator.isCurrent(gen))
+      return {
+        moved: true,
+        merges: result.merges,
+        expelled: result.expelled,
+        newTile,
+        hasMergePossible,
+        scoreBefore,
+        cancelled: true,
+      };
 
     // Phase 2 — merge particles + bounce
     if (result.merges.length > 0) {
@@ -206,7 +222,16 @@ export class GridManager {
         layout.grid.tileSize,
       );
       await waitFn(ANIM.MERGE_PARTICLES_DURATION);
-      if (!this.#animator.isCurrent(gen)) return { moved: true, merges: result.merges, expelled: result.expelled, newTile, hasMergePossible, scoreBefore, cancelled: true };
+      if (!this.#animator.isCurrent(gen))
+        return {
+          moved: true,
+          merges: result.merges,
+          expelled: result.expelled,
+          newTile,
+          hasMergePossible,
+          scoreBefore,
+          cancelled: true,
+        };
     }
     onMergeStart?.(result.merges);
     this.#animator.processMerges(result.merges, this.#grid.getAllTiles());
@@ -215,7 +240,16 @@ export class GridManager {
       // Explicitly remove consumed elements — animationend is not reliable enough
       // when a spawn animation is concurrently running on the same element.
       this.#animator.clearConsumedElements();
-      if (!this.#animator.isCurrent(gen)) return { moved: true, merges: result.merges, expelled: result.expelled, newTile, hasMergePossible, scoreBefore, cancelled: true };
+      if (!this.#animator.isCurrent(gen))
+        return {
+          moved: true,
+          merges: result.merges,
+          expelled: result.expelled,
+          newTile,
+          hasMergePossible,
+          scoreBefore,
+          cancelled: true,
+        };
     }
 
     // Phase 3 — spawn new tile
@@ -227,10 +261,27 @@ export class GridManager {
         ANIM.SLIDE_DURATION,
       );
       await waitFn(ANIM.SPAWN_DURATION);
-      if (!this.#animator.isCurrent(gen)) return { moved: true, merges: result.merges, expelled: result.expelled, newTile, hasMergePossible, scoreBefore, cancelled: true };
+      if (!this.#animator.isCurrent(gen))
+        return {
+          moved: true,
+          merges: result.merges,
+          expelled: result.expelled,
+          newTile,
+          hasMergePossible,
+          scoreBefore,
+          cancelled: true,
+        };
     }
 
-    return { moved: true, merges: result.merges, expelled: result.expelled, newTile, hasMergePossible, scoreBefore, cancelled: false };
+    return {
+      moved: true,
+      merges: result.merges,
+      expelled: result.expelled,
+      newTile,
+      hasMergePossible,
+      scoreBefore,
+      cancelled: false,
+    };
   }
 
   // ─── Power destruction helpers ───────────────────
@@ -313,11 +364,16 @@ export class GridManager {
    * @returns {Promise<void>}
    */
   playTeleportAnimation(tileA, tileB, oldA, oldB, duration) {
-    return this.#animator?.playTeleportAnimation(
-      tileA, tileB, oldA, oldB,
-      (r, c) => this.cellPosition(r, c),
-      duration,
-    ) ?? Promise.resolve();
+    return (
+      this.#animator?.playTeleportAnimation(
+        tileA,
+        tileB,
+        oldA,
+        oldB,
+        (r, c) => this.cellPosition(r, c),
+        duration,
+      ) ?? Promise.resolve()
+    );
   }
 
   /**
@@ -340,33 +396,6 @@ export class GridManager {
       el.remove();
       this.#tileElements.delete(id);
     }
-  }
-
-  /**
-   * Check if current animation generation is still active.
-   * @returns {{ isCurrent: () => boolean, waitFn: null }}
-   */
-  get animatorGen() {
-    return {
-      isCurrent: () => true,
-      gen: this.#animator?.nextGen() ?? 0,
-    };
-  }
-
-  /**
-   * @param {number} gen
-   * @returns {boolean}
-   */
-  isAnimatorCurrent(gen) {
-    return this.#animator?.isCurrent(gen) ?? false;
-  }
-
-  /**
-   * Advance the animation generation (for cancellation).
-   * @returns {number}
-   */
-  nextAnimatorGen() {
-    return this.#animator?.nextGen() ?? 0;
   }
 
   // ─── DOM sync ────────────────────────────────────
@@ -450,7 +479,12 @@ export class GridManager {
     const { row, col } = empty[Math.floor(Math.random() * empty.length)];
     const tile = new Tile(value, row, col);
     this.#grid.cells[row][col] = tile;
-    this.#animator.createTileElement(tile, true, (r, c) => this.cellPosition(r, c), ANIM.SLIDE_DURATION);
+    this.#animator.createTileElement(
+      tile,
+      true,
+      (r, c) => this.cellPosition(r, c),
+      ANIM.SLIDE_DURATION,
+    );
     return tile;
   }
 
@@ -487,7 +521,12 @@ export class GridManager {
       tile.applyState(state, 999);
     }
     this.#grid.cells[row][col] = tile;
-    this.#animator.createTileElement(tile, true, (r, c) => this.cellPosition(r, c), ANIM.SLIDE_DURATION);
+    this.#animator.createTileElement(
+      tile,
+      true,
+      (r, c) => this.cellPosition(r, c),
+      ANIM.SLIDE_DURATION,
+    );
     return tile;
   }
 

@@ -1,5 +1,6 @@
 import { i18n } from '../managers/i18n-manager.js';
-import { POWER_TYPES, POWER_META } from '../configs/constants.js';
+import { POWER_TYPES } from '../configs/constants.js';
+import { Power } from '../entities/power.js';
 import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /**
@@ -36,12 +37,11 @@ export class PowerSelectModal {
     const allTypes = Object.values(POWER_TYPES);
     let powersHtml = '';
     for (const type of allTypes) {
-      const meta = POWER_META[type];
-      const name = i18n.t(meta.nameKey);
+      const name = i18n.t(Power.nameKey(type));
       powersHtml += `
         <div class="fm-power-item fm-clickable" data-type="${type}" title="${name}" tabindex="0">
           <div class="fm-power-dot off" data-dot="${type}">
-            <svg class="fm-power-icon" aria-hidden="true"><use href="#${meta.svgId}"/></svg>
+            <svg class="fm-power-icon" aria-hidden="true"><use href="#${Power.svgId(type)}"/></svg>
           </div>
           <span class="fm-power-name">${name}</span>
         </div>`;
@@ -73,7 +73,9 @@ export class PowerSelectModal {
         return;
       }
 
-      const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action], #fm-power-start-btn');
+      const btn = /** @type {HTMLElement} */ (e.target).closest(
+        '[data-action], #fm-power-start-btn',
+      );
       if (!btn) return;
       e.stopPropagation();
 

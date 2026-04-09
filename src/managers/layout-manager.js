@@ -78,7 +78,7 @@ class LayoutManager {
     this.safe.bottom = h - safeBottom;
 
     // Cap the column width and center it in the viewport
-    const rawSafeWidth = (w - safeLeft - safeRight);
+    const rawSafeWidth = w - safeLeft - safeRight;
     const cappedWidth = Math.min(rawSafeWidth, MAX_SAFE_WIDTH);
     const columnLeft = (w - cappedWidth) / 2;
     const columnRight = columnLeft + cappedWidth;
@@ -95,9 +95,7 @@ class LayoutManager {
     const gridW = Math.min(rawGridW, MAX_GRID_WIDTH);
     const gap = Math.round(gridW * 0.023);
     const padding = Math.round(gridW * 0.029);
-    const tileSize = Math.floor(
-      (gridW - padding * 2 - gap * (GRID_SIZE - 1)) / GRID_SIZE,
-    );
+    const tileSize = Math.floor((gridW - padding * 2 - gap * (GRID_SIZE - 1)) / GRID_SIZE);
     const totalWidth = tileSize * GRID_SIZE + gap * (GRID_SIZE - 1) + padding * 2;
 
     this.grid.tileSize = tileSize;
@@ -110,7 +108,7 @@ class LayoutManager {
     // ─── Push CSS custom properties ──────────────────
     const el = document.getElementById('game-container');
     if (el) {
-      const baseFontSize = Math.round(tileSize * 0.30);
+      const baseFontSize = Math.round(tileSize * 0.3);
       el.style.setProperty('--fm-tile-size', `${tileSize}px`);
       el.style.setProperty('--fm-tile-font', `${baseFontSize}px`);
       el.style.setProperty('--fm-grid-gap', `${gap}px`);
@@ -133,12 +131,7 @@ class LayoutManager {
 
     // Dashed outline via short line segments
     g.lineStyle(2, 0x00ff00, 0.6);
-    g.strokeRect(
-      this.safe.left,
-      this.safe.top,
-      this.safe.width,
-      this.safe.height,
-    );
+    g.strokeRect(this.safe.left, this.safe.top, this.safe.width, this.safe.height);
 
     // Corner marks
     const m = 14;
@@ -163,9 +156,7 @@ class LayoutManager {
       padding: { x: 3, y: 1 },
     };
 
-    scene.add
-      .text(this.safe.left + 4, this.safe.top + 4, 'SAFE ZONE', style)
-      .setDepth(9999);
+    scene.add.text(this.safe.left + 4, this.safe.top + 4, 'SAFE ZONE', style).setDepth(9999);
 
     const dim = `${Math.round(this.safe.width)} × ${Math.round(this.safe.height)}`;
     scene.add

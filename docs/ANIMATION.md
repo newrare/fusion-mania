@@ -3,9 +3,9 @@
 ## Overview
 
 All DOM-based tile animations are managed by **`AnimationManager`** (`src/managers/animation-manager.js`).
-`GridScene` creates one instance and delegates all visual work to it.
+`GridManager` creates one instance and delegates all visual work to it.
 
-`AnimationManager` has **no Phaser dependency** — it only manipulates DOM elements, CSS classes, and a canvas 2D context. This makes it easy to unit-test in isolation and keeps `GridScene` thin.
+`AnimationManager` has **no Phaser dependency** — it only manipulates DOM elements, CSS classes, and a canvas 2D context. This makes it easy to unit-test in isolation and keeps `GameScene` thin.
 
 ## Animation Layers
 
@@ -26,7 +26,7 @@ Players can input a new move at any time, including mid-animation. The game must
 
 ### How it works
 
-When `GridScene.#executeMove` is called while `#animating` is `true`:
+When `GridManager.executeMove` is called while `#animating` is `true`:
 
 1. **Snap** — `animator.snapToFinalState(allTiles, cellPositionFn)` is called synchronously:
    - Orphaned (consumed) tile elements are removed from the DOM and the tracking map.
@@ -74,7 +74,7 @@ To add a new animation (e.g. a power activation effect):
 
 1. Add the keyframe in `src/styles/main.css` and a CSS class to trigger it.
 2. Add a method to `AnimationManager` that adds/removes that class on the relevant tile element(s).
-3. Call the method from `GridScene.#executeMove` at the appropriate phase, followed by `await this.#wait(DURATION)` and an `isCurrent` guard.
+3. Call the method from `GameScene` at the appropriate phase, followed by `await this.#wait(DURATION)` and an `isCurrent` guard.
 4. Write a unit test in `tests/managers/animation-manager.test.js` that checks the class is applied/removed correctly.
 
 ## Unit Testing

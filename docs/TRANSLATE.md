@@ -98,8 +98,7 @@ The selected locale is saved under the `localStorage` key `fusionmania_locale`. 
 
 1. Create `src/locales/<code>.js` (e.g. `es.js` for Spanish).
 2. Export an object with the same keys as `en.js`.
-3. Import it in `src/locales/index.js`.
-4. Add it to the `LOCALES` map in `src/managers/I18nManager.js`:
+3. Import it in `src/managers/i18n-manager.js` and add it to the `LOCALES` map:
    ```js
    import { es } from '../locales/es.js';
    const LOCALES = { en, fr, es };

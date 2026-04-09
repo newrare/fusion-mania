@@ -31,22 +31,34 @@ export class GridLife {
   }
 
   /** @returns {number} */
-  get currentHp() { return this.#currentHp; }
+  get currentHp() {
+    return this.#currentHp;
+  }
 
   /** @returns {number} */
-  get maxHp() { return this.#maxHp; }
+  get maxHp() {
+    return this.#maxHp;
+  }
 
   /** @returns {number} 0 – 1 */
-  get percent() { return Math.max(0, this.#currentHp / this.#maxHp); }
+  get percent() {
+    return Math.max(0, this.#currentHp / this.#maxHp);
+  }
 
   /** @returns {boolean} */
-  get isDead() { return this.#currentHp <= 0; }
+  get isDead() {
+    return this.#currentHp <= 0;
+  }
 
   /** @returns {number} */
-  get totalDestroyed() { return this.#totalDestroyed; }
+  get totalDestroyed() {
+    return this.#totalDestroyed;
+  }
 
   /** @returns {boolean} HP below critical threshold */
-  get isCritical() { return this.percent <= GRID_LIFE.CRITICAL_THRESHOLD; }
+  get isCritical() {
+    return this.percent <= GRID_LIFE.CRITICAL_THRESHOLD;
+  }
 
   /**
    * Compute and apply damage from destroying tiles.

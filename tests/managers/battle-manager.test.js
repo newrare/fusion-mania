@@ -91,7 +91,11 @@ describe('BattleManager', () => {
       expect(bm.enemy.level).toBe(2);
 
       // Kill enemy
-      bm.applyMergeDamage([{ tile: { value: 2048 } }, { tile: { value: 2048 } }, { tile: { value: 2048 } }]);
+      bm.applyMergeDamage([
+        { tile: { value: 2048 } },
+        { tile: { value: 2048 } },
+        { tile: { value: 2048 } },
+      ]);
       bm.defeatEnemy();
 
       // Now tick for level 4

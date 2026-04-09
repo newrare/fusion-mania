@@ -5,8 +5,12 @@ import { STORAGE_KEYS, MAX_SAVE_SLOTS } from '../../src/configs/constants.js';
 const store = {};
 const localStorageMock = {
   getItem: vi.fn((key) => store[key] ?? null),
-  setItem: vi.fn((key, value) => { store[key] = value; }),
-  removeItem: vi.fn((key) => { delete store[key]; }),
+  setItem: vi.fn((key, value) => {
+    store[key] = value;
+  }),
+  removeItem: vi.fn((key) => {
+    delete store[key];
+  }),
 };
 vi.stubGlobal('localStorage', localStorageMock);
 
@@ -22,7 +26,12 @@ describe('SaveManager', () => {
   describe('saveGame / loadGame', () => {
     it('saves and loads game state', () => {
       const state = {
-        grid: [[0, 2, 0, 0], [0, 0, 4, 0], [0, 0, 0, 0], [0, 0, 0, 8]],
+        grid: [
+          [0, 2, 0, 0],
+          [0, 0, 4, 0],
+          [0, 0, 0, 0],
+          [0, 0, 0, 8],
+        ],
         score: 100,
         moves: 5,
         mode: 'classic',
@@ -159,7 +168,7 @@ describe('SaveManager', () => {
 
     it('appends after delete (no null slots to reuse)', () => {
       saveManager.saveSlot({ mode: 'classic', score: 100 }); // slot 0
-      saveManager.saveSlot({ mode: 'battle', score: 200 });  // slot 1
+      saveManager.saveSlot({ mode: 'battle', score: 200 }); // slot 1
       saveManager.deleteSlot(0); // battle shifts to slot 0; array length = 1
       const idx = saveManager.saveSlot({ mode: 'free', score: 300 });
       // New save appends at index 1 (first available position)
@@ -232,6 +241,42 @@ describe('SaveManager', () => {
       const slots = saveManager.getSlots();
       expect(slots.length).toBe(1);
       expect(slots[0].mode).toBe('classic');
+    });
+  });
+
+  describe('auto-save', () => {
+    it('saves and loads auto-save state', () => {
+      const state = { mode: 'classic', score: 42, grid: { cells: [] } };
+      saveManager.autoSave(state);
+      const loaded = saveManager.loadAutoSave();
+      expect(loaded.mode).toBe('classic');
+      expect(loaded.score).toBe(42);
+      expect(loaded.date).toBeGreaterThan(0);
+    });
+
+    it('hasAutoSave returns true when auto-save exists', () => {
+      expect(saveManager.hasAutoSave()).toBe(false);
+      saveManager.autoSave({ mode: 'free', score: 10 });
+      expect(saveManager.hasAutoSave()).toBe(true);
+    });
+
+    it('clearAutoSave removes the auto-save', () => {
+      saveManager.autoSave({ mode: 'battle', score: 100 });
+      saveManager.clearAutoSave();
+      expect(saveManager.hasAutoSave()).toBe(false);
+      expect(saveManager.loadAutoSave()).toBeNull();
+    });
+
+    it('loadAutoSave returns null when nothing saved', () => {
+      expect(saveManager.loadAutoSave()).toBeNull();
+    });
+
+    it('overwrites previous auto-save', () => {
+      saveManager.autoSave({ mode: 'classic', score: 10 });
+      saveManager.autoSave({ mode: 'free', score: 99 });
+      const loaded = saveManager.loadAutoSave();
+      expect(loaded.mode).toBe('free');
+      expect(loaded.score).toBe(99);
     });
   });
 });
