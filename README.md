@@ -46,13 +46,7 @@ See [docs/ANIMATION.md](docs/ANIMATION.md) for the animation layers, interruptio
 - **85+ unit tests**: Grid logic, Tile, math utils, SaveManager, I18nManager, AnimationController
 
 ### Not Yet Implemented
-- Battle Mode
-- Enemy system
-- Audio (music & SFX)
-- Asset loading (backgrounds, fonts, spritesheets)
 - Capacitor mobile builds
-- Options modal (music/sound toggles)
-- Ranking modal
 
 ## 🎮 Game Features
 

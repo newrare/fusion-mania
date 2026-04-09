@@ -1,6 +1,7 @@
 import { layout } from '../managers/layout-manager.js';
 import { i18n } from '../managers/i18n-manager.js';
 import { themeManager } from '../managers/theme-manager.js';
+import { audioManager } from '../managers/audio-manager.js';
 import { saveManager } from '../managers/save-manager.js';
 import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
@@ -33,6 +34,8 @@ export class OptionsModal {
 
     const themeLabel = i18n.t(`options.theme_${themeManager.current}`);
     const langLabel = i18n.t(`options.lang_${i18n.locale}`);
+    const musicLabel = audioManager.musicEnabled ? 'ON' : 'OFF';
+    const soundLabel = audioManager.soundEnabled ? 'ON' : 'OFF';
     const resumeBtn = options.showResume
       ? `<button class="fm-btn fm-btn--primary" data-action="resume">${i18n.t('menu.resume')}</button>`
       : '';
@@ -42,6 +45,14 @@ export class OptionsModal {
         <div class="fm-modal">
           <div class="fm-modal-title">${i18n.t('options.title')}</div>
           <div class="fm-modal-buttons">
+            <div class="fm-option-row">
+              <span class="fm-option-label">${i18n.t('options.music')}</span>
+              <button class="fm-theme-btn" data-action="music" id="fm-music-label">${musicLabel}</button>
+            </div>
+            <div class="fm-option-row">
+              <span class="fm-option-label">${i18n.t('options.sound')}</span>
+              <button class="fm-theme-btn" data-action="sound" id="fm-sound-label">${soundLabel}</button>
+            </div>
             <div class="fm-option-row">
               <span class="fm-option-label">${i18n.t('options.theme')}</span>
               <button class="fm-theme-btn" data-action="theme" id="fm-theme-label">${themeLabel}</button>
@@ -78,6 +89,20 @@ export class OptionsModal {
 
       const action = btn.dataset.action;
       switch (action) {
+        case 'music': {
+          const next = !audioManager.musicEnabled;
+          audioManager.setMusic(next);
+          const label = this.#domElement?.node.querySelector('#fm-music-label');
+          if (label) label.textContent = next ? 'ON' : 'OFF';
+          break;
+        }
+        case 'sound': {
+          const next = !audioManager.soundEnabled;
+          audioManager.setSound(next);
+          const label = this.#domElement?.node.querySelector('#fm-sound-label');
+          if (label) label.textContent = next ? 'ON' : 'OFF';
+          break;
+        }
         case 'theme': {
           const newTheme = themeManager.toggle();
           const label = this.#domElement?.node.querySelector('#fm-theme-label');
@@ -143,7 +168,7 @@ export class OptionsModal {
     const title = overlay.querySelector('.fm-modal-title');
     if (title) title.textContent = i18n.t('options.title');
     const labels = overlay.querySelectorAll('.fm-option-label');
-    const labelKeys = ['options.theme', 'options.language'];
+    const labelKeys = ['options.music', 'options.sound', 'options.theme', 'options.language'];
     labels.forEach((el, i) => { if (labelKeys[i]) el.textContent = i18n.t(labelKeys[i]); });
     const resumeBtn = overlay.querySelector('[data-action="resume"]');
     if (resumeBtn) resumeBtn.textContent = i18n.t('menu.resume');

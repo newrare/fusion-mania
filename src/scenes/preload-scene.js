@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS } from '../configs/constants.js';
 import { layout } from '../managers/layout-manager.js';
+import { audioManager } from '../managers/audio-manager.js';
 
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -28,6 +29,9 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('bg-ground',  'images/background_one_ground.png');
     this.load.image('bg-cloud02', 'images/background_one_cloud_02.png');
     this.load.image('bg-cloud01', 'images/background_one_cloud_01.png');
+
+    // Audio (HTML5 Audio — independent of Phaser's loader)
+    audioManager.preload();
   }
 
   create() {

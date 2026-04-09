@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { SCENE_KEYS } from '../configs/constants.js';
 import { i18n } from '../managers/i18n-manager.js';
 import { layout } from '../managers/layout-manager.js';
+import { audioManager } from '../managers/audio-manager.js';
 import { MenuModal } from '../components/menu-modal.js';
 import { addBackground } from '../utils/background.js';
 
@@ -67,6 +68,9 @@ export class TitleScene extends Phaser.Scene {
   #openMenu = () => {
     // Prevent multiple modals
     if (this.#menuModal) return;
+
+    // Unlock audio on first user interaction (browser autoplay policy)
+    audioManager.unlock();
 
     this.input.keyboard.off('keydown', this.#openMenu, this);
     this.input.off('pointerdown', this.#openMenu, this);

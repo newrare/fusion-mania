@@ -155,6 +155,7 @@ export class GridManager {
    * @param {'up' | 'down' | 'left' | 'right'} direction
    * @param {(ms: number) => Promise<void>} waitFn — Phaser-aware delay
    * @param {(() => void) | null} [onSlideStart] — called synchronously once tile slides begin
+   * @param {((merges: object[]) => void) | null} [onMergeStart] — called just before the merge bounce animation, receives the merges array
    * @returns {Promise<{
    *   moved: boolean,
    *   merges: object[],
@@ -165,7 +166,7 @@ export class GridManager {
    *   cancelled: boolean
    * } | null>}
    */
-  async executeMove(direction, waitFn, onSlideStart = null) {
+  async executeMove(direction, waitFn, onSlideStart = null, onMergeStart = null) {
     const hasMergePossible = this.#grid.hasPossibleMerge();
     const scoreBefore = this.#grid.score;
 
@@ -207,6 +208,7 @@ export class GridManager {
       await waitFn(ANIM.MERGE_PARTICLES_DURATION);
       if (!this.#animator.isCurrent(gen)) return { moved: true, merges: result.merges, expelled: result.expelled, newTile, hasMergePossible, scoreBefore, cancelled: true };
     }
+    onMergeStart?.(result.merges);
     this.#animator.processMerges(result.merges, this.#grid.getAllTiles());
     if (result.merges.length > 0) {
       await waitFn(ANIM.MERGE_DURATION);

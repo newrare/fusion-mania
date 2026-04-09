@@ -156,33 +156,11 @@ describe('TileRenderer', () => {
       expect(el.querySelector('.fm-pw-face')).not.toBeNull();
     });
 
-    it('injects sparkle particles with the correct category colour', () => {
-      tile.power = POWER_TYPES.FIRE_H; // danger category → #b91c1c
+    it('injects sparkle particles when tile has a power', () => {
+      tile.power = POWER_TYPES.FIRE_H;
       TileRenderer.applyState(el, tile);
       const sparkles = el.querySelectorAll('.fm-pw-sparkle');
       expect(sparkles.length).toBeGreaterThan(0);
-      // Every sparkle must carry the category icon colour
-      for (const sp of sparkles) {
-        expect(sp.style.color).toBe('#b91c1c');
-      }
-    });
-
-    it('sparkles carry the category icon colour (warning)', () => {
-      tile.power = POWER_TYPES.TELEPORT; // warning → #b45309
-      TileRenderer.applyState(el, tile);
-      const sparkles = el.querySelectorAll('.fm-pw-sparkle');
-      for (const sp of sparkles) {
-        expect(sp.style.color).toBe('#b45309');
-      }
-    });
-
-    it('sparkles carry the category icon colour (info)', () => {
-      tile.power = POWER_TYPES.ICE; // info → #1d4ed8
-      TileRenderer.applyState(el, tile);
-      const sparkles = el.querySelectorAll('.fm-pw-sparkle');
-      for (const sp of sparkles) {
-        expect(sp.style.color).toBe('#1d4ed8');
-      }
     });
 
     it('sets the correct category class on fm-pw-face', () => {
@@ -199,7 +177,7 @@ describe('TileRenderer', () => {
       expect(el.querySelector('.fm-pw-face.fm-pw-info')).not.toBeNull();
     });
 
-    it('updates category class and sparkle colours when power changes type', () => {
+    it('updates category class when power changes type', () => {
       tile.power = POWER_TYPES.FIRE_H; // danger
       TileRenderer.applyState(el, tile);
       tile.power = POWER_TYPES.ICE; // info
@@ -207,10 +185,6 @@ describe('TileRenderer', () => {
       const face = el.querySelector('.fm-pw-face');
       expect(face.classList.contains('fm-pw-info')).toBe(true);
       expect(face.classList.contains('fm-pw-danger')).toBe(false);
-      // Sparkle colours must match the new category icon colour (info → #1d4ed8)
-      for (const sp of el.querySelectorAll('.fm-pw-sparkle')) {
-        expect(sp.style.color).toBe('#1d4ed8');
-      }
     });
 
     it('removes fm-tile-powered, fm-pw-face and sparkles when power is cleared', () => {

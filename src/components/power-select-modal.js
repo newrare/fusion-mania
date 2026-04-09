@@ -39,7 +39,7 @@ export class PowerSelectModal {
       const meta = POWER_META[type];
       const name = i18n.t(meta.nameKey);
       powersHtml += `
-        <div class="fm-power-item" data-type="${type}" title="${name}" tabindex="0">
+        <div class="fm-power-item fm-clickable" data-type="${type}" title="${name}" tabindex="0">
           <div class="fm-power-dot off" data-dot="${type}">
             <svg class="fm-power-icon" aria-hidden="true"><use href="#${meta.svgId}"/></svg>
           </div>

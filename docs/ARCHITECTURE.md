@@ -144,7 +144,7 @@ new GameOverModal(this, {
 Managers are **singleton-ish** classes for cross-cutting concerns:
 
 - **AnimationManager** — manages all DOM tile animations (slides, merges, spawns, particles). Completely independent of Phaser. See [docs/ANIMATION.md](ANIMATION.md).
-- **AudioManager** — wraps Phaser's sound system with volume control.
+- **AudioManager** — singleton managing background music and SFX via HTML5 Audio (no Phaser dependency). Preloads all audio in `PreloadScene`, unlocks on first user gesture in `TitleScene`. Persists music/sound toggle preferences to localStorage. SFX keys map to `AUDIO.SFX` and `AUDIO.POWER_SFX` in `constants.js`.
 - **I18nManager** — singleton handling locale selection, translation lookups (`i18n.t('key')`), and persistence to `localStorage`. See [docs/TRANSLATE.md](TRANSLATE.md).
 - **StateManager** — observable key-value store for shared game state (score, settings, player data). Supports `on(key, callback)` subscriptions.
 

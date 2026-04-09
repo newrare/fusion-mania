@@ -120,7 +120,7 @@ export class HelpModal {
     const items = HelpModal.CATEGORIES.map((cat) => {
       const icon = HelpModal.CATEGORY_ICONS[cat];
       const label = i18n.t(`help.cat_${cat}`);
-      return `<button class="fm-help-cat-item" data-category="${cat}">
+      return `<button class="fm-help-cat-item fm-clickable" data-category="${cat}">
         <span class="fm-help-cat-icon">${icon}</span>
         <span class="fm-help-cat-label">${label}</span>
         <span class="fm-help-cat-arrow">\u203A</span>

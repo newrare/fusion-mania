@@ -240,7 +240,7 @@ export class SaveLoadModal {
       const mainHtml = this.#buildMainCell(s);
 
       html += `
-        <div class="fm-ranking-row${evenClass} fm-saveload-row" data-slot-row="${i}" tabindex="0">
+        <div class="fm-ranking-row${evenClass} fm-saveload-row fm-clickable" data-slot-row="${i}" tabindex="0">
           <span class="fm-ranking-cell fm-ranking-rank">${i + 1}</span>
           <span class="fm-ranking-cell fm-saveload-mode-col">${modeLabel}</span>
           <span class="fm-ranking-cell fm-ranking-main-col">${mainHtml}</span>

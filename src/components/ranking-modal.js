@@ -13,8 +13,8 @@ export class RankingModal {
   /** @type {Phaser.Scene} */
   #scene;
 
-  /** @type {string} Active tab: 'classic' | 'battle' | 'free' */
-  #activeTab = 'classic';
+  /** @type {string} Active tab: 'battle' | 'free' | 'classic' */
+  #activeTab = 'battle';
 
   /** @type {Function | null} */
   #onClose = null;
@@ -45,9 +45,9 @@ export class RankingModal {
         <div class="fm-modal fm-ranking-modal">
           <div class="fm-modal-title">${i18n.t('ranking.title')}</div>
           <div class="fm-ranking-tabs">
-            <button class="fm-ranking-tab fm-ranking-tab--active" data-tab="classic">${i18n.t('ranking.classic')}</button>
-            <button class="fm-ranking-tab" data-tab="battle">${i18n.t('ranking.battle')}</button>
-            <button class="fm-ranking-tab" data-tab="free">${i18n.t('ranking.free')}</button>
+            <button class="fm-ranking-tab fm-ranking-tab--active fm-clickable" data-tab="battle">${i18n.t('ranking.battle')}</button>
+            <button class="fm-ranking-tab fm-clickable" data-tab="free">${i18n.t('ranking.free')}</button>
+            <button class="fm-ranking-tab fm-clickable" data-tab="classic">${i18n.t('ranking.classic')}</button>
           </div>
           <div class="fm-ranking-table-wrap" id="fm-ranking-table-wrap"></div>
           <div class="fm-modal-buttons">
@@ -88,7 +88,7 @@ export class RankingModal {
     });
 
     /** @type {string[]} Tab order for keyboard navigation */
-    const tabOrder = ['classic', 'battle', 'free'];
+    const tabOrder = ['battle', 'free', 'classic'];
 
     this.#keyHandler = (event) => {
       switch (event.code) {
@@ -225,7 +225,7 @@ export class RankingModal {
         dateHtml = `<span class="fm-ranking-cell fm-ranking-date-col">${dateStr}</span>`;
       }
 
-      const rowClass = `fm-ranking-row${medalClass}${evenClass}`;
+      const rowClass = `fm-ranking-row${medalClass}${evenClass}${r ? ' fm-clickable' : ''}`;
       html += `<div class="${rowClass}"${clickAttr}>${rankHtml}${mainHtml}${dateHtml}</div>`;
     }
 

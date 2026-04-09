@@ -33,6 +33,8 @@ export const ANIM = {
   LIGHTNING_ANIM_DURATION: 1500,
   /** Delay between consecutive lightning strikes when multiple columns are hit (ms) */
   LIGHTNING_STRIKE_DELAY: 350,
+  /** Delay from strike start to bolt impact (26% of LIGHTNING_ANIM_DURATION — matches the CSS keyframe) */
+  LIGHTNING_IMPACT_AT: 390,
   /** Duration of bomb explosion animation (ms) */
   BOMB_DURATION: 700,
   /** Duration of nuclear blast animation (ms); tiles are removed at NUCLEAR_TILE_REMOVE_AT */
@@ -69,6 +71,45 @@ export const DEFAULT_OPTIONS = {
   sound: true,
 };
 
+/** Audio file paths and settings */
+export const AUDIO = {
+  MUSIC: 'sounds/music.wav',
+  MUSIC_VOLUME: 0.03,
+  SFX_VOLUME: 0.3,
+  SFX: {
+    click:        'sounds/sfx-click.ogg',
+    hover:        'sounds/sfx-hover.ogg',
+    fusion:       'sounds/sfx-fusion.ogg',
+    victory:      'sounds/sfx-victory.ogg',
+    gameOver:     'sounds/sfx-game-over.ogg',
+    notification: 'sounds/sfx-notification.ogg',
+    gridHurt:     'sounds/sfx-grid-hurt.ogg',
+    enemyHurt:    'sounds/sfx-enemy-hurt.ogg',
+    enemyDeath:   'sounds/sfx-death-enemy.ogg',
+    enemyIn:      'sounds/sfx-enemy-in.ogg',
+    contamination:'sounds/sfx-contamination.ogg',
+  },
+  /**
+   * Maps power identifiers to SFX file paths.
+   * Expel powers use -in (tile fuses with expel) / -out (tile leaves grid).
+   * All wind variants share a single SFX. Lightning is played per-strike.
+   */
+  POWER_SFX: {
+    'fire-h':    'sounds/sfx-power-fire-horizontal.ogg',
+    'fire-v':    'sounds/sfx-power-fire-vertical.ogg',
+    'fire-x':    'sounds/sfx-power-fire-cross.ogg',
+    'bomb':      'sounds/sfx-power-bomb.ogg',
+    'lightning': 'sounds/sfx-power-lightning.ogg',
+    'nuclear':   'sounds/sfx-power-nuclear.ogg',
+    'teleport':  'sounds/sfx-power-teleport.ogg',
+    'ice':       'sounds/sfx-power-ice.ogg',
+    'expel-h-in':'sounds/sfx-power-expel-horizontal.ogg',
+    'expel-v-in':'sounds/sfx-power-expel-vertical.ogg',
+    'wind':      'sounds/sfx-power-wind.ogg',
+    'blind':     'sounds/sfx-power-blind.ogg',
+  },
+};
+
 /** Power type identifiers */
 export const POWER_TYPES = {
   FIRE_H: 'fire-h',
@@ -103,7 +144,7 @@ export const POWER_META = {
   [POWER_TYPES.WIND_DOWN]:  { nameKey: 'power.wind_down',  svgId: 's-wind-d' },
   [POWER_TYPES.WIND_LEFT]:  { nameKey: 'power.wind_left',  svgId: 's-wind-l' },
   [POWER_TYPES.WIND_RIGHT]: { nameKey: 'power.wind_right', svgId: 's-wind-r' },
-  [POWER_TYPES.LIGHTNING]:  { nameKey: 'power.lightning',   svgId: 's-lightning' },
+  [POWER_TYPES.LIGHTNING]:  { nameKey: 'power.lightning',  svgId: 's-lightning' },
   [POWER_TYPES.NUCLEAR]:    { nameKey: 'power.nuclear',    svgId: 's-nuclear' },
   [POWER_TYPES.BLIND]:      { nameKey: 'power.blind',      svgId: 's-blind' },
   [POWER_TYPES.ADS]:        { nameKey: 'power.ads',        svgId: 's-ads' },

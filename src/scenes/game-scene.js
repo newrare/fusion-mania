@@ -24,6 +24,7 @@ import { HelpModal } from '../components/help-modal.js';
 import { GridLife } from '../entities/grid-life.js';
 import { BattleManager } from '../managers/battle-manager.js';
 import { getRandomFaceUrl } from '../configs/constants.js';
+import { audioManager } from '../managers/audio-manager.js';
 import { addBackground } from '../utils/background.js';
 import { LiquidWave } from '../utils/liquid-wave.js';
 
@@ -416,7 +417,7 @@ export class GameScene extends Phaser.Scene {
     const modeIcon = GameScene.#MODE_ICONS[this.#mode] ?? '';
     const html = `
       <div class="fm-help-bar">
-        <button class="fm-mode-badge" id="fm-mode-badge" aria-label="Help">${modeIcon}</button>
+        <button class="fm-mode-badge fm-clickable" id="fm-mode-badge" aria-label="Help">${modeIcon}</button>
       </div>
     `;
     const x = layout.safe.right;
@@ -687,6 +688,19 @@ export class GameScene extends Phaser.Scene {
       direction,
       waitFn,
       () => this.#advanceHudCards(direction),
+      (merges) => {
+        // Play fusion SFX at the moment the merge bounce animation starts,
+        // but only if no power SFX will override it on this move.
+        // Lightning is excluded — it allows fusion SFX (lightning plays per-strike separately).
+        // NOTE: checkMergeTriggers mutates tile state, so we inspect merges directly here.
+        if (merges.length === 0) return;
+        const hasSuppressingPower = merges.some((m) => {
+          const pa = m.tile.power;
+          const pb = m.consumedPower ?? null;
+          return (pa && pa !== POWER_TYPES.LIGHTNING) || (pb && pb !== POWER_TYPES.LIGHTNING);
+        });
+        if (!hasSuppressingPower) audioManager.playSfx('fusion');
+      },
     );
 
     if (!moveResult.moved) {
@@ -800,6 +814,7 @@ export class GameScene extends Phaser.Scene {
         const { damage, killed } = this.#battleManager.applyMergeDamage(merges);
         if (damage > 0) {
           await this.#playAttackParticles(merges);
+          audioManager.playSfx('enemyHurt');
           this.#showEnemyDamage(damage);
           this.#updateEnemyVisual();
         }
@@ -863,6 +878,11 @@ export class GameScene extends Phaser.Scene {
    * @param {import('../entities/tile.js').Tile} target
    */
   async #executePowerEffect(powerType, target) {
+    // Lightning SFX is played per-strike inside the animation block below.
+    if (powerType !== POWER_TYPES.LIGHTNING) {
+      audioManager.playPowerSfx(powerType);
+    }
+
     const isFirePower = powerType === POWER_TYPES.FIRE_H
       || powerType === POWER_TYPES.FIRE_V
       || powerType === POWER_TYPES.FIRE_X;
@@ -887,6 +907,10 @@ export class GameScene extends Phaser.Scene {
       await this.#gm.playTeleportAnimation(tileA, tileB, oldA, oldB, ANIM.TELEPORT_DURATION);
     } else if (powerType === POWER_TYPES.LIGHTNING && effectResult.lightningStrikes) {
       const numStrikes = effectResult.lightningStrikes.length;
+      // Play SFX at the exact moment the bolt impacts (26% into the animation)
+      for (let i = 0; i < numStrikes; i++) {
+        setTimeout(() => audioManager.playSfx('power:lightning'), i * ANIM.LIGHTNING_STRIKE_DELAY + ANIM.LIGHTNING_IMPACT_AT);
+      }
       this.#gm.playLightningAnimation(effectResult.lightningStrikes);
       const totalDuration = (numStrikes - 1) * ANIM.LIGHTNING_STRIKE_DELAY + ANIM.LIGHTNING_ANIM_DURATION;
       await this.#wait(totalDuration);
@@ -1056,6 +1080,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Show a transient banner when the player beats their previous best score. */
   #showNewBestNotification() {
+    audioManager.playSfx('notification');
     const el = document.createElement('div');
     el.className = 'fm-new-best-notif';
     el.textContent = i18n.t('game.new_best');
@@ -1223,6 +1248,7 @@ export class GameScene extends Phaser.Scene {
         const { damage, killed } = bm.applyMergeDamage(merges);
         if (damage > 0) {
           await this.#playAttackParticles(merges);
+          audioManager.playSfx('enemyHurt');
           this.#showEnemyDamage(damage);
           this.#updateEnemyVisual();
         }
@@ -1248,6 +1274,7 @@ export class GameScene extends Phaser.Scene {
    * @param {import('../entities/enemy.js').Enemy} enemy
    */
   async #onEnemySpawn(enemy) {
+    audioManager.playSfx('enemyIn');
     // Create power manager for battle contamination effects using ALL powers from this enemy
     this.#battlePowerManager = new PowerManager(enemy.availablePowers);
     // If the ad was already shown this game, prevent new enemies from using ADS
@@ -1643,9 +1670,16 @@ export class GameScene extends Phaser.Scene {
     const startTime = performance.now();
 
     await new Promise(resolve => {
+      let impactSoundPlayed = false;
       const frame = (now) => {
         const globalT = Math.min((now - startTime) / DURATION, 1);
         ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+        // Play contamination sound when particles are visually at the tile (~90% travel)
+        if (!impactSoundPlayed && globalT >= 0.9) {
+          impactSoundPlayed = true;
+          audioManager.playSfx('contamination');
+        }
 
         for (const p of particles) {
           const t = Math.min(Math.max((globalT - p.delay) / (1 - p.delay), 0), 1);
@@ -1716,6 +1750,7 @@ export class GameScene extends Phaser.Scene {
    */
   async #playEnemyDeathAnimation(enemy) {
     if (!this.#enemyAreaEl) return;
+    audioManager.playSfx('enemyDeath');
 
     const tileSize = this.#tileSizePx;
     const tileClass = `fm-t${enemy.level}`;
@@ -1809,6 +1844,10 @@ export class GameScene extends Phaser.Scene {
    */
   async #executeBattlePowerEffect(powerType, target) {
     if (!this.#battlePowerManager) return;
+    // Lightning SFX is played per-strike inside the animation block below.
+    if (powerType !== POWER_TYPES.LIGHTNING) {
+      audioManager.playPowerSfx(powerType);
+    }
 
     const isFirePower = powerType === POWER_TYPES.FIRE_H
       || powerType === POWER_TYPES.FIRE_V
@@ -1832,6 +1871,10 @@ export class GameScene extends Phaser.Scene {
       await this.#gm.playTeleportAnimation(tileA, tileB, oldA, oldB, ANIM.TELEPORT_DURATION);
     } else if (powerType === POWER_TYPES.LIGHTNING && effectResult.lightningStrikes) {
       const numStrikes = effectResult.lightningStrikes.length;
+      // Play SFX at the exact moment the bolt impacts (26% into the animation)
+      for (let i = 0; i < numStrikes; i++) {
+        setTimeout(() => audioManager.playSfx('power:lightning'), i * ANIM.LIGHTNING_STRIKE_DELAY + ANIM.LIGHTNING_IMPACT_AT);
+      }
       this.#gm.playLightningAnimation(effectResult.lightningStrikes);
       const totalDuration = (numStrikes - 1) * ANIM.LIGHTNING_STRIKE_DELAY + ANIM.LIGHTNING_ANIM_DURATION;
       await this.#wait(totalDuration);
@@ -2155,6 +2198,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   #onVictory() {
+    audioManager.playSfx('victory');
     this.#victoryShown = true;
     const isBattle = this.#mode === 'battle';
 
@@ -2214,6 +2258,7 @@ export class GameScene extends Phaser.Scene {
 
   #onGameOver() {
     if (this.#gameOver) return;
+    audioManager.playSfx('gameOver');
     this.#gameOver = true;
     this.#cancelEmptyGridTimer();
     this.#endCombo();
@@ -2557,6 +2602,8 @@ export class GameScene extends Phaser.Scene {
    */
   #onGridLifeDamage(damage) {
     if (!this.#gridLife || damage <= 0) return;
+
+    audioManager.playSfx('gridHurt');
 
     // Hurt flash on the grid
     const gridEl = this.#gm.gridEl;

@@ -79,6 +79,16 @@ To add a new animation: add a keyframe to `src/styles/main.css`, add a method to
 
 `BattleManager` (`src/managers/battle-manager.js`) handles enemy spawn logic, contamination, damage, and level progression. `Enemy` (`src/entities/enemy.js`) is a pure data class with name (100 math-themed names), level, HP (via `GridLife`), and available powers. The game alternates between a classic phase (10 moves) and a battle phase (enemy active). See `docs/BATTLE.md` for the full system.
 
+### Audio system
+
+`AudioManager` (`src/managers/audio-manager.js`) handles background music and SFX using HTML5 Audio (no Phaser dependency). It is a singleton imported as `audioManager`. All audio file paths and volume levels are defined in the `AUDIO` constant in `constants.js`.
+
+**Lifecycle**: `PreloadScene` calls `audioManager.preload()` to create Audio elements. `TitleScene` calls `audioManager.unlock()` on the first user gesture (browser autoplay policy). Music starts automatically after unlock if enabled.
+
+**SFX triggers**: `playSfx(key)` for UI/game events (fusion, victory, gameOver, notification, click), `playPowerSfx(powerType)` for power activations. A global `pointerdown` delegation on `.fm-btn` / `.fm-theme-btn` provides click SFX for all buttons.
+
+**Options**: Music and sound toggles are in `OptionsModal`. Preferences are persisted to localStorage via `STORAGE_KEYS.OPTIONS`. 16 audio-manager tests + 11 options-modal tests.
+
 ### Keyboard navigation
 
 All modals support keyboard navigation via `enableKeyboardNav()` (`src/utils/keyboard-nav.js`). Arrow keys cycle through focusable buttons/items, Enter/Space activates, Escape closes. Focus-visible outlines are styled in `main.css`.

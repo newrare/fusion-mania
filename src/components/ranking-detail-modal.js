@@ -157,7 +157,7 @@ export class RankingDetailModal {
       if (hasMore) {
         const label = i18n.t('ranking.enemies_see_all').replace('{count}', String(sorted.length));
         const encodedEnemies = JSON.stringify(sorted).replace(/"/gu, '&quot;');
-        html += `<button class="fm-rdd-see-all" data-action="see-all-enemies" data-enemies="${encodedEnemies}">${label}</button>`;
+        html += `<button class="fm-rdd-see-all fm-clickable" data-action="see-all-enemies" data-enemies="${encodedEnemies}">${label}</button>`;
       }
       html += `</div>`;
     }
