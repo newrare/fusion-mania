@@ -285,6 +285,10 @@ export class GameScene extends Phaser.Scene {
         !!(
           this.#gameOver ||
           this.#menuModal ||
+          this.#helpModal ||
+          this.#gameOverModal ||
+          this.#enemyInfoModal ||
+          this.#adminModal ||
           this.#powerChoiceModal ||
           this.#powerSelectModal ||
           this.#showingAds ||
