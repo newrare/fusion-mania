@@ -145,7 +145,11 @@ class SaveManager {
    */
   getBestScore(mode) {
     const list = this.getRankings(mode);
-    return list.length > 0 ? list[0].score : 0;
+    let best = 0;
+    for (const entry of list) {
+      if (entry.score > best) best = entry.score;
+    }
+    return best;
   }
 
   /**

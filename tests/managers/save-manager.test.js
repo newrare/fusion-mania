@@ -93,6 +93,14 @@ describe('SaveManager', () => {
       expect(saveManager.getBestScore('classic')).toBe(800);
     });
 
+    it('returns best score in battle mode (highest score, not highest level)', () => {
+      saveManager.addRanking('battle', 8000, { enemyMaxLevel: 3 });
+      saveManager.addRanking('battle', 3000, { enemyMaxLevel: 5 });
+      // Rankings sort by enemyMaxLevel DESC, so list[0] has score 3000,
+      // but getBestScore must return the highest score across all entries.
+      expect(saveManager.getBestScore('battle')).toBe(8000);
+    });
+
     it('returns 0 when no rankings', () => {
       expect(saveManager.getBestScore('classic')).toBe(0);
     });
