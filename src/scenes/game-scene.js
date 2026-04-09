@@ -543,7 +543,7 @@ export class GameScene extends Phaser.Scene {
 
         if (trigger.needsChoice) {
           // Open choice modal and wait for player selection
-          chosenPower = await this.#showPowerChoiceModal(trigger.powerType, trigger.powerTypeB);
+          chosenPower = await this.#showPowerChoiceModal(trigger.powerType, trigger.powerTypeB, trigger.tile);
         }
 
         this.#powersTriggered.push(chosenPower);
@@ -582,7 +582,7 @@ export class GameScene extends Phaser.Scene {
         let chosenPower = trigger.powerType;
 
         if (trigger.needsChoice) {
-          chosenPower = await this.#showPowerChoiceModal(trigger.powerType, trigger.powerTypeB);
+          chosenPower = await this.#showPowerChoiceModal(trigger.powerType, trigger.powerTypeB, trigger.tile);
         }
 
         this.#powersTriggered.push(chosenPower);
@@ -729,11 +729,15 @@ export class GameScene extends Phaser.Scene {
    * @param {string} powerTypeB
    * @returns {Promise<string>} The chosen power type
    */
-  #showPowerChoiceModal(powerTypeA, powerTypeB) {
+  #showPowerChoiceModal(powerTypeA, powerTypeB, tile) {
     return new Promise((resolve) => {
       this.#powerChoiceModal = new PowerChoiceModal(this, {
         powerTypeA,
         powerTypeB,
+        tileRow: tile.row,
+        tileCol: tile.col,
+        gridEl: this.#gm.gridEl,
+        cellPositionFn: (r, c) => this.#gm.cellPosition(r, c),
         onChoice: (chosenType) => {
           this.#powerChoiceModal?.destroy();
           this.#powerChoiceModal = null;

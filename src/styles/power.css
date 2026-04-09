@@ -135,21 +135,81 @@
   justify-content: center;
 }
 
-/* --- Power choice modal --- */
-.fm-power-choice-modal {
-  /* Uses base .fm-modal sizing */
+/* --- Power choice overlay (dimmed, no blur — grid stays visible) --- */
+.fm-power-choice-overlay {
+  --fm-modal-backdrop: rgba(0,0,0,0.35);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* --- Power choice popover (anchored to merged tile) --- */
+.fm-power-choice-popover {
+  position: absolute;
+  transform: translateX(-50%);
+  background: linear-gradient(160deg, #2a1050, #1a0a2e);
+  border: 2px solid rgba(200,140,255,.55);
+  border-radius: 18px;
+  padding: 10px 14px 12px;
+  box-shadow: 0 6px 24px rgba(180,100,255,.35), 0 0 0 1px rgba(0,0,0,.3);
+  color: rgba(255,255,255,.9);
+  font-family: 'Merkin', cursive, sans-serif;
+  z-index: 101;
+  white-space: nowrap;
+}
+
+/* --- Caret arrow --- */
+.fm-power-choice-popover--below::before,
+.fm-power-choice-popover--above::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+}
+
+.fm-power-choice-popover--below::before {
+  top: -8px;
+  border-bottom: 8px solid rgba(200,140,255,.55);
+}
+
+.fm-power-choice-popover--above::after {
+  bottom: -8px;
+  border-top: 8px solid rgba(200,140,255,.55);
+}
+
+/* --- Popover scale origin follows placement --- */
+.fm-power-choice-popover--below {
+  transform-origin: top center;
+  transform: translateX(-50%);
+}
+
+.fm-power-choice-popover--above {
+  transform-origin: bottom center;
+  transform: translateX(-50%) translateY(-100%);
+}
+
+.fm-power-choice-title {
+  font-size: 0.85rem;
+  font-weight: 900;
+  text-align: center;
+  margin-bottom: 6px;
+  color: #e8c0ff;
 }
 
 .fm-power-choice-grid {
   display: flex;
   justify-content: center;
-  gap: 24px;
-  padding: 16px 6px;
+  gap: 20px;
 }
 
 .fm-power-choice-item {
-  padding: 12px;
+  padding: 8px 10px;
   border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
 }
 
 .fm-power-choice-item .fm-power-dot {
@@ -158,11 +218,42 @@
 
 .fm-power-choice-item:hover .fm-power-dot,
 .fm-power-choice-item:focus-visible .fm-power-dot {
-  transform: scale(1.15);
+  transform: scale(1.18);
 }
 
 .fm-power-choice-item:active {
   background: rgba(255,255,255,0.15);
+}
+
+/* --- Tile highlight pulse during choice --- */
+.fm-tile--choice-highlight {
+  z-index: 10;
+  box-shadow: 0 0 0 3px rgba(200,140,255,.8), 0 0 18px 4px rgba(180,100,255,.5);
+  animation: fm-choice-pulse 1s ease-in-out infinite;
+}
+
+/* --- Pop animation per placement (transform-origin differs) --- */
+.fm-power-choice-popover--below {
+  animation: fm-popover-pop-below 0.3s cubic-bezier(.36,1.6,.6,1) both;
+}
+
+.fm-power-choice-popover--above {
+  animation: fm-popover-pop-above 0.3s cubic-bezier(.36,1.6,.6,1) both;
+}
+
+@keyframes fm-popover-pop-below {
+  from { transform: translateX(-50%) scale(0.4); opacity: 0; }
+  to   { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+@keyframes fm-popover-pop-above {
+  from { transform: translateX(-50%) translateY(-100%) scale(0.4); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(-100%) scale(1); opacity: 1; }
+}
+
+@keyframes fm-choice-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(200,140,255,.8), 0 0 18px 4px rgba(180,100,255,.5); }
+  50%      { box-shadow: 0 0 0 5px rgba(200,140,255,1), 0 0 28px 8px rgba(180,100,255,.7); }
 }
 
 /* --- Grid edge power badges --- */
