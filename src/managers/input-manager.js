@@ -88,12 +88,14 @@ export class InputManager {
 
   /** @param {Phaser.Input.Pointer} pointer */
   #onPointerDown = (pointer) => {
+    if (!pointer.wasTouch) return; // desktop mouse: swipe disabled, keyboard only
     this.#pointerStartX = pointer.x;
     this.#pointerStartY = pointer.y;
   };
 
   /** @param {Phaser.Input.Pointer} pointer */
   #onPointerUp = (pointer) => {
+    if (!pointer.wasTouch) return; // desktop mouse: swipe disabled, keyboard only
     if (this.#skipNextPointerUp) {
       this.#skipNextPointerUp = false;
       this.#pointerStartX = pointer.x;

@@ -90,6 +90,9 @@ export class GameScene extends Phaser.Scene {
   /** @type {boolean} True while the hurt/break animation is playing */
   #comboBreaking = false;
 
+  /** @type {number} Move generation counter — prevents stale async continuations */
+  #moveGen = 0;
+
   /** @type {PowerManager | null} Power system (Free mode only) */
   #powerManager = null;
 
@@ -416,6 +419,7 @@ export class GameScene extends Phaser.Scene {
    * @param {'up' | 'down' | 'left' | 'right'} direction
    */
   async #executeMove(direction) {
+    const moveGen = ++this.#moveGen;
     this.#gm.clearFusionIndicators();
     // Safety flush: if a previous animation was cut, forcibly remove any DOM elements
     // that were scheduled for destruction but never cleaned up.
@@ -467,167 +471,160 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Nudge dead enemies on every valid player move
-    this.#nudgeDeadEnemies(direction);
-    // Invalidate duplicate-save guard
-    this.#lastSavedFingerprint = null;
-
-    // Begin history log entry for this move
-    this.#historyManager.beginTurn(this.#gm.grid.moves, direction, this.#gm.grid.score);
-
-    // Tick power state for EVERY real grid move
-    if (this.#powerManager) {
-      this.#powerManager.tickMove(this.#gm.grid);
-    }
-    if (this.#battlePowerManager) {
-      this.#battlePowerManager.tickMove(this.#gm.grid);
-    }
-
-    if (moveResult.cancelled) {
-      // Grid move happened but animations were cut short.
-      // Power triggers MUST still execute so grid.cells stays correct.
-      if (this.#powerManager && moveResult.merges.length > 0) {
-        const triggers = this.#powerManager.checkMergeTriggers(moveResult.merges, this.#gm.grid);
-        for (const trigger of triggers) {
-          const chosenPower = trigger.needsChoice ? trigger.powerType : trigger.powerType;
-          const effectResult = this.#powerManager.executeEffect(
-            chosenPower,
-            this.#gm.grid,
-            trigger.tile,
-          );
-          // Remove destroyed tiles from DOM immediately (no animation)
-          for (const tile of effectResult.destroyed) {
-            this.#pendingDestructionTiles.delete(tile.id);
-            this.#gm.removeTileById(tile.id);
-          }
-          // Grid Life: damage from cancelled power effects
-          if (this.#gridLife && effectResult.destroyed.length > 0) {
-            const values = effectResult.destroyed.map((t) => t.value);
-            const damage = this.#gridLife.takeDamage(values);
-            this.#onGridLifeDamage(damage);
-          }
-        }
-        this.#powerManager.onMove(this.#gm.grid);
-      }
-      // Count fusions even when animations were cancelled
-      if (moveResult.merges.length > 0) {
-        this.#fusions += moveResult.merges.length;
-        // Log fusions for history
-        const pairs = moveResult.merges.map((m) => [m.tile.value / 2, m.tile.value / 2]);
-        this.#historyManager.addFusions(pairs);
-        // Track max tile from cancelled moves
-        for (const tile of this.#gm.grid.getAllTiles()) {
-          if (tile.value > this.#maxTile) this.#maxTile = tile.value;
-        }
-        this.#updateHUD();
-        this.#gm.updateFusionIndicators();
-      }
-      this.#historyManager.finalizeTurn(this.#gm.grid.score);
-      return;
-    }
-
     const { merges, expelled, hasMergePossible, scoreBefore } = moveResult;
 
-    // Log fusions for history
-    if (merges.length > 0) {
-      const pairs = merges.map((m) => [m.tile.value / 2, m.tile.value / 2]);
-      this.#historyManager.addFusions(pairs);
-    }
+    // ╔══════════════════════════════════════════════════════════╗
+    // ║  GAME LOGIC — runs synchronously, regardless of cancel  ║
+    // ╚══════════════════════════════════════════════════════════╝
 
-    // Log expelled tiles
+    this.#nudgeDeadEnemies(direction);
+    this.#lastSavedFingerprint = null;
+    this.#historyManager.beginTurn(moveResult.moveNumber, direction, moveResult.scoreBefore);
+
+    // Tick power state for EVERY real grid move
+    if (this.#powerManager) this.#powerManager.tickMove(this.#gm.grid);
+    if (this.#battlePowerManager) this.#battlePowerManager.tickMove(this.#gm.grid);
+
+    // ── Expelled tiles ──
     if (expelled.length > 0) {
       this.#historyManager.addTilesLost(expelled.map((t) => t.value));
+      if (this.#gridLife) {
+        const damage = this.#gridLife.takeDamage(expelled.map((t) => t.value));
+        this.#onGridLifeDamage(damage);
+      }
     }
 
-    // Grid Life: damage from expelled tiles
-    if (this.#gridLife && expelled.length > 0) {
-      const values = expelled.map((t) => t.value);
-      const damage = this.#gridLife.takeDamage(values);
-      this.#onGridLifeDamage(damage);
-    }
-
-    // ── Combo logic ──
+    // ── Fusions + combo ──
+    // Combo only advances on non-cancelled moves (animation completed).
+    // Cancelled moves still count fusions and score, but a skipped animation
+    // must not inflate #comboMax — the timer-based multiplier was designed for
+    // visually-observed streaks, not invisible rapid-fire moves.
     if (merges.length > 0) {
       this.#fusions += merges.length;
-      if (this.#comboBreaking) this.#endCombo();
-      if (this.#combo === 0) {
-        this.#comboScoreStart = scoreBefore;
+      const pairs = merges.map((m) => [m.tile.value / 2, m.tile.value / 2]);
+      this.#historyManager.addFusions(pairs);
+      if (!moveResult.cancelled) {
+        if (this.#comboBreaking) this.#endCombo();
+        if (this.#combo === 0) this.#comboScoreStart = scoreBefore;
+        this.#combo++;
+        if (this.#combo > this.#comboMax) this.#comboMax = this.#combo;
+        this.#hudManager.updateComboDisplay(this.#combo, true);
       }
-      this.#combo++;
-      if (this.#combo > this.#comboMax) this.#comboMax = this.#combo;
-      this.#hudManager.updateComboDisplay(this.#combo, true);
-    } else if (hasMergePossible) {
+    } else if (hasMergePossible && !moveResult.cancelled) {
       if (this.#combo > 0) {
         this.#hudManager.hurtCombo();
         this.#comboBreaking = true;
       }
     }
 
-    // ── Power system ──
+    // ── Free-mode power triggers (logic only) ──
+    const powerWork = [];
     if (this.#powerManager) {
       const triggers = this.#powerManager.checkMergeTriggers(merges, this.#gm.grid);
-
       for (const trigger of triggers) {
         let chosenPower = trigger.powerType;
-
-        if (trigger.needsChoice) {
-          // Open choice modal and wait for player selection
+        // Power choice modal blocks input — safe to await even mid-logic
+        if (trigger.needsChoice && !moveResult.cancelled && moveGen === this.#moveGen) {
           chosenPower = await this.#showPowerChoiceModal(trigger.powerType, trigger.powerTypeB, trigger.tile);
         }
-
         this.#powersTriggered.push(chosenPower);
         this.#historyManager.addPower(chosenPower);
-        await this.#executePowerEffect(chosenPower, trigger.tile);
+        const effectResult = this.#powerManager.executeEffect(chosenPower, this.#gm.grid, trigger.tile);
+        for (const tile of effectResult.destroyed) {
+          this.#pendingDestructionTiles.set(tile.id, tile.value);
+        }
+        if (effectResult.destroyed.length > 0) {
+          this.#historyManager.addTilesLost(effectResult.destroyed.map((t) => t.value));
+          if (this.#gridLife) {
+            const damage = this.#gridLife.takeDamage(effectResult.destroyed.map((t) => t.value));
+            this.#onGridLifeDamage(damage);
+          }
+        }
+        powerWork.push({ chosenPower, target: trigger.tile, effectResult, pm: this.#powerManager });
       }
-
       this.#powerManager.onMove(this.#gm.grid);
-      this.#gm.syncTileDom(this.#powerManager.windDirection);
-      this.#updatePowerVisuals();
     }
 
-    // ── Battle power system (contaminated tile effects) ──
-    if (this.#battlePowerManager && merges.length > 0) {
-      // Apply merge damage to enemy BEFORE processing power choice modals
-      // so the player sees the damage from the fusion immediately.
-      if (this.#battleManager?.isBattlePhase) {
-        const { damage, killed } = this.#battleManager.applyMergeDamage(merges);
-        if (damage > 0) {
-          const enemy = this.#battleManager.enemy;
-          this.#historyManager.addEnemyDamage(enemy?.name ?? '?', enemy?.level ?? 0, damage);
-          await this.#playAttackParticles(merges);
-          audioManager.playSfx('enemyHurt');
-          this.#showEnemyDamage(damage);
-          this.#updateEnemyVisual();
-        }
-        if (killed) {
-          const dead = this.#battleManager.enemy;
-          this.#historyManager.addEnemyDefeated(dead?.name ?? '?', dead?.level ?? 0);
-          await this.#onEnemyDefeated();
-          this.#historyManager.finalizeTurn(this.#gm.grid.score);
-          this.#updateHUD();
-          this.#gm.updateFusionIndicators();
-          this.#gm.animating = false;
-          return;
-        }
+    // ── Battle merge damage (logic) ──
+    let enemyKilled = false;
+    let battleDamage = 0;
+    if (this.#battleManager?.isBattlePhase && merges.length > 0) {
+      const dmgResult = this.#battleManager.applyMergeDamage(merges);
+      battleDamage = dmgResult.damage;
+      enemyKilled = dmgResult.killed;
+      if (battleDamage > 0) {
+        const enemy = this.#battleManager.enemy;
+        this.#historyManager.addEnemyDamage(enemy?.name ?? '?', enemy?.level ?? 0, battleDamage);
       }
+      if (enemyKilled) {
+        const dead = this.#battleManager.enemy;
+        this.#historyManager.addEnemyDefeated(dead?.name ?? '?', dead?.level ?? 0);
+      }
+    }
 
+    // ── Battle power triggers (logic only) ──
+    const battlePowerWork = [];
+    if (this.#battlePowerManager && merges.length > 0 && !enemyKilled) {
       const triggers = this.#battlePowerManager.checkMergeTriggers(merges, this.#gm.grid);
-
       for (const trigger of triggers) {
         let chosenPower = trigger.powerType;
-
-        if (trigger.needsChoice) {
+        if (trigger.needsChoice && !moveResult.cancelled && moveGen === this.#moveGen) {
           chosenPower = await this.#showPowerChoiceModal(trigger.powerType, trigger.powerTypeB, trigger.tile);
         }
-
         this.#powersTriggered.push(chosenPower);
         this.#historyManager.addPower(chosenPower);
-        await this.#executePowerEffect(chosenPower, trigger.tile, this.#battlePowerManager);
+        const effectResult = this.#battlePowerManager.executeEffect(chosenPower, this.#gm.grid, trigger.tile);
+        for (const tile of effectResult.destroyed) {
+          this.#pendingDestructionTiles.set(tile.id, tile.value);
+        }
+        if (effectResult.destroyed.length > 0) {
+          this.#historyManager.addTilesLost(effectResult.destroyed.map((t) => t.value));
+          if (this.#gridLife) {
+            const damage = this.#gridLife.takeDamage(effectResult.destroyed.map((t) => t.value));
+            this.#onGridLifeDamage(damage);
+          }
+        }
+        battlePowerWork.push({ chosenPower, target: trigger.tile, effectResult, pm: this.#battlePowerManager });
       }
-
-      this.#gm.syncTileDom(this.#battlePowerManager.windDirection);
-      this.#updatePowerVisuals();
     }
+
+    // ── Battle tick (logic only) ──
+    let spawnedEnemy = null;
+    let contamination = null;
+    if (this.#mode === 'battle' && this.#battleManager && !enemyKilled) {
+      if (this.#battleManager.isClassicPhase) {
+        spawnedEnemy = this.#battleManager.tickClassicPhase(this.#gm.grid);
+        if (spawnedEnemy) {
+          this.#historyManager.addEnemySpawn(spawnedEnemy.name, spawnedEnemy.level);
+        }
+      } else {
+        // Apply damage via tickBattle path when no battlePowerManager handled it
+        if (!this.#battlePowerManager && merges.length > 0 && battleDamage === 0) {
+          const dmgResult = this.#battleManager.applyMergeDamage(merges);
+          battleDamage = dmgResult.damage;
+          enemyKilled = dmgResult.killed;
+          if (battleDamage > 0) {
+            const enemy = this.#battleManager.enemy;
+            this.#historyManager.addEnemyDamage(enemy?.name ?? '?', enemy?.level ?? 0, battleDamage);
+          }
+          if (enemyKilled) {
+            const dead = this.#battleManager.enemy;
+            this.#historyManager.addEnemyDefeated(dead?.name ?? '?', dead?.level ?? 0);
+          }
+        }
+        if (!enemyKilled) {
+          contamination = this.#battleManager.contaminate(this.#gm.grid);
+          if (contamination) {
+            this.#historyManager.addContamination(contamination.tile.value);
+          }
+        }
+      }
+    }
+
+    // ── Sync DOM + visuals after all logic ──
+    const windDir = this.#powerManager?.windDirection ?? this.#battlePowerManager?.windDirection ?? null;
+    this.#gm.syncTileDom(windDir);
+    this.#updatePowerVisuals();
 
     // Safety: if powers/effects destroyed every tile, start the empty-grid timer
     if (this.#gm.grid.getAllTiles().length === 0) {
@@ -636,21 +633,99 @@ export class GameScene extends Phaser.Scene {
       this.#cancelEmptyGridTimer();
     }
 
-    // ── Battle mode logic ──
-    if (this.#mode === 'battle' && this.#battleManager) {
-      await this.#tickBattle(merges);
+    // Track max tile + HUD
+    for (const tile of this.#gm.grid.getAllTiles()) {
+      if (tile.value > this.#maxTile) this.#maxTile = tile.value;
     }
-
     this.#updateHUD();
     this.#gm.updateFusionIndicators();
-    this.#gm.animating = false;
 
     // Finalize history entry and auto-save
     this.#historyManager.finalizeTurn(this.#gm.grid.score);
     this.#autoSave();
 
+    // ╔══════════════════════════════════════════════════════════╗
+    // ║  ANIMATION PHASE — interruptible by next move           ║
+    // ╚══════════════════════════════════════════════════════════╝
+
+    const shouldAnimate = !moveResult.cancelled && moveGen === this.#moveGen;
+
+    // ── Free-mode power animations ──
+    if (shouldAnimate && powerWork.length > 0) {
+      for (const work of powerWork) {
+        if (moveGen !== this.#moveGen) break;
+        await this.#playPowerEffectAnimation(work.chosenPower, work.target, work.effectResult, work.pm);
+      }
+    } else {
+      // Remove destroyed tiles from DOM immediately (no animation)
+      for (const work of powerWork) {
+        for (const tile of work.effectResult.destroyed) {
+          this.#pendingDestructionTiles.delete(tile.id);
+          this.#gm.removeTileById(tile.id);
+        }
+      }
+    }
+
+    // ── Battle attack particles + damage visual ──
+    if (battleDamage > 0) {
+      if (shouldAnimate && moveGen === this.#moveGen) {
+        await this.#playAttackParticles(merges);
+      }
+      audioManager.playSfx('enemyHurt');
+      this.#showEnemyDamage(battleDamage);
+      this.#updateEnemyVisual();
+    }
+
+    // ── Battle power animations ──
+    if (shouldAnimate && battlePowerWork.length > 0) {
+      for (const work of battlePowerWork) {
+        if (moveGen !== this.#moveGen) break;
+        await this.#playPowerEffectAnimation(work.chosenPower, work.target, work.effectResult, work.pm);
+      }
+    } else {
+      for (const work of battlePowerWork) {
+        for (const tile of work.effectResult.destroyed) {
+          this.#pendingDestructionTiles.delete(tile.id);
+          this.#gm.removeTileById(tile.id);
+        }
+      }
+    }
+
+    // ── Enemy defeated ──
+    if (enemyKilled) {
+      if (shouldAnimate && moveGen === this.#moveGen) {
+        await this.#onEnemyDefeated();
+      } else {
+        this.#onEnemyDefeatedImmediate();
+      }
+      this.#gm.animating = false;
+      if (this.#battleManager?.allDefeated() && !this.#victoryShown) {
+        this.#onVictory();
+      }
+      return;
+    }
+
+    // ── Enemy spawn animation ──
+    if (spawnedEnemy) {
+      if (shouldAnimate && moveGen === this.#moveGen) {
+        await this.#onEnemySpawn(spawnedEnemy);
+      } else {
+        this.#onEnemySpawnImmediate(spawnedEnemy);
+      }
+    }
+
+    // ── Contamination animation ──
+    if (contamination) {
+      if (shouldAnimate && moveGen === this.#moveGen) {
+        await this.#playContaminationAnimation(contamination.tile);
+      }
+      // Data already applied to tile, DOM already synced
+    }
+
+    this.#gm.animating = false;
+
     // Check for victory (2048 tile reached) — classic and free modes only.
-    // Battle mode victory is handled in #onEnemyDefeated when the level-2048 enemy is killed.
+    // Battle mode victory is handled above when the level-2048 enemy is killed.
     if (!this.#victoryShown && this.#mode !== 'battle' && this.#maxTile >= 2048) {
       this.#onVictory();
       return;
@@ -662,19 +737,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Execute a single power effect with appropriate animation.
+   * Play a power effect animation (visual only — game logic already applied).
    * @param {string} powerType
    * @param {import('../entities/tile.js').Tile} target
+   * @param {{ destroyed: import('../entities/tile.js').Tile[], teleported?: object, lightningStrikes?: object[] }} effectResult
+   * @param {PowerManager} [pm]
    */
-  /**
-   * Execute a power effect and play its animation.
-   * @param {string} powerType
-   * @param {import('../entities/tile.js').Tile} target
-   * @param {PowerManager} [pm] — PowerManager to use (defaults to free-mode #powerManager)
-   */
-  async #executePowerEffect(powerType, target, pm) {
-    const mgr = pm ?? this.#powerManager;
-    if (!mgr) return;
+  async #playPowerEffectAnimation(powerType, target, effectResult, pm) {
     // Lightning SFX is played per-strike inside the animation block below.
     if (powerType !== POWER_TYPES.LIGHTNING) {
       audioManager.playPowerSfx(powerType);
@@ -685,17 +754,6 @@ export class GameScene extends Phaser.Scene {
       powerType === POWER_TYPES.FIRE_V ||
       powerType === POWER_TYPES.FIRE_X;
 
-    const effectResult = mgr.executeEffect(powerType, this.#gm.grid, target);
-
-    // Track tiles being destroyed so the info panel can warn the player,
-    // and so a safety flush at the next move can clean up unfinished animations.
-    for (const tile of effectResult.destroyed) {
-      this.#pendingDestructionTiles.set(tile.id, tile.value);
-    }
-    if (effectResult.destroyed.length > 0) {
-      this.#updatePowerVisuals();
-    }
-
     if (isFirePower && target && effectResult.destroyed.length > 0) {
       this.#gm.playFireAnimation(powerType, target, effectResult.destroyed);
       await this.#wait(ANIM.FIRE_BALL_DURATION + ANIM.FIRE_ZAP_DURATION);
@@ -705,7 +763,6 @@ export class GameScene extends Phaser.Scene {
       await this.#gm.playTeleportAnimation(tileA, tileB, oldA, oldB, ANIM.TELEPORT_DURATION);
     } else if (powerType === POWER_TYPES.LIGHTNING && effectResult.lightningStrikes) {
       const numStrikes = effectResult.lightningStrikes.length;
-      // Play SFX at the exact moment the bolt impacts (26% into the animation)
       for (let i = 0; i < numStrikes; i++) {
         setTimeout(
           () => audioManager.playSfx('power:lightning'),
@@ -726,18 +783,17 @@ export class GameScene extends Phaser.Scene {
     } else if (powerType === POWER_TYPES.NUCLEAR) {
       if (effectResult.destroyed.length > 0) {
         this.#gm.playNuclearAnimation(effectResult.destroyed);
-        // Wait for tiles to become visually invisible, then remove DOM nodes
         await this.#wait(ANIM.NUCLEAR_TILE_REMOVE_AT);
         this.#gm.removeTiles(effectResult.destroyed);
-        // Wait for the blast overlay to finish fading out
         await this.#wait(ANIM.NUCLEAR_DURATION - ANIM.NUCLEAR_TILE_REMOVE_AT);
       }
     } else if (powerType === POWER_TYPES.ADS) {
       if (!this.#adsShown) {
+        const mgr = pm ?? this.#powerManager;
         await this.#showAdsModal();
         this.#adsShown = true;
         this.#disableAds();
-        this.#gm.syncTileDom(mgr.windDirection ?? null);
+        this.#gm.syncTileDom(mgr?.windDirection ?? null);
       }
     } else {
       this.#gm.applyDangerOverlay(effectResult.destroyed);
@@ -750,18 +806,6 @@ export class GameScene extends Phaser.Scene {
     // Animation done: clear tracked tiles from the pending map
     for (const tile of effectResult.destroyed) {
       this.#pendingDestructionTiles.delete(tile.id);
-    }
-
-    // Log tiles lost to history
-    if (effectResult.destroyed.length > 0) {
-      this.#historyManager.addTilesLost(effectResult.destroyed.map((t) => t.value));
-    }
-
-    // Grid Life: apply damage from destroyed tiles
-    if (this.#gridLife && effectResult.destroyed.length > 0) {
-      const values = effectResult.destroyed.map((t) => t.value);
-      const damage = this.#gridLife.takeDamage(values);
-      this.#onGridLifeDamage(damage);
     }
   }
 
@@ -1058,6 +1102,32 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Instant enemy spawn — sets up all game state without entrance animation.
+   * Used when a move was cancelled (fast play) so the enemy is ready immediately.
+   * @param {import('../entities/enemy.js').Enemy} enemy
+   */
+  #onEnemySpawnImmediate(enemy) {
+    audioManager.playSfx('enemyIn');
+    this.#battlePowerManager = new PowerManager(enemy.availablePowers);
+    if (this.#adsShown) {
+      this.#battlePowerManager.removePowerType(POWER_TYPES.ADS);
+      enemy.availablePowers = enemy.availablePowers.filter((p) => p !== POWER_TYPES.ADS);
+    }
+    this.#gridLife = new GridLife();
+    this.#createLiquidOverlay();
+    this.#renderEnemy(enemy);
+    this.#positionEnemyArea();
+    if (this.#enemyAreaEl) {
+      this.#enemyAreaEl.style.visibility = '';
+      this.#enemyAreaEl.style.display = 'flex';
+      void this.#enemyAreaEl.offsetHeight;
+      const cat = enemy.life.getColorCategory();
+      this.#attachEnemyWave(cat, enemy.life.percent);
+      this.#updateLifeVisual();
+    }
+  }
+
+  /**
    * Render the enemy tile + HP bar + name label.
    * Enemy HP liquid starts at 0% so the fill transition animates on spawn.
    * @param {import('../entities/enemy.js').Enemy} enemy
@@ -1218,13 +1288,51 @@ export class GameScene extends Phaser.Scene {
     if (this.#powerInfoEl) {
       this.#powerInfoEl.style.display = 'none';
     }
+    // Victory check is handled by the caller (#executeMove) after this method returns.
+  }
 
-    // Check if all enemies have been defeated — triggers battle victory
-    if (this.#battleManager?.allDefeated() && !this.#victoryShown) {
-      this.#updateHUD();
-      this.#gm.updateFusionIndicators();
-      this.#gm.animating = false;
-      this.#onVictory();
+  /**
+   * Instant enemy defeat — clears all game state without waiting for the death animation.
+   * The death animation is still fired (fire-and-forget) so the enemy visually falls
+   * to the graveyard even when the player moves quickly.
+   */
+  #onEnemyDefeatedImmediate() {
+    const bm = this.#battleManager;
+    if (!bm) return;
+    const dead = bm.defeatEnemy();
+    if (!dead) return;
+
+    // Fire death animation without awaiting — the synchronous portion captures the
+    // enemy position and spawns the physics body before we clear the DOM below.
+    this.#playEnemyDeathAnimation(dead);
+
+    bm.clearGridPowers(this.#gm.grid);
+    this.#gm.syncTileDom(null);
+    this.#gridLife = null;
+    this.#criticalOverlay?.remove();
+    this.#criticalOverlay = null;
+    this.#gridWave?.destroy();
+    this.#gridWave = null;
+    if (this.#liquidEl) {
+      this.#liquidEl.remove();
+      this.#liquidEl = null;
+    }
+    this.#enemyInfoModal?.destroy();
+    this.#enemyInfoModal = null;
+    this.#enemyWave?.destroy();
+    this.#enemyWave = null;
+    if (this.#enemyAreaEl) {
+      this.#enemyAreaEl.style.display = 'none';
+      this.#enemyAreaEl.innerHTML = '';
+    }
+    this.#battlePowerManager = null;
+    if (this.#gm.gridEl) {
+      for (const el of this.#gm.gridEl.querySelectorAll('.fm-edge-power')) {
+        el.remove();
+      }
+    }
+    if (this.#powerInfoEl) {
+      this.#powerInfoEl.style.display = 'none';
     }
   }
 

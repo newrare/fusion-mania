@@ -191,6 +191,10 @@ export class GridManager {
       };
     }
 
+    // Capture move number synchronously — reading it after an await would return
+    // a stale value if another move ran while this one was animating.
+    const moveNumber = this.#grid.moves;
+
     // Spawn new tile in grid data before animations
     const newTile = this.#grid.spawnTile();
 
@@ -211,6 +215,7 @@ export class GridManager {
         newTile,
         hasMergePossible,
         scoreBefore,
+        moveNumber,
         cancelled: true,
       };
 
@@ -230,6 +235,7 @@ export class GridManager {
           newTile,
           hasMergePossible,
           scoreBefore,
+          moveNumber,
           cancelled: true,
         };
     }
@@ -248,6 +254,7 @@ export class GridManager {
           newTile,
           hasMergePossible,
           scoreBefore,
+          moveNumber,
           cancelled: true,
         };
     }
@@ -269,6 +276,7 @@ export class GridManager {
           newTile,
           hasMergePossible,
           scoreBefore,
+          moveNumber,
           cancelled: true,
         };
     }
@@ -280,6 +288,7 @@ export class GridManager {
       newTile,
       hasMergePossible,
       scoreBefore,
+      moveNumber,
       cancelled: false,
     };
   }
