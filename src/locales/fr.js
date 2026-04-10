@@ -136,6 +136,7 @@ export const fr = {
   'save.delete': 'Supprimer',
   'save.delete_confirm': 'Supprimer cette sauvegarde ?',
   'save.load': 'Charger',
+  'save.load_autosave': 'Charger AutoSave',
   'save.saved': 'Partie sauvegardée !',
   'save.already_saved': 'Déjà sauvegardée.',
   'save.slot_full': 'Tous les emplacements sont pleins. Supprimez une sauvegarde.',

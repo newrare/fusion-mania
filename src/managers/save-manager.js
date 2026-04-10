@@ -96,41 +96,33 @@ class SaveManager {
     if (extra.enemyMaxLevel != null) entry.enemyMaxLevel = extra.enemyMaxLevel;
     if (extra.defeatedEnemies) entry.defeatedEnemies = extra.defeatedEnemies;
     rankings[mode].push(entry);
-    rankings[mode].sort((a, b) => this.#compareEntries(mode, a, b));
+    rankings[mode].sort((a, b) => this.#compareEntries(a, b));
     rankings[mode] = rankings[mode].slice(0, 10);
     localStorage.setItem(STORAGE_KEYS.RANKINGS, JSON.stringify(rankings));
   }
 
   /**
    * Compare two ranking entries for sorting (DESC rank = index 0 is best).
-   * Battle: enemyMaxLevel DESC → score DESC → date ASC (oldest wins tie).
-   * Classic / Free: score DESC → date ASC (oldest wins tie).
-   * @param {string} mode
+   * All modes: score DESC → date ASC (oldest wins tie).
    * @param {object} a
    * @param {object} b
    * @returns {number}
    */
-  #compareEntries(mode, a, b) {
-    if (mode === 'battle') {
-      const lvlDiff = (b.enemyMaxLevel ?? 0) - (a.enemyMaxLevel ?? 0);
-      if (lvlDiff !== 0) return lvlDiff;
-      const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
-      if (scoreDiff !== 0) return scoreDiff;
-      return (a.date ?? 0) - (b.date ?? 0);
-    }
+  #compareEntries(a, b) {
     const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
     if (scoreDiff !== 0) return scoreDiff;
     return (a.date ?? 0) - (b.date ?? 0);
   }
 
   /**
-   * Get top 10 scores for a mode.
+   * Get top 10 scores for a mode, sorted by score DESC.
    * @param {string} mode
    * @returns {{ score: number, date: number }[]}
    */
   getRankings(mode) {
     const rankings = this.#loadRankings();
-    return rankings[mode] ?? [];
+    const list = rankings[mode] ?? [];
+    return [...list].sort((a, b) => this.#compareEntries(a, b));
   }
 
   /** Reset all rankings. */

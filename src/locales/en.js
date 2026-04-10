@@ -136,6 +136,7 @@ export const en = {
   'save.delete': 'Delete',
   'save.delete_confirm': 'Delete this save?',
   'save.load': 'Load',
+  'save.load_autosave': 'Load AutoSave',
   'save.saved': 'Game saved!',
   'save.already_saved': 'Already saved.',
   'save.slot_full': 'All slots are full. Delete a save first.',

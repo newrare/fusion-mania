@@ -1552,6 +1552,7 @@ html, body {
 .fm-saveload-mode-col { flex: 0 0 58px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; justify-content: center; padding: 0 4px; }
 .fm-saveload-empty { opacity: 0.35; cursor: default; }
 .fm-saveload-row { cursor: pointer; }
+.fm-saveload-row--autosave { color: #7ecfff; }
 .fm-saveload-row--expanded { background: rgba(255,255,255,0.10) !important; border-radius: 6px 6px 0 0; }
 
 /* Action bar below each row — hidden by default */

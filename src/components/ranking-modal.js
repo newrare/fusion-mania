@@ -183,15 +183,12 @@ export class RankingModal {
     if (!wrap) return;
 
     const rankings = saveManager.getRankings(this.#activeTab);
-    const isBattle = this.#activeTab === 'battle';
     const locale = i18n.locale === 'fr' ? 'fr-FR' : 'en-GB';
-
-    const headerMainLabel = isBattle ? i18n.t('ranking.enemy_max_level') : i18n.t('ranking.score');
 
     let html = `
       <div class="fm-ranking-header" aria-hidden="true">
         <span class="fm-ranking-cell fm-ranking-rank">${i18n.t('ranking.rank')}</span>
-        <span class="fm-ranking-cell fm-ranking-main-col">${headerMainLabel}</span>
+        <span class="fm-ranking-cell fm-ranking-main-col">${i18n.t('ranking.score')}</span>
         <span class="fm-ranking-cell fm-ranking-date-col">${i18n.t('ranking.date')}</span>
       </div>
       <div class="fm-ranking-rows">`;
@@ -207,17 +204,9 @@ export class RankingModal {
 
       let rankHtml = `<span class="fm-ranking-cell fm-ranking-rank">${r ? i + 1 : '-'}</span>`;
 
-      let mainHtml;
-      if (!r) {
-        mainHtml = `<span class="fm-ranking-cell fm-ranking-main-col">-</span>`;
-      } else if (isBattle) {
-        const lvl = r.enemyMaxLevel;
-        mainHtml = lvl
-          ? `<span class="fm-ranking-cell fm-ranking-main-col"><span class="fm-tile fm-ranking-enemy-lvl fm-t${lvl}">${lvl}</span></span>`
-          : `<span class="fm-ranking-cell fm-ranking-main-col">-</span>`;
-      } else {
-        mainHtml = `<span class="fm-ranking-cell fm-ranking-main-col">${r.score}</span>`;
-      }
+      const mainHtml = r
+        ? `<span class="fm-ranking-cell fm-ranking-main-col">${r.score}</span>`
+        : `<span class="fm-ranking-cell fm-ranking-main-col">-</span>`;
 
       let dateHtml;
       if (!r) {

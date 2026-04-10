@@ -234,25 +234,25 @@ export class SaveLoadModal {
       </div>
       <div class="fm-ranking-rows">`;
 
-    // ── Auto-save slot (always first row) ──
+    // ── Auto-save slot (always first row, displayed as slot 0) ──
     if (autoSave) {
       const modeLabel = this.#modeLabel(autoSave.mode);
       const dateStr = this.#formatDate(autoSave.date, locale);
       const mainHtml = this.#buildMainCell(autoSave);
       html += `
         <div class="fm-ranking-row fm-saveload-row fm-saveload-row--autosave fm-clickable" data-slot-row="auto" tabindex="0">
-          <span class="fm-ranking-cell fm-ranking-rank">⟳</span>
+          <span class="fm-ranking-cell fm-ranking-rank">0</span>
           <span class="fm-ranking-cell fm-saveload-mode-col">${modeLabel}</span>
           <span class="fm-ranking-cell fm-ranking-main-col">${mainHtml}</span>
           <span class="fm-ranking-cell fm-ranking-date-col">${dateStr}</span>
         </div>
         <div class="fm-saveload-action-bar" data-action-bar="auto">
-          <button class="fm-btn fm-btn--small fm-btn--primary" data-action="load-auto">${i18n.t('save.load')}</button>
+          <button class="fm-btn fm-btn--small fm-btn--primary" data-action="load-auto">${i18n.t('save.load_autosave')}</button>
         </div>`;
     } else {
       html += `
         <div class="fm-ranking-row fm-saveload-empty fm-saveload-row--autosave">
-          <span class="fm-ranking-cell fm-ranking-rank">⟳</span>
+          <span class="fm-ranking-cell fm-ranking-rank">0</span>
           <span class="fm-ranking-cell fm-saveload-mode-col">${i18n.t('save.autosave')}</span>
           <span class="fm-ranking-cell fm-ranking-main-col">-</span>
           <span class="fm-ranking-cell fm-ranking-date-col">-</span>
@@ -323,16 +323,6 @@ export class SaveLoadModal {
    * @returns {string}
    */
   #buildMainCell(s) {
-    if (s.mode === 'battle') {
-      const bm = s.battleManager;
-      const lvl = bm?.defeatedLevels?.length > 0 ? Math.max(...bm.defeatedLevels) : null;
-      if (lvl) {
-        return `<span class="fm-tile fm-ranking-enemy-lvl fm-t${lvl}">${lvl}</span>`;
-      }
-      // Enemy never defeated yet → show score
-      return `<span>${s.score ?? 0}</span>`;
-    }
-    // classic / free: score
     return `<span>${s.score ?? 0}</span>`;
   }
 

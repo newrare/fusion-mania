@@ -64,7 +64,7 @@ export const STORAGE_KEYS = {
 };
 
 /** Maximum number of save slots */
-export const MAX_SAVE_SLOTS = 10;
+export const MAX_SAVE_SLOTS = 8;
 
 /** Default options */
 export const DEFAULT_OPTIONS = {
