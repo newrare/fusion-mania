@@ -2330,6 +2330,7 @@ html, body {
 .fm-help-bar {
   display: flex;
   align-items: center;
+  gap: 6px;
 }
 
 .fm-mode-badge {
@@ -2346,6 +2347,7 @@ html, body {
   cursor: pointer;
   user-select: none;
   font-family: inherit;
+  color: white;
 }
 
 .fm-mode-badge:active {
@@ -2518,3 +2520,78 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
   flex: 1;
   padding: 10px 12px;
 }
+
+/* --- History modal --- */
+
+.fm-history-modal {
+  max-height: 80vh;
+  width: min(92vw, 400px);
+  display: flex;
+  flex-direction: column;
+}
+
+.fm-history-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.2rem 0.4rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  max-height: 60vh;
+}
+
+.fm-history-empty {
+  text-align: center;
+  opacity: 0.5;
+  padding: 2rem 0;
+  font-size: 0.9rem;
+}
+
+.fm-history-turn {
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 0.45rem 0.25rem;
+}
+
+.fm-history-turn:last-child {
+  border-bottom: none;
+}
+
+.fm-history-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.95);
+}
+
+.fm-history-details {
+  padding-left: 1.2rem;
+  margin-top: 0.15rem;
+}
+
+.fm-history-sub {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.5;
+}
+
+.fm-history-sub::before {
+  content: '• ';
+  opacity: 0.5;
+}
+
+.fm-history-sub--success { color: #81c784; }
+.fm-history-sub--bonus { color: #ffd54f; }
+.fm-history-sub--danger { color: #e57373; }
+
+.fm-history-power-icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.1em;
+  display: inline-block;
+}
+
+.fm-history-power-icon.fm-pw-danger { color: #e57373; }
+.fm-history-power-icon.fm-pw-warning { color: #ffb74d; }
+.fm-history-power-icon.fm-pw-info { color: #64b5f6; }
+

@@ -21,8 +21,10 @@ import { AdminModal } from '../components/admin-modal.js';
 import { VictoryModal } from '../components/victory-modal.js';
 import { EnemyInfoModal } from '../components/enemy-info-modal.js';
 import { HelpModal } from '../components/help-modal.js';
+import { HistoryModal } from '../components/history-modal.js';
 import { GridLife } from '../entities/grid-life.js';
 import { BattleManager } from '../managers/battle-manager.js';
+import { HistoryManager } from '../managers/history-manager.js';
 import { getRandomFaceUrl } from '../configs/constants.js';
 import { audioManager } from '../managers/audio-manager.js';
 import { addBackground } from '../utils/background.js';
@@ -180,6 +182,12 @@ export class GameScene extends Phaser.Scene {
   /** @type {HelpModal | null} */
   #helpModal = null;
 
+  /** @type {HistoryModal | null} */
+  #historyModal = null;
+
+  /** @type {HistoryManager} */
+  #historyManager = new HistoryManager();
+
   /** @type {MatterJS.BodyType | null} Static floor body at viewport bottom */
   #physicsFloor = null;
 
@@ -232,6 +240,8 @@ export class GameScene extends Phaser.Scene {
     this.#bestScoreNotified = false;
     this.#pendingSlotData = data?.slotData ?? null;
     this.#helpModal = null;
+    this.#historyModal = null;
+    this.#historyManager = new HistoryManager();
     // Battle mode
     this.#battleManager = null;
     this.#enemyAreaEl = null;
@@ -277,7 +287,7 @@ export class GameScene extends Phaser.Scene {
       this.#createPowerInfoPanel();
     }
 
-    this.#hudManager.createHelpBtn({ onHelpOpen: () => this.#openHelp() });
+    this.#hudManager.createHelpBtn({ onHelpOpen: () => this.#openHelp(), onHistoryOpen: () => this.#openHistory() });
     this.#inputManager = new InputManager(this, {
       onDirection: (dir) => this.#executeMove(dir),
       onMenu: () => this.#openMenu(),
@@ -286,6 +296,7 @@ export class GameScene extends Phaser.Scene {
           this.#gameOver ||
           this.#menuModal ||
           this.#helpModal ||
+          this.#historyModal ||
           this.#gameOverModal ||
           this.#enemyInfoModal ||
           this.#adminModal ||
@@ -461,6 +472,9 @@ export class GameScene extends Phaser.Scene {
     // Invalidate duplicate-save guard
     this.#lastSavedFingerprint = null;
 
+    // Begin history log entry for this move
+    this.#historyManager.beginTurn(this.#gm.grid.moves, direction, this.#gm.grid.score);
+
     // Tick power state for EVERY real grid move
     if (this.#powerManager) {
       this.#powerManager.tickMove(this.#gm.grid);
@@ -498,6 +512,9 @@ export class GameScene extends Phaser.Scene {
       // Count fusions even when animations were cancelled
       if (moveResult.merges.length > 0) {
         this.#fusions += moveResult.merges.length;
+        // Log fusions for history
+        const pairs = moveResult.merges.map((m) => [m.tile.value / 2, m.tile.value / 2]);
+        this.#historyManager.addFusions(pairs);
         // Track max tile from cancelled moves
         for (const tile of this.#gm.grid.getAllTiles()) {
           if (tile.value > this.#maxTile) this.#maxTile = tile.value;
@@ -505,10 +522,22 @@ export class GameScene extends Phaser.Scene {
         this.#updateHUD();
         this.#gm.updateFusionIndicators();
       }
+      this.#historyManager.finalizeTurn(this.#gm.grid.score);
       return;
     }
 
     const { merges, expelled, hasMergePossible, scoreBefore } = moveResult;
+
+    // Log fusions for history
+    if (merges.length > 0) {
+      const pairs = merges.map((m) => [m.tile.value / 2, m.tile.value / 2]);
+      this.#historyManager.addFusions(pairs);
+    }
+
+    // Log expelled tiles
+    if (expelled.length > 0) {
+      this.#historyManager.addTilesLost(expelled.map((t) => t.value));
+    }
 
     // Grid Life: damage from expelled tiles
     if (this.#gridLife && expelled.length > 0) {
@@ -547,6 +576,7 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.#powersTriggered.push(chosenPower);
+        this.#historyManager.addPower(chosenPower);
         await this.#executePowerEffect(chosenPower, trigger.tile);
       }
 
@@ -562,13 +592,18 @@ export class GameScene extends Phaser.Scene {
       if (this.#battleManager?.isBattlePhase) {
         const { damage, killed } = this.#battleManager.applyMergeDamage(merges);
         if (damage > 0) {
+          const enemy = this.#battleManager.enemy;
+          this.#historyManager.addEnemyDamage(enemy?.name ?? '?', enemy?.level ?? 0, damage);
           await this.#playAttackParticles(merges);
           audioManager.playSfx('enemyHurt');
           this.#showEnemyDamage(damage);
           this.#updateEnemyVisual();
         }
         if (killed) {
+          const dead = this.#battleManager.enemy;
+          this.#historyManager.addEnemyDefeated(dead?.name ?? '?', dead?.level ?? 0);
           await this.#onEnemyDefeated();
+          this.#historyManager.finalizeTurn(this.#gm.grid.score);
           this.#updateHUD();
           this.#gm.updateFusionIndicators();
           this.#gm.animating = false;
@@ -586,6 +621,7 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.#powersTriggered.push(chosenPower);
+        this.#historyManager.addPower(chosenPower);
         await this.#executePowerEffect(chosenPower, trigger.tile, this.#battlePowerManager);
       }
 
@@ -609,7 +645,8 @@ export class GameScene extends Phaser.Scene {
     this.#gm.updateFusionIndicators();
     this.#gm.animating = false;
 
-    // Auto-save after every successful move
+    // Finalize history entry and auto-save
+    this.#historyManager.finalizeTurn(this.#gm.grid.score);
     this.#autoSave();
 
     // Check for victory (2048 tile reached) — classic and free modes only.
@@ -713,6 +750,11 @@ export class GameScene extends Phaser.Scene {
     // Animation done: clear tracked tiles from the pending map
     for (const tile of effectResult.destroyed) {
       this.#pendingDestructionTiles.delete(tile.id);
+    }
+
+    // Log tiles lost to history
+    if (effectResult.destroyed.length > 0) {
+      this.#historyManager.addTilesLost(effectResult.destroyed.map((t) => t.value));
     }
 
     // Grid Life: apply damage from destroyed tiles
@@ -850,6 +892,7 @@ export class GameScene extends Phaser.Scene {
         const bonus = scoreGained * (this.#comboMax - 1);
         grid.score += bonus;
         this.#comboScoreTotal += bonus;
+        this.#historyManager.addComboBonus(bonus);
         this.#hudManager?.showScoreBonus(bonus);
         this.#updateHUD();
       }
@@ -924,6 +967,7 @@ export class GameScene extends Phaser.Scene {
       // Classic phase: count moves, check for enemy spawn
       const enemy = bm.tickClassicPhase(this.#gm.grid);
       if (enemy) {
+        this.#historyManager.addEnemySpawn(enemy.name, enemy.level);
         await this.#onEnemySpawn(enemy);
       }
     } else {
@@ -934,12 +978,16 @@ export class GameScene extends Phaser.Scene {
       if (!this.#battlePowerManager && merges.length > 0) {
         const { damage, killed } = bm.applyMergeDamage(merges);
         if (damage > 0) {
+          const enemy = bm.enemy;
+          this.#historyManager.addEnemyDamage(enemy?.name ?? '?', enemy?.level ?? 0, damage);
           await this.#playAttackParticles(merges);
           audioManager.playSfx('enemyHurt');
           this.#showEnemyDamage(damage);
           this.#updateEnemyVisual();
         }
         if (killed) {
+          const dead = bm.enemy;
+          this.#historyManager.addEnemyDefeated(dead?.name ?? '?', dead?.level ?? 0);
           await this.#onEnemyDefeated();
           return;
         }
@@ -948,6 +996,7 @@ export class GameScene extends Phaser.Scene {
       // Enemy contaminates one tile per move
       const contamination = bm.contaminate(this.#gm.grid);
       if (contamination) {
+        this.#historyManager.addContamination(contamination.tile.value);
         // Sync DOM IMMEDIATELY — power is applied to tile data regardless of animation
         this.#gm.syncTileDom(this.#battlePowerManager?.windDirection ?? null);
         this.#updatePowerVisuals();
@@ -1545,6 +1594,17 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  #openHistory() {
+    if (this.#historyModal) return;
+    this.#historyModal = new HistoryModal(this, {
+      historyManager: this.#historyManager,
+      onClose: () => {
+        this.#historyModal?.destroy();
+        this.#historyModal = null;
+      },
+    });
+  }
+
   #openMenu() {
     if (this.#menuModal || this.#gameOverModal) return;
     saveManager.saveGame({ ...this.#gm.grid.serialize(), mode: this.#mode });
@@ -1596,6 +1656,7 @@ export class GameScene extends Phaser.Scene {
       comboScoreStart: this.#comboScoreStart,
       powersTriggered: [...this.#powersTriggered],
       victoryShown: this.#victoryShown,
+      history: this.#historyManager.serialize(),
     };
 
     if (this.#mode === 'free') {
@@ -1726,6 +1787,7 @@ export class GameScene extends Phaser.Scene {
     this.#comboMax = data.comboMax ?? 0;
     this.#comboScoreStart = data.comboScoreStart ?? 0;
     this.#victoryShown = data.victoryShown ?? false;
+    if (data.history) this.#historyManager.restore(data.history);
     this.#prevBestScore = saveManager.getBestScore(this.#mode);
     this.#bestScoreNotified = false;
     this.#hudManager?.cancelComboTimer();

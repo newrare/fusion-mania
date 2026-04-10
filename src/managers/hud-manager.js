@@ -24,6 +24,9 @@ export class HudManager {
   /** @type {Phaser.GameObjects.DOMElement | null} */
   #helpBtnDom = null;
 
+  /** @type {Phaser.GameObjects.DOMElement | null} */
+  #historyBtnDom = null;
+
   /** @type {HTMLElement | null} */
   #comboEl = null;
 
@@ -126,14 +129,15 @@ export class HudManager {
   }
 
   /**
-   * Create the floating help/mode badge button.
-   * @param {{ onHelpOpen: () => void }} callbacks
+   * Create the floating bottom-right bar: (modeIcon → history) (? → help).
+   * @param {{ onHelpOpen: () => void, onHistoryOpen: () => void }} callbacks
    */
-  createHelpBtn({ onHelpOpen }) {
+  createHelpBtn({ onHelpOpen, onHistoryOpen }) {
     const modeIcon = HudManager.#MODE_ICONS[this.#mode] ?? '';
     const html = `
       <div class="fm-help-bar">
-        <button class="fm-mode-badge fm-clickable" id="fm-mode-badge" aria-label="Help">${modeIcon}</button>
+        <button class="fm-mode-badge fm-clickable" id="fm-history-mode-btn" aria-label="History">${modeIcon}</button>
+        <button class="fm-mode-badge fm-clickable" id="fm-mode-badge" aria-label="Help">?</button>
       </div>
     `;
     const x = layout.safe.right;
@@ -141,10 +145,24 @@ export class HudManager {
     this.#helpBtnDom = this.#scene.add.dom(x, y).createFromHTML(html);
     this.#helpBtnDom.setOrigin(1, 1);
 
+    this.#helpBtnDom.node.querySelector('#fm-history-mode-btn')?.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      onHistoryOpen?.();
+    });
+
     this.#helpBtnDom.node.querySelector('#fm-mode-badge')?.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       onHelpOpen();
     });
+  }
+
+  /**
+   * @deprecated Use createHelpBtn with onHistoryOpen callback instead.
+   * @param {{ onHistoryOpen: () => void }} callbacks
+   */
+  createHistoryBtn({ onHistoryOpen }) {
+    // No-op — history button is now part of the bottom-right bar created by createHelpBtn.
+    void onHistoryOpen;
   }
 
   // ─── HUD UPDATES ──────────────────────────────

@@ -29,6 +29,7 @@ fusion-mania/
 │   ├── FREE.md                # Free mode power system
 │   ├── LAYOUT.md              # Responsive layout, safe zone, CSS properties
 │   ├── POWER.md               # Full power system documentation
+│   ├── HISTORY.md             # History/event log system
 │   ├── SAVE.md                # Save/load system documentation
 │   └── TRANSLATE.md           # Localization guide
 │
@@ -66,6 +67,7 @@ fusion-mania/
 │   │   ├── power-select-modal.js  # Pre-game power selection (Free mode)
 │   │   ├── ranking-detail-modal.js# Detailed ranking entry view
 │   │   ├── ranking-modal.js   # Leaderboard with tabs (Classic, Battle, Free)
+│   │   ├── history-modal.js   # Game event history/log modal
 │   │   ├── save-load-modal.js # Save/Load game slots management
 │   │   ├── tile-renderer.js   # Tile DOM rendering helper (value, power, state)
 │   │   └── victory-modal.js   # 2048 victory celebration
@@ -82,6 +84,7 @@ fusion-mania/
 │   │   ├── audio-manager.js   # Music & SFX via HTML5 Audio (singleton)
 │   │   ├── battle-manager.js  # Battle mode logic (enemy spawn, contamination, damage)
 │   │   ├── grid-manager.js    # Grid DOM, tile rendering, animation sequencing
+│   │   ├── history-manager.js # Game event history/log (pure data, no DOM)
 │   │   ├── hud-manager.js     # HUD stats, combo display, card rotations, help button
 │   │   ├── i18n-manager.js    # Locale switching & translation lookups (singleton)
 │   │   ├── input-manager.js   # Keyboard + swipe input handling
@@ -104,7 +107,8 @@ fusion-mania/
 └── tests/                     # Unit tests (mirrors src/ structure)
     ├── components/
     │   ├── help-modal.test.js
-    │   ├── options-modal.test.js
+    |   ├── history-modal.test.js
+    |   ├── options-modal.test.js
     │   └── tile-renderer.test.js
     ├── entities/
     │   ├── enemy.test.js
@@ -118,7 +122,8 @@ fusion-mania/
     │   ├── battle-manager.test.js
     │   ├── i18n-manager.test.js
     │   ├── power-manager.test.js
-    │   └── save-manager.test.js
+    │   ├── save-manager.test.js
+    │   └── history-manager.test.js
     └── utils/
         ├── keyboard-nav.test.js
         └── math.test.js
@@ -150,6 +155,7 @@ Managers are **singleton-ish** classes for cross-cutting concerns:
 - **AnimationManager** — manages all DOM tile animations (slides, merges, spawns, particles, power effects). Completely independent of Phaser. See [ANIMATION.md](ANIMATION.md).
 - **AudioManager** — singleton managing background music and SFX via HTML5 Audio (no Phaser dependency). Preloads all audio in `PreloadScene`, unlocks on first user gesture in `TitleScene`. Persists music/sound toggle preferences to localStorage. SFX keys map to `AUDIO.SFX` and `AUDIO.POWER_SFX` in `constants.js`.
 - **GridManager** — orchestrates the 4×4 grid DOM, tile rendering via `TileRenderer`, and animation sequencing with generation-based cancellation.
+- **HistoryManager** — pure data manager recording chronological game events (fusions, powers, enemy events, score, contamination). See [HISTORY.md](HISTORY.md).
 - **I18nManager** — singleton handling locale selection, translation lookups (`i18n.t('key')`), and persistence to `localStorage`. See [TRANSLATE.md](TRANSLATE.md).
 - **LayoutManager** — singleton computing responsive layout from viewport. See [LAYOUT.md](LAYOUT.md).
 - **PowerManager** — handles power assignment, activation of all 16 power types, and directional prediction for edge indicators. Used in Free and Battle modes.
