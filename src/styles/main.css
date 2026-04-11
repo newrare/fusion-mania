@@ -5,7 +5,7 @@
   font-style: normal;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 /* --- Safe-area-inset bridge: CSS env() → custom properties (read by LayoutManager) --- */
 :root {
@@ -298,10 +298,14 @@ html, body {
 }
 
 .fm-score-label {
-  font-size: 0.60rem;
+  font-size: 0.55rem;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.4px;
   opacity: 0.65;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .fm-score-value {

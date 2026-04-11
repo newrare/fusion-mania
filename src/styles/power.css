@@ -11,6 +11,10 @@
   position: relative;
   background: var(--fm-dot-bg, transparent);
   transition: transform 0.15s ease;
+  /* Promote to compositor layer so the spinning ::before does not trigger
+     main-thread repaints on mobile (up to 16 simultaneously in Free mode) */
+  will-change: transform;
+  contain: layout style;
 }
 
 .fm-power-dot.tiny {

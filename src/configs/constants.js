@@ -76,7 +76,37 @@ export const DEFAULT_OPTIONS = {
 export const AUDIO = {
   MUSIC: 'sounds/music.wav',
   MUSIC_VOLUME: 0.03,
+  /** Base SFX volume — each key can be adjusted via SFX_VOLUMES multiplier */
   SFX_VOLUME: 0.3,
+  /** Per-key volume multipliers (applied on top of SFX_VOLUME). Tune these to balance levels on mobile. */
+  SFX_VOLUMES: {
+    click: 0.50,
+    hover: 0.15,
+    fusion: 1.00,
+    victory: 0.90,
+    gameOver: 0.90,
+    notification: 0.80,
+    gridHurt: 0.90,
+    enemyHurt: 0.90,
+    enemyDeath: 1.00,
+    enemyIn: 0.80,
+    contamination: 0.80,
+  },
+  /** Per-key volume multipliers for power SFX */
+  POWER_SFX_VOLUMES: {
+    'fire-h': 0.90,
+    'fire-v': 0.90,
+    'fire-x': 0.90,
+    bomb: 1.00,
+    lightning: 0.90,
+    nuclear: 1.00,
+    teleport: 0.80,
+    ice: 0.70,
+    'expel-h-in': 0.80,
+    'expel-v-in': 0.80,
+    wind: 0.70,
+    blind: 0.70,
+  },
   SFX: {
     click: 'sounds/sfx-click.ogg',
     hover: 'sounds/sfx-hover.ogg',

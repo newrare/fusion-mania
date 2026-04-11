@@ -1,0 +1,10 @@
+{
+  "appId": "com.fusionmania.app",
+  "appName": "Fusion Mania",
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}

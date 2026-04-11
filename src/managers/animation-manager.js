@@ -570,14 +570,21 @@ export class AnimationManager {
 
   /**
    * Start the shared rAF loop that updates all active arc elements.
+   * Capped at 30 FPS to avoid forcing a getBoundingClientRect layout sync
+   * every single frame (expensive on mobile with many fusion pairs visible).
    */
   #startArcLoop() {
-    const tick = () => {
+    const MS_PER_FRAME = 1000 / 30;
+    let lastTs = 0;
+    const tick = (ts) => {
       if (this.#arcElements.size === 0) {
         this.#arcRaf = null;
         return;
       }
-      for (const svg of this.#arcElements.values()) svg._update?.();
+      if (ts - lastTs >= MS_PER_FRAME) {
+        lastTs = ts;
+        for (const svg of this.#arcElements.values()) svg._update?.();
+      }
       this.#arcRaf = requestAnimationFrame(tick);
     };
     this.#arcRaf = requestAnimationFrame(tick);

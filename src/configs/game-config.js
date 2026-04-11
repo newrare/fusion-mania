@@ -15,7 +15,7 @@ const gameConfig = {
   physics: {
     default: 'matter',
     matter: {
-      gravity: { y: 1.5 },
+      gravity: { y: 0.8 },
       debug: false,
       enableSleeping: true,
     },

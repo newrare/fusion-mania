@@ -46,11 +46,14 @@ export class InputManager {
     this.#skipNextPointerUp = value;
   }
 
-  /** Register keyboard and pointer listeners. */
+  /** Register keyboard and touch listeners. */
   bind() {
     this.#scene.input.keyboard.on('keydown', this.#handleKey, this);
-    this.#scene.input.on('pointerdown', this.#onPointerDown, this);
-    this.#scene.input.on('pointerup', this.#onPointerUp, this);
+    // Use native window touch events so tiles drawn as DOM elements above the
+    // Phaser canvas do not swallow the events before Phaser sees them.
+    // passive:false lets us call preventDefault() to block browser scroll.
+    window.addEventListener('touchstart', this.#onTouchStart, { passive: false });
+    window.addEventListener('touchend', this.#onTouchEnd, { passive: false });
   }
 
   /** @param {Phaser.Input.Keyboard.Key} event */
@@ -86,26 +89,31 @@ export class InputManager {
     }
   };
 
-  /** @param {Phaser.Input.Pointer} pointer */
-  #onPointerDown = (pointer) => {
-    if (!pointer.wasTouch) return; // desktop mouse: swipe disabled, keyboard only
-    this.#pointerStartX = pointer.x;
-    this.#pointerStartY = pointer.y;
+  /** @param {TouchEvent} e */
+  #onTouchStart = (e) => {
+    if (e.touches.length !== 1) return;
+    e.preventDefault();
+    this.#pointerStartX = e.touches[0].clientX;
+    this.#pointerStartY = e.touches[0].clientY;
   };
 
-  /** @param {Phaser.Input.Pointer} pointer */
-  #onPointerUp = (pointer) => {
-    if (!pointer.wasTouch) return; // desktop mouse: swipe disabled, keyboard only
+  /** @param {TouchEvent} e */
+  #onTouchEnd = (e) => {
+    e.preventDefault();
     if (this.#skipNextPointerUp) {
       this.#skipNextPointerUp = false;
-      this.#pointerStartX = pointer.x;
-      this.#pointerStartY = pointer.y;
+      if (e.changedTouches.length > 0) {
+        this.#pointerStartX = e.changedTouches[0].clientX;
+        this.#pointerStartY = e.changedTouches[0].clientY;
+      }
       return;
     }
     if (this.#isBlocked()) return;
+    if (e.changedTouches.length === 0) return;
 
-    const dx = pointer.x - this.#pointerStartX;
-    const dy = pointer.y - this.#pointerStartY;
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - this.#pointerStartX;
+    const dy = touch.clientY - this.#pointerStartY;
     const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
     if (Math.max(absDx, absDy) < SWIPE_THRESHOLD) return;
@@ -118,7 +126,7 @@ export class InputManager {
   /** Cleanup listeners. */
   shutdown() {
     this.#scene.input.keyboard?.off('keydown', this.#handleKey, this);
-    this.#scene.input?.off('pointerdown', this.#onPointerDown, this);
-    this.#scene.input?.off('pointerup', this.#onPointerUp, this);
+    window.removeEventListener('touchstart', this.#onTouchStart);
+    window.removeEventListener('touchend', this.#onTouchEnd);
   }
 }

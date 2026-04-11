@@ -1,7 +1,7 @@
 import { STORAGE_KEYS } from '../configs/constants.js';
 
-/** Available theme identifiers */
-export const THEMES = /** @type {const} */ (['candy', 'chroma']);
+/** Available theme identifiers — first entry is the default when no preference is stored */
+export const THEMES = /** @type {const} */ (['chroma', 'candy']);
 
 /**
  * Manages tile color theme.

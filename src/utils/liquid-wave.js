@@ -8,9 +8,11 @@
  */
 
 const WAVE_LAYERS = 2;
-const BUBBLE_COUNT = 5;
-const FPS_LIMIT = 40;
+const BUBBLE_COUNT = 3;
+const FPS_LIMIT = 24;
 const MS_PER_FRAME = 1000 / FPS_LIMIT;
+/** Sample every N CSS pixels — sine waves are smooth, quality is unchanged at 4px steps */
+const DRAW_STEP = 4;
 
 /* ── Shared RAF loop for all active instances ───────────── */
 
@@ -223,9 +225,13 @@ export class LiquidWave {
 
       ctx.beginPath();
       ctx.moveTo(0, this.#surfaceY(0, wi));
-      for (let x = 1; x <= W; x++) {
+      // Sample every DRAW_STEP pixels — the sine curve is smooth enough that
+      // the visual difference vs. every-pixel is imperceptible.
+      for (let x = DRAW_STEP; x <= W; x += DRAW_STEP) {
         ctx.lineTo(x, this.#surfaceY(x, wi));
       }
+      // Always include the right edge so the fill closes cleanly
+      if ((W % DRAW_STEP) !== 0) ctx.lineTo(W, this.#surfaceY(W, wi));
       ctx.lineTo(W, H);
       ctx.lineTo(0, H);
       ctx.closePath();
@@ -241,9 +247,10 @@ export class LiquidWave {
       // Surface highlight line
       ctx.beginPath();
       ctx.moveTo(0, this.#surfaceY(0, wi));
-      for (let x = 1; x <= W; x++) {
+      for (let x = DRAW_STEP; x <= W; x += DRAW_STEP) {
         ctx.lineTo(x, this.#surfaceY(x, wi));
       }
+      if ((W % DRAW_STEP) !== 0) ctx.lineTo(W, this.#surfaceY(W, wi));
       ctx.strokeStyle = `rgba(255,255,255,${(0.25 * w.alpha * baseAlpha).toFixed(2)})`;
       ctx.lineWidth = 1.2;
       ctx.stroke();

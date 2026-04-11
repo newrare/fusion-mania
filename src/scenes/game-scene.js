@@ -288,6 +288,10 @@ export class GameScene extends Phaser.Scene {
     if (this.#mode === 'battle') {
       this.#createEnemyArea();
       this.#createPowerInfoPanel();
+    } else {
+      // Matter.js is only used for battle-mode death animations.
+      // Keep the world paused in other modes to avoid an idle physics tick every frame.
+      this.matter.world.pause();
     }
 
     this.#hudManager.createHelpBtn({ onHelpOpen: () => this.#openHelp(), onHistoryOpen: () => this.#openHistory() });
@@ -983,8 +987,11 @@ export class GameScene extends Phaser.Scene {
   /**
    * Create a static Matter.js floor body at the bottom of the viewport.
    * Dead enemy tiles collide with this floor and with each other.
+   * The physics world starts paused; it is resumed only during death animations.
    */
   #createPhysicsFloor() {
+    // Start paused — world is only resumed when a death animation begins
+    this.matter.world.pause();
     const W = window.innerWidth;
     const H = window.innerHeight;
     const thickness = 100;
@@ -1607,6 +1614,8 @@ export class GameScene extends Phaser.Scene {
   async #playEnemyDeathAnimation(enemy) {
     if (!this.#enemyAreaEl) return;
     audioManager.playSfx('enemyDeath');
+    // Wake the physics world for this animation; it will auto-pause once settled.
+    this.matter.world.resume();
 
     const tileSize = this.#tileSizePx;
     const tileClass = `fm-t${enemy.level}`;
@@ -1642,9 +1651,9 @@ export class GameScene extends Phaser.Scene {
     // this.matter.add.rectangle() creates a raw Matter Body and adds it to the world.
     const body = this.matter.add.rectangle(cx, cy, tileSize, tileSize, {
       chamfer: { radius: 14 }, // match CSS border-radius: 14px
-      restitution: 0.3, // light bounce — natural fall feel
-      friction: 0.9, // friction against floor/other bodies
-      frictionAir: 0.008, // low air resistance — falls at normal speed
+      restitution: 0.2,
+      friction: 0.9,
+      frictionAir: 0.025, // higher air drag — smoother fall on all screen sizes
       density: 0.002,
       label: 'dead-enemy',
     });
@@ -1656,13 +1665,47 @@ export class GameScene extends Phaser.Scene {
       x: vxDir * Math.random(),
       y: 0,
     });
-    M.Body.setAngularVelocity(body, (Math.random() > 0.5 ? 1 : -1) * (0.08 + Math.random() * 0.18));
+    M.Body.setAngularVelocity(body, (Math.random() > 0.5 ? 1 : -1) * (0.05 + Math.random() * 0.10));
 
     this.#deadEnemyBodies.push({ el: deadTile, body });
+    this.#scheduleMatterAutoPause();
 
     // Brief pause so the caller waits for the tile to visually separate from
     // the enemy area before clearing it — physics continues via update().
     await this.#wait(400);
+  }
+
+  /** @type {number | null} */
+  #matterPauseTimer = null;
+
+  /** @type {number} Timestamp when the last body was added, for hard-cap timeout */
+  #matterResumeAt = 0;
+
+  /**
+   * Poll every 500 ms until every dead-enemy body has gone to sleep (Matter's
+   * built-in idle detection via enableSleeping:true), then pause the world.
+   * Hard cap at 8 s in case a body never sleeps (extremely unlikely).
+   * Resets the timer whenever a new body is added so a fresh fall is never cut short.
+   */
+  #scheduleMatterAutoPause() {
+    if (this.#matterPauseTimer !== null) {
+      clearTimeout(this.#matterPauseTimer);
+    }
+    this.#matterResumeAt = Date.now();
+    const poll = () => {
+      this.#matterPauseTimer = setTimeout(() => {
+        const allSettled = this.#deadEnemyBodies.every(
+          ({ body }) => body.isSleeping || body.isStatic,
+        );
+        if (allSettled || Date.now() - this.#matterResumeAt >= 8000) {
+          this.#matterPauseTimer = null;
+          if (!this.matter.world.isPaused) this.matter.world.pause();
+        } else {
+          poll();
+        }
+      }, 500);
+    };
+    poll();
   }
 
   /**
@@ -1867,9 +1910,9 @@ export class GameScene extends Phaser.Scene {
       // Using dynamic (not static) so new enemies falling on top interact naturally.
       const body = this.matter.add.rectangle(cx, cy, tileSize, tileSize, {
         chamfer: { radius: 14 },
-        restitution: 0.3,
+        restitution: 0.2,
         friction: 0.9,
-        frictionAir: 0.008,
+        frictionAir: 0.025,
         density: 0.002,
         label: 'dead-enemy',
       });
@@ -2543,6 +2586,10 @@ export class GameScene extends Phaser.Scene {
     // Remove all dead enemy DOM nodes (in-flight or settled)
     document.querySelectorAll('.fm-dead-enemy').forEach((el) => el.remove());
     this.#deadEnemyBodies = [];
+    if (this.#matterPauseTimer !== null) {
+      clearTimeout(this.#matterPauseTimer);
+      this.#matterPauseTimer = null;
+    }
     // Physics bodies are destroyed with the Matter world on scene shutdown;
     // we only need to null our reference.
     this.#physicsFloor = null;

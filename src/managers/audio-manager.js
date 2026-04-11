@@ -92,13 +92,13 @@ class AudioManager {
     for (const [key, path] of Object.entries(AUDIO.SFX)) {
       const audio = new Audio(path);
       audio.preload = 'auto';
-      audio.volume = AUDIO.SFX_VOLUME;
+      audio.volume = AUDIO.SFX_VOLUME * (AUDIO.SFX_VOLUMES[key] ?? 1.0);
       this.#sfxPool.set(key, audio);
     }
     for (const [key, path] of Object.entries(AUDIO.POWER_SFX)) {
       const audio = new Audio(path);
       audio.preload = 'auto';
-      audio.volume = AUDIO.SFX_VOLUME;
+      audio.volume = AUDIO.SFX_VOLUME * (AUDIO.POWER_SFX_VOLUMES[key] ?? 1.0);
       this.#sfxPool.set(`power:${key}`, audio);
     }
   }
