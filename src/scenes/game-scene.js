@@ -351,7 +351,6 @@ export class GameScene extends Phaser.Scene {
   #showPowerSelectModal() {
     this.#powerSelectModal = new PowerSelectModal(this, {
       onStart: (selectedTypes) => {
-        this.#inputManager.skipNextPointerUp = true;
         this.#powerSelectModal?.destroy();
         this.#powerSelectModal = null;
         this.#selectedPowers = selectedTypes;
@@ -877,7 +876,6 @@ export class GameScene extends Phaser.Scene {
         onChoice: (chosenType) => {
           this.#powerChoiceModal?.destroy();
           this.#powerChoiceModal = null;
-          this.#inputManager.skipNextPointerUp = true;
           resolve(chosenType);
         },
       });

@@ -125,9 +125,9 @@ export class TitleScene extends Phaser.Scene {
       onClose: () => {
         this.#removeDevCredit();
         this.#destroyModal();
-        // Re-bind input on next frame to avoid the current touch event
-        // immediately re-triggering #openMenu on mobile (ghost tap).
-        this.time.delayedCall(0, () => {
+        // Wait 150 ms before re-binding so the touch-end / pointer-up from the
+        // close button fully completes and cannot ghost-trigger #openMenu.
+        this.time.delayedCall(150, () => {
           this.input.keyboard.on('keydown', this.#openMenu, this);
           this.input.on('pointerdown', this.#openMenu, this);
         });

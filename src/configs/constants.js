@@ -59,6 +59,10 @@ export const BG = {
 
 /** Swipe detection */
 export const SWIPE_THRESHOLD = 30;
+/** Minimum cooldown (ms) between accepted swipe moves */
+export const SWIPE_COOLDOWN = 150;
+/** Maximum time (ms) between touchstart and touchend to count as a swipe */
+export const SWIPE_MAX_DURATION = 500;
 
 /** localStorage keys */
 export const STORAGE_KEYS = {
