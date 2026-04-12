@@ -252,7 +252,7 @@ export class LiquidWave {
       for (let x = DRAW_STEP; x <= W; x += DRAW_STEP) {
         ctx.lineTo(x, this.#surfaceY(x, wi));
       }
-      if ((W % DRAW_STEP) !== 0) ctx.lineTo(W, this.#surfaceY(W, wi));
+      if (W % DRAW_STEP !== 0) ctx.lineTo(W, this.#surfaceY(W, wi));
       ctx.lineTo(W, H);
       ctx.lineTo(0, H);
       ctx.closePath();
@@ -270,7 +270,7 @@ export class LiquidWave {
       for (let x = DRAW_STEP; x <= W; x += DRAW_STEP) {
         ctx.lineTo(x, this.#surfaceY(x, wi));
       }
-      if ((W % DRAW_STEP) !== 0) ctx.lineTo(W, this.#surfaceY(W, wi));
+      if (W % DRAW_STEP !== 0) ctx.lineTo(W, this.#surfaceY(W, wi));
       ctx.strokeStyle = stops.stroke;
       ctx.lineWidth = 1.2;
       ctx.stroke();

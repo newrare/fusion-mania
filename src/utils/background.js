@@ -53,7 +53,10 @@ export function addBackground(scene) {
   const rockImg = scene.add.image(cx, cy, 'bg-rock').setDisplaySize(rock.w, rock.h).setDepth(3);
 
   const ground = coverSize('bg-ground');
-  const groundImg = scene.add.image(cx, cy, 'bg-ground').setDisplaySize(ground.w, ground.h).setDepth(5);
+  const groundImg = scene.add
+    .image(cx, cy, 'bg-ground')
+    .setDisplaySize(ground.w, ground.h)
+    .setDepth(5);
 
   /* ── Slow horizontal travelling for narrow viewports ────────────────────── */
   /* When the cover-scaled image is wider than the viewport (portrait mobile,
@@ -64,7 +67,7 @@ export function addBackground(scene) {
   const needsPan = skyVisibleRatio < BG.PAN_THRESHOLD;
   const panRange = needsPan ? (sky.w - width) / 2 : 0;
   /* Full left→right = panRange*2 px at BG.PAN_SPEED_PX_S px/s. */
-  const panDuration = needsPan ? (panRange * 2 / BG.PAN_SPEED_PX_S) * 1000 : 0;
+  const panDuration = needsPan ? ((panRange * 2) / BG.PAN_SPEED_PX_S) * 1000 : 0;
 
   if (needsPan) {
     const staticLayers = [skyImg, rockImg, groundImg];
@@ -130,9 +133,7 @@ export function addBackground(scene) {
   for (let i = 0; i < STAR_COUNT; i++) {
     const x = rndInt(Math.floor(starFieldLeft), Math.floor(starFieldRight));
     const y = rndInt(4, Math.floor(height * 0.48));
-    const star = scene.add
-      .arc(x, y, rnd(1.0, 2.5), 0, 360, false, 0xffffff, 1)
-      .setAlpha(0);
+    const star = scene.add.arc(x, y, rnd(1.0, 2.5), 0, 360, false, 0xffffff, 1).setAlpha(0);
     starContainer.add(star);
 
     const twinkle = () => {
@@ -164,8 +165,10 @@ export function addBackground(scene) {
 
   /* ── Shooting stars ──────────────────────────────────────────────────────── */
   const spawnShootingStar = () => {
-    const headX = rndInt(Math.floor(starFieldLeft + starFieldWidth * 0.08),
-      Math.floor(starFieldRight - starFieldWidth * 0.08));
+    const headX = rndInt(
+      Math.floor(starFieldLeft + starFieldWidth * 0.08),
+      Math.floor(starFieldRight - starFieldWidth * 0.08),
+    );
     const headY = rndInt(8, Math.floor(height * 0.38));
     const toRight = Math.random() < 0.5;
     const angle = rnd(15, 50) * (Math.PI / 180);

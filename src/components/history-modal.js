@@ -4,9 +4,9 @@ import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
 /** Thick SVG arrows matching the prediction info panel. */
 const DIR_ARROWS = {
-  up:    `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 1 L11 7 H8 V13 H4 V7 H1 Z" fill="currentColor"/></svg>`,
-  down:  `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 13 L11 7 H8 V1 H4 V7 H1 Z" fill="currentColor"/></svg>`,
-  left:  `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 6 L7 1 V4 H13 V8 H7 V11 Z" fill="currentColor"/></svg>`,
+  up: `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 1 L11 7 H8 V13 H4 V7 H1 Z" fill="currentColor"/></svg>`,
+  down: `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 13 L11 7 H8 V1 H4 V7 H1 Z" fill="currentColor"/></svg>`,
+  left: `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 6 L7 1 V4 H13 V8 H7 V11 Z" fill="currentColor"/></svg>`,
   right: `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M13 6 L7 1 V4 H1 V8 H7 V11 Z" fill="currentColor"/></svg>`,
 };
 
@@ -133,9 +133,7 @@ export class HistoryModal {
   #renderEntry(entry) {
     switch (entry.type) {
       case 'fusion': {
-        const pairs = entry.pairs
-          .map(([a, b]) => `${this.#pill(a)}+${this.#pill(b)}`)
-          .join(' ');
+        const pairs = entry.pairs.map(([a, b]) => `${this.#pill(a)}+${this.#pill(b)}`).join(' ');
         return `<div class="fm-history-sub">${i18n.t('history.fusion')}: ${pairs}</div>`;
       }
       case 'contamination':

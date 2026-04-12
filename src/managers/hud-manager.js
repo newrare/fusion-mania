@@ -150,10 +150,12 @@ export class HudManager {
     this.#helpBtnDom = this.#scene.add.dom(x, y).createFromHTML(html);
     this.#helpBtnDom.setOrigin(1, 1);
 
-    this.#helpBtnDom.node.querySelector('#fm-history-mode-btn')?.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      onHistoryOpen?.();
-    });
+    this.#helpBtnDom.node
+      .querySelector('#fm-history-mode-btn')
+      ?.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        onHistoryOpen?.();
+      });
 
     this.#predBtnEl = this.#helpBtnDom.node.querySelector('#fm-pred-btn');
     this.#predBtnEl?.addEventListener('pointerdown', (e) => {

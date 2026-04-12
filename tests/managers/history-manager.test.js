@@ -65,13 +65,19 @@ describe('HistoryManager', () => {
 
   it('records fusions', () => {
     hm.beginTurn(1, 'up', 0);
-    hm.addFusions([[2, 2], [8, 8]]);
+    hm.addFusions([
+      [2, 2],
+      [8, 8],
+    ]);
     hm.finalizeTurn(20);
 
     const turn = hm.getTurns()[0];
     expect(turn.fusions).toBe(2);
     const fusionEntry = turn.entries.find((e) => e.type === 'fusion');
-    expect(fusionEntry.pairs).toEqual([[2, 2], [8, 8]]);
+    expect(fusionEntry.pairs).toEqual([
+      [2, 2],
+      [8, 8],
+    ]);
   });
 
   it('ignores empty fusions array', () => {
@@ -252,7 +258,10 @@ describe('HistoryManager', () => {
 
   it('records a complex turn with all event types', () => {
     hm.beginTurn(5, 'down', 100);
-    hm.addFusions([[4, 4], [16, 16]]);
+    hm.addFusions([
+      [4, 4],
+      [16, 16],
+    ]);
     hm.addPower('fire-h');
     hm.addTilesLost([8, 2]);
     hm.addContamination(32);

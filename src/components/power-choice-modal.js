@@ -110,9 +110,8 @@ export class PowerChoiceModal {
 
     const gap = 12;
     const popoverX = tileCenterX;
-    const popoverY = placement === 'above'
-      ? gridRect.top + cellY - gap
-      : gridRect.top + cellY + tileSize + gap;
+    const popoverY =
+      placement === 'above' ? gridRect.top + cellY - gap : gridRect.top + cellY + tileSize + gap;
 
     return { placement, popoverX, popoverY };
   }

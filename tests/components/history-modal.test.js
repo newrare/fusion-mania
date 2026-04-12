@@ -124,7 +124,10 @@ describe('HistoryModal', () => {
 
   it('renders fusion sub-entries', () => {
     hm.beginTurn(1, 'up', 0);
-    hm.addFusions([[2, 2], [8, 8]]);
+    hm.addFusions([
+      [2, 2],
+      [8, 8],
+    ]);
     hm.finalizeTurn(20);
 
     new HistoryModal(scene, { historyManager: hm, onClose });

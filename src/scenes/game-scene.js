@@ -537,11 +537,19 @@ export class GameScene extends Phaser.Scene {
         let chosenPower = trigger.powerType;
         // Power choice modal blocks input — safe to await even mid-logic
         if (trigger.needsChoice && !moveResult.cancelled && moveGen === this.#moveGen) {
-          chosenPower = await this.#showPowerChoiceModal(trigger.powerType, trigger.powerTypeB, trigger.tile);
+          chosenPower = await this.#showPowerChoiceModal(
+            trigger.powerType,
+            trigger.powerTypeB,
+            trigger.tile,
+          );
         }
         this.#powersTriggered.push(chosenPower);
         this.#historyManager.addPower(chosenPower);
-        const effectResult = this.#powerManager.executeEffect(chosenPower, this.#gm.grid, trigger.tile);
+        const effectResult = this.#powerManager.executeEffect(
+          chosenPower,
+          this.#gm.grid,
+          trigger.tile,
+        );
         for (const tile of effectResult.destroyed) {
           this.#pendingDestructionTiles.set(tile.id, tile.value);
         }
@@ -581,11 +589,19 @@ export class GameScene extends Phaser.Scene {
       for (const trigger of triggers) {
         let chosenPower = trigger.powerType;
         if (trigger.needsChoice && !moveResult.cancelled && moveGen === this.#moveGen) {
-          chosenPower = await this.#showPowerChoiceModal(trigger.powerType, trigger.powerTypeB, trigger.tile);
+          chosenPower = await this.#showPowerChoiceModal(
+            trigger.powerType,
+            trigger.powerTypeB,
+            trigger.tile,
+          );
         }
         this.#powersTriggered.push(chosenPower);
         this.#historyManager.addPower(chosenPower);
-        const effectResult = this.#battlePowerManager.executeEffect(chosenPower, this.#gm.grid, trigger.tile);
+        const effectResult = this.#battlePowerManager.executeEffect(
+          chosenPower,
+          this.#gm.grid,
+          trigger.tile,
+        );
         for (const tile of effectResult.destroyed) {
           this.#pendingDestructionTiles.set(tile.id, tile.value);
         }
@@ -596,7 +612,12 @@ export class GameScene extends Phaser.Scene {
             this.#onGridLifeDamage(damage);
           }
         }
-        battlePowerWork.push({ chosenPower, target: trigger.tile, effectResult, pm: this.#battlePowerManager });
+        battlePowerWork.push({
+          chosenPower,
+          target: trigger.tile,
+          effectResult,
+          pm: this.#battlePowerManager,
+        });
       }
     }
 
@@ -617,7 +638,11 @@ export class GameScene extends Phaser.Scene {
           enemyKilled = dmgResult.killed;
           if (battleDamage > 0) {
             const enemy = this.#battleManager.enemy;
-            this.#historyManager.addEnemyDamage(enemy?.name ?? '?', enemy?.level ?? 0, battleDamage);
+            this.#historyManager.addEnemyDamage(
+              enemy?.name ?? '?',
+              enemy?.level ?? 0,
+              battleDamage,
+            );
           }
           if (enemyKilled) {
             const dead = this.#battleManager.enemy;
@@ -634,10 +659,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     // ── Sync DOM + visuals after all logic ──
-    const windDir = this.#powerManager?.windDirection ?? this.#battlePowerManager?.windDirection ?? null;
-    const preserveIds = this.#pendingDestructionTiles.size > 0
-      ? new Set(this.#pendingDestructionTiles.keys())
-      : null;
+    const windDir =
+      this.#powerManager?.windDirection ?? this.#battlePowerManager?.windDirection ?? null;
+    const preserveIds =
+      this.#pendingDestructionTiles.size > 0 ? new Set(this.#pendingDestructionTiles.keys()) : null;
     this.#gm.syncTileDom(windDir, preserveIds);
     this.#updatePowerVisuals();
 
@@ -669,7 +694,12 @@ export class GameScene extends Phaser.Scene {
     if (shouldAnimate && powerWork.length > 0) {
       for (const work of powerWork) {
         if (moveGen !== this.#moveGen) break;
-        await this.#playPowerEffectAnimation(work.chosenPower, work.target, work.effectResult, work.pm);
+        await this.#playPowerEffectAnimation(
+          work.chosenPower,
+          work.target,
+          work.effectResult,
+          work.pm,
+        );
       }
     } else {
       // Remove destroyed tiles from DOM immediately (no animation)
@@ -695,7 +725,12 @@ export class GameScene extends Phaser.Scene {
     if (shouldAnimate && battlePowerWork.length > 0) {
       for (const work of battlePowerWork) {
         if (moveGen !== this.#moveGen) break;
-        await this.#playPowerEffectAnimation(work.chosenPower, work.target, work.effectResult, work.pm);
+        await this.#playPowerEffectAnimation(
+          work.chosenPower,
+          work.target,
+          work.effectResult,
+          work.pm,
+        );
       }
     } else {
       for (const work of battlePowerWork) {
@@ -1648,8 +1683,7 @@ export class GameScene extends Phaser.Scene {
       `position:fixed;left:0;top:0;width:${tileSize}px;height:${tileSize}px;` +
       `pointer-events:none;transform-origin:center center;`;
     /* Position via transform (GPU-composited) — update() will keep syncing this way */
-    deadTile.style.transform =
-      `translate(${cx - tileSize / 2}px,${cy - tileSize / 2}px)`;
+    deadTile.style.transform = `translate(${cx - tileSize / 2}px,${cy - tileSize / 2}px)`;
     deadTile.innerHTML = `
       <div class="fm-tile fm-dead-enemy-inner ${tileClass}">
         <span class="fm-dead-enemy-label">${enemy.name}</span>
@@ -1677,7 +1711,7 @@ export class GameScene extends Phaser.Scene {
       x: vxDir * Math.random(),
       y: 0,
     });
-    M.Body.setAngularVelocity(body, (Math.random() > 0.5 ? 1 : -1) * (0.05 + Math.random() * 0.10));
+    M.Body.setAngularVelocity(body, (Math.random() > 0.5 ? 1 : -1) * (0.05 + Math.random() * 0.1));
 
     this.#deadEnemyBodies.push({ el: deadTile, body });
     this.#scheduleMatterAutoPause();
@@ -2528,9 +2562,13 @@ export class GameScene extends Phaser.Scene {
               const rawMax = [...(pred.lightningRange?.max ?? [])].sort((a, b) => b - a);
               const minPills =
                 rawMin.length > 0
-                  ? rawMin.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('')
+                  ? rawMin
+                      .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
+                      .join('')
                   : `<span class="fm-range-empty">∅</span>`;
-              const maxPills = rawMax.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('');
+              const maxPills = rawMax
+                .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
+                .join('');
               tilesHtml = `<div class="fm-power-info-range">
                 <span class="fm-range-label">(Min</span>
                 <div class="fm-power-info-tiles">${minPills}</div>
@@ -2551,7 +2589,10 @@ export class GameScene extends Phaser.Scene {
               break;
             case POWER_TYPES.ADS: {
               const adjs = i18n.t('pred.ads_adjectives');
-              const adj = Array.isArray(adjs) && adjs.length > 0 ? adjs[Math.floor(Math.random() * adjs.length)] : '';
+              const adj =
+                Array.isArray(adjs) && adjs.length > 0
+                  ? adjs[Math.floor(Math.random() * adjs.length)]
+                  : '';
               msgKey = 'pred.ads';
               tilesHtml = `<span class="fm-pred-ads-adj">${adj}</span>`;
               noColon = true;
@@ -2576,7 +2617,9 @@ export class GameScene extends Phaser.Scene {
 
     if (this.#pendingDestructionTiles.size > 0) {
       const sortedVals = [...this.#pendingDestructionTiles.values()].sort((a, b) => b - a);
-      const pills = sortedVals.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('');
+      const pills = sortedVals
+        .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
+        .join('');
       linesAll.push(`
         <div class="fm-power-info-line fm-power-info-destroying">
           <span class="fm-info-destroy-icon">🗑</span>
@@ -2708,8 +2751,7 @@ export class GameScene extends Phaser.Scene {
       if (!el.isConnected) continue;
       /* Use transform instead of left/top to avoid triggering layout reflow
          every frame. translate + rotate is GPU-composited (no main-thread work). */
-      el.style.transform =
-        `translate(${body.position.x - half}px,${body.position.y - half}px) rotate(${body.angle}rad)`;
+      el.style.transform = `translate(${body.position.x - half}px,${body.position.y - half}px) rotate(${body.angle}rad)`;
     }
   }
 
