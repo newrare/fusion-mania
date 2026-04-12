@@ -635,7 +635,10 @@ export class GameScene extends Phaser.Scene {
 
     // ── Sync DOM + visuals after all logic ──
     const windDir = this.#powerManager?.windDirection ?? this.#battlePowerManager?.windDirection ?? null;
-    this.#gm.syncTileDom(windDir);
+    const preserveIds = this.#pendingDestructionTiles.size > 0
+      ? new Set(this.#pendingDestructionTiles.keys())
+      : null;
+    this.#gm.syncTileDom(windDir, preserveIds);
     this.#updatePowerVisuals();
 
     // Safety: if powers/effects destroyed every tile, start the empty-grid timer

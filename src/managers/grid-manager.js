@@ -414,11 +414,11 @@ export class GridManager {
    * Removes orphaned elements and applies visual state.
    * @param {string | null} [windDirection]
    */
-  syncTileDom(windDirection = null) {
+  syncTileDom(windDirection = null, preserveIds = null) {
     const gridTileIds = new Set(this.#grid.getAllTiles().map((t) => t.id));
 
     for (const [id, el] of this.#tileElements) {
-      if (!gridTileIds.has(id)) {
+      if (!gridTileIds.has(id) && !(preserveIds && preserveIds.has(id))) {
         el.remove();
         this.#tileElements.delete(id);
       }
