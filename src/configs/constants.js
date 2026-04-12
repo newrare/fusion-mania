@@ -49,6 +49,14 @@ export const ANIM = {
   ADS_CLOSE_DURATION: 300,
 };
 
+/** Background pan settings */
+export const BG = {
+  /** Horizontal pan speed for narrow viewports (px/s). Lower = slower drift. */
+  PAN_SPEED_PX_S: 4,
+  /** Viewport coverage threshold above which panning is disabled (0–1). */
+  PAN_THRESHOLD: 0.9,
+};
+
 /** Swipe detection */
 export const SWIPE_THRESHOLD = 30;
 

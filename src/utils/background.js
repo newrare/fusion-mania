@@ -1,3 +1,4 @@
+import { BG } from '../configs/constants.js';
 import { layout } from '../managers/layout-manager.js';
 
 /* Helpers replacing Phaser.Math statics to avoid a Phaser import */
@@ -49,10 +50,36 @@ export function addBackground(scene) {
   const skyImg = scene.add.image(cx, cy, 'bg-sky').setDisplaySize(sky.w, sky.h).setDepth(0);
 
   const rock = coverSize('bg-rock');
-  scene.add.image(cx, cy, 'bg-rock').setDisplaySize(rock.w, rock.h).setDepth(3);
+  const rockImg = scene.add.image(cx, cy, 'bg-rock').setDisplaySize(rock.w, rock.h).setDepth(3);
 
   const ground = coverSize('bg-ground');
-  scene.add.image(cx, cy, 'bg-ground').setDisplaySize(ground.w, ground.h).setDepth(5);
+  const groundImg = scene.add.image(cx, cy, 'bg-ground').setDisplaySize(ground.w, ground.h).setDepth(5);
+
+  /* ── Slow horizontal travelling for narrow viewports ────────────────────── */
+  /* When the cover-scaled image is wider than the viewport (portrait mobile,
+     small window), gently pan left ↔ right so the player sees the full art.
+     If ≥ 90 % of the image width is already visible, skip — no movement.
+     panRange / panDuration are computed once and reused for the star container. */
+  const skyVisibleRatio = width / sky.w;
+  const needsPan = skyVisibleRatio < BG.PAN_THRESHOLD;
+  const panRange = needsPan ? (sky.w - width) / 2 : 0;
+  /* Full left→right = panRange*2 px at BG.PAN_SPEED_PX_S px/s. */
+  const panDuration = needsPan ? (panRange * 2 / BG.PAN_SPEED_PX_S) * 1000 : 0;
+
+  if (needsPan) {
+    const staticLayers = [skyImg, rockImg, groundImg];
+    for (const img of staticLayers) {
+      img.x = cx - panRange; // start at left edge
+      scene.tweens.add({
+        targets: img,
+        x: cx + panRange,
+        duration: panDuration,
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: -1,
+      });
+    }
+  }
 
   /* ── Sky brightness variation (tint-based — clearly visible) ──────────────── */
   /* brightness 1.0 = full colour, 0.28 ≈ very dark night */
@@ -77,15 +104,36 @@ export function addBackground(scene) {
   };
   animateSkyBrightness();
 
+  /* ── Star container (moves with the sky when panning) ─────────────────── */
+  /* Stars and shooting stars live in a container so they pan with the sky
+     layer instead of staying fixed in the viewport. When there is no pan
+     the container sits at (0,0) — no visual change. */
+  const starContainer = scene.add.container(0, 0).setDepth(1);
+  if (needsPan) {
+    starContainer.x = -panRange; // match sky starting position
+    scene.tweens.add({
+      targets: starContainer,
+      x: panRange,
+      duration: panDuration,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
+  /* Spread stars across the full image width so panning reveals new stars */
+  const starFieldWidth = needsPan ? sky.w : width;
+  const starFieldLeft = needsPan ? cx - sky.w / 2 : 4;
+  const starFieldRight = needsPan ? cx + sky.w / 2 : width - 4;
+
   /* ── Twinkling stars (upper half of the sky) ─────────────────────────────── */
   for (let i = 0; i < STAR_COUNT; i++) {
-    const x = rndInt(4, width - 4);
+    const x = rndInt(Math.floor(starFieldLeft), Math.floor(starFieldRight));
     const y = rndInt(4, Math.floor(height * 0.48));
-    /* scene.add.arc: explicit arc API available in all Phaser 3 versions */
     const star = scene.add
       .arc(x, y, rnd(1.0, 2.5), 0, 360, false, 0xffffff, 1)
-      .setAlpha(0)
-      .setDepth(1);
+      .setAlpha(0);
+    starContainer.add(star);
 
     const twinkle = () => {
       const peak = rnd(0.55, 1.0);
@@ -116,7 +164,8 @@ export function addBackground(scene) {
 
   /* ── Shooting stars ──────────────────────────────────────────────────────── */
   const spawnShootingStar = () => {
-    const headX = rndInt(Math.floor(width * 0.08), Math.floor(width * 0.92));
+    const headX = rndInt(Math.floor(starFieldLeft + starFieldWidth * 0.08),
+      Math.floor(starFieldRight - starFieldWidth * 0.08));
     const headY = rndInt(8, Math.floor(height * 0.38));
     const toRight = Math.random() < 0.5;
     const angle = rnd(15, 50) * (Math.PI / 180);
@@ -128,7 +177,8 @@ export function addBackground(scene) {
     const dirX = toRight ? cosA : -cosA;
     const dirY = sinA;
 
-    const g = scene.add.graphics().setDepth(1);
+    const g = scene.add.graphics();
+    starContainer.add(g);
     /* Draw gradient tail in local space: head at (0,0), tail opposite to travel */
     const steps = 10;
     for (let s = 0; s < steps; s++) {
@@ -166,11 +216,32 @@ export function addBackground(scene) {
   };
   scene.time.delayedCall(rndInt(800, 6000), spawnShootingStar);
 
+  /* ── Cloud containers (move with the background when panning) ───────────── */
+  /* Each cloud layer gets its own container at the correct depth so clouds
+     are anchored to the background world, not the viewport. */
+  const makeCloudContainer = (depth) => {
+    const c = scene.add.container(0, 0).setDepth(depth);
+    if (needsPan) {
+      c.x = -panRange;
+      scene.tweens.add({
+        targets: c,
+        x: panRange,
+        duration: panDuration,
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: -1,
+      });
+    }
+    return c;
+  };
+  const cloudContainer01 = makeCloudContainer(2);
+  const cloudContainer02 = makeCloudContainer(4);
+
   /* ── Cloud helpers ───────────────────────────────────────────────────────── */
 
   /**
    * Spawn a single cloud that crosses the screen once, then calls onDone.
-   * @param {{ key: string, depth: number, baseY: number }} cfg
+   * @param {{ key: string, container: Phaser.GameObjects.Container, baseY: number }} cfg
    * @param {(() => void) | undefined} onDone  Called when the cloud exits the screen.
    */
   const spawnCloudOnce = (cfg, onDone) => {
@@ -186,6 +257,9 @@ export function addBackground(scene) {
     const cloudW = width * rnd(0.45, 0.9) * sizeFactor;
     const cloudH = (img.height / img.width) * cloudW;
 
+    /* Clouds traverse the viewport width in container-local coordinates.
+       The container itself handles the pan offset, so clouds simply go
+       from one side of the visible area to the other. */
     const startX = goRight ? -(cloudW / 2) : width + cloudW / 2;
     const endX = goRight ? width + cloudW / 2 : -(cloudW / 2);
     /* Speed: 8–20 px/s (20 is the max, very slow passes are possible) */
@@ -196,13 +270,13 @@ export function addBackground(scene) {
       .image(startX, y, cfg.key)
       .setDisplaySize(cloudW, cloudH)
       .setAlpha(0)
-      .setDepth(cfg.depth)
       .setFlipX(flipX);
+    cfg.container.add(cloud);
 
     /* Fade in as the cloud enters the screen */
     scene.tweens.add({ targets: cloud, alpha: opacity, duration: 2000, ease: 'Sine.easeIn' });
 
-    /* Traverse the screen */
+    /* Traverse the viewport */
     scene.tweens.add({
       targets: cloud,
       x: endX,
@@ -220,7 +294,7 @@ export function addBackground(scene) {
    * - 15 % of the time: skips this cycle entirely (produces "no cloud" gaps).
    * - 30 % of the time: spawns a bonus cloud slightly offset in time.
    * - Always spawns a primary cloud whose arrival triggers the next loop.
-   * @param {{ key: string, depth: number, baseY: number }} cfg
+   * @param {{ key: string, container: Phaser.GameObjects.Container, baseY: number }} cfg
    */
   const cloudLoop = (cfg) => {
     /* Occasional empty sky — no cloud this cycle */
@@ -242,9 +316,9 @@ export function addBackground(scene) {
 
   /* ── Kick off each cloud layer independently ─────────────────────────────── */
   scene.time.delayedCall(rndInt(0, 2000), () =>
-    cloudLoop({ key: 'bg-cloud01', depth: 2, baseY: height * CLOUD01_BASE_Y }),
+    cloudLoop({ key: 'bg-cloud01', container: cloudContainer01, baseY: height * CLOUD01_BASE_Y }),
   );
   scene.time.delayedCall(rndInt(0, 2000), () =>
-    cloudLoop({ key: 'bg-cloud02', depth: 4, baseY: height * CLOUD02_BASE_Y }),
+    cloudLoop({ key: 'bg-cloud02', container: cloudContainer02, baseY: height * CLOUD02_BASE_Y }),
   );
 }
