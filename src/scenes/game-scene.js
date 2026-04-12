@@ -1634,10 +1634,11 @@ export class GameScene extends Phaser.Scene {
     const deadTile = document.createElement('div');
     deadTile.className = 'fm-dead-enemy';
     deadTile.style.cssText =
-      `position:fixed;width:${tileSize}px;height:${tileSize}px;` +
+      `position:fixed;left:0;top:0;width:${tileSize}px;height:${tileSize}px;` +
       `pointer-events:none;transform-origin:center center;`;
-    deadTile.style.left = `${cx - tileSize / 2}px`;
-    deadTile.style.top = `${cy - tileSize / 2}px`;
+    /* Position via transform (GPU-composited) — update() will keep syncing this way */
+    deadTile.style.transform =
+      `translate(${cx - tileSize / 2}px,${cy - tileSize / 2}px)`;
     deadTile.innerHTML = `
       <div class="fm-tile fm-dead-enemy-inner ${tileClass}">
         <span class="fm-dead-enemy-label">${enemy.name}</span>
@@ -2551,9 +2552,10 @@ export class GameScene extends Phaser.Scene {
     const half = this.#tileSizePx / 2;
     for (const { el, body } of this.#deadEnemyBodies) {
       if (!el.isConnected) continue;
-      el.style.left = `${body.position.x - half}px`;
-      el.style.top = `${body.position.y - half}px`;
-      el.style.transform = `rotate(${body.angle}rad)`;
+      /* Use transform instead of left/top to avoid triggering layout reflow
+         every frame. translate + rotate is GPU-composited (no main-thread work). */
+      el.style.transform =
+        `translate(${body.position.x - half}px,${body.position.y - half}px) rotate(${body.angle}rad)`;
     }
   }
 

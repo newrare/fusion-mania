@@ -5,7 +5,10 @@ const rnd = (min, max) => Math.random() * (max - min) + min;
 const rndInt = (min, max) => Math.floor(rnd(min, max + 1));
 const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
 
-const STAR_COUNT = 45;
+/* Fewer stars on mobile — each star runs a continuous tween chain.
+   Touch devices (capacitor/mobile browsers) get 18 instead of 45. */
+const IS_TOUCH = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const STAR_COUNT = IS_TOUCH ? 18 : 45;
 /* Base Y position of each cloud layer as a fraction of screen height */
 const CLOUD01_BASE_Y = 0.18; // upper area  — depth below rock
 const CLOUD02_BASE_Y = 0.58; // middle/slightly below — depth above rock, below ground

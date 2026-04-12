@@ -88,6 +88,15 @@ class AudioManager {
       { once: true },
     );
 
+    // Pause/resume music when the app goes to background or screen turns off
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.#pauseMusic();
+      } else if (this.#options.music) {
+        this.#resumeMusic();
+      }
+    });
+
     // SFX
     for (const [key, path] of Object.entries(AUDIO.SFX)) {
       const audio = new Audio(path);

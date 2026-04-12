@@ -6,5 +6,14 @@
     "SplashScreen": {
       "launchShowDuration": 0
     }
+  },
+  "android": {
+    "webContentsDebuggingEnabled": false,
+    "backgroundColor": "#1a0a2e",
+    "allowMixedContent": false,
+    "overrideUserAgent": null
+  },
+  "server": {
+    "androidScheme": "https"
   }
 }

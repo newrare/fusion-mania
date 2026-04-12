@@ -11,8 +11,10 @@ const WAVE_LAYERS = 2;
 const BUBBLE_COUNT = 3;
 const FPS_LIMIT = 24;
 const MS_PER_FRAME = 1000 / FPS_LIMIT;
-/** Sample every N CSS pixels — sine waves are smooth, quality is unchanged at 4px steps */
-const DRAW_STEP = 4;
+/** Sample every N CSS pixels — sine waves are smooth, quality is unchanged at 6px steps */
+const DRAW_STEP = 6;
+/** Cap canvas DPR to avoid huge backing stores on 3× mobile screens */
+const MAX_DPR = 2;
 
 /* ── Shared RAF loop for all active instances ───────────── */
 
@@ -68,6 +70,12 @@ export class LiquidWave {
   #c1 = COLOR_PRESETS.info.c1;
   #c2 = COLOR_PRESETS.info.c2;
   #alpha = 0.55;
+
+  /** Pre-computed gradient colour stop strings per wave layer — avoids rebuilding
+   *  rgba() strings every frame. Invalidated when the colour preset changes. */
+  #fillStopsDirty = true;
+  /** @type {{top: string, bottom: string, stroke: string}[]} */
+  #fillStops = [];
 
   /** @type {{amp: number, freq: number, phase: number, speed: number, alpha: number}[]} */
   #waves;
@@ -141,8 +149,11 @@ export class LiquidWave {
   /** Update colour preset by HP category. */
   setCategory(cat) {
     const preset = COLOR_PRESETS[cat] ?? COLOR_PRESETS.info;
-    this.#c1 = preset.c1;
-    this.#c2 = preset.c2;
+    if (preset.c1 !== this.#c1 || preset.c2 !== this.#c2) {
+      this.#c1 = preset.c1;
+      this.#c2 = preset.c2;
+      this.#fillStopsDirty = true;
+    }
   }
 
   /** Tear down canvas, observer, and RAF membership. */
@@ -182,7 +193,7 @@ export class LiquidWave {
 
   #applySize(w, h) {
     if (w === this.#w && h === this.#h) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
     this.#w = w;
     this.#h = h;
     this.#canvas.width = w * dpr;
@@ -219,18 +230,28 @@ export class LiquidWave {
 
     if (this.#level <= 0.001) return; // nothing to draw
 
+    // Rebuild cached colour strings only when the palette changes
+    if (this.#fillStopsDirty) {
+      this.#fillStops = this.#waves.map((w) => {
+        const a = w.alpha * baseAlpha;
+        return {
+          top: `rgba(${c1.r},${c1.g},${c1.b},${a.toFixed(2)})`,
+          bottom: `rgba(${c2.r},${c2.g},${c2.b},${(a * 0.7).toFixed(2)})`,
+          stroke: `rgba(255,255,255,${(0.25 * w.alpha * baseAlpha).toFixed(2)})`,
+        };
+      });
+      this.#fillStopsDirty = false;
+    }
+
     // Draw wave layers back-to-front
     for (let wi = WAVE_LAYERS - 1; wi >= 0; wi--) {
-      const w = this.#waves[wi];
+      const stops = this.#fillStops[wi];
 
       ctx.beginPath();
       ctx.moveTo(0, this.#surfaceY(0, wi));
-      // Sample every DRAW_STEP pixels — the sine curve is smooth enough that
-      // the visual difference vs. every-pixel is imperceptible.
       for (let x = DRAW_STEP; x <= W; x += DRAW_STEP) {
         ctx.lineTo(x, this.#surfaceY(x, wi));
       }
-      // Always include the right edge so the fill closes cleanly
       if ((W % DRAW_STEP) !== 0) ctx.lineTo(W, this.#surfaceY(W, wi));
       ctx.lineTo(W, H);
       ctx.lineTo(0, H);
@@ -238,9 +259,8 @@ export class LiquidWave {
 
       const surfMid = this.#surfaceY(W / 2, wi);
       const g = ctx.createLinearGradient(0, surfMid, 0, H);
-      const a = w.alpha * baseAlpha;
-      g.addColorStop(0, `rgba(${c1.r},${c1.g},${c1.b},${a.toFixed(2)})`);
-      g.addColorStop(1, `rgba(${c2.r},${c2.g},${c2.b},${(a * 0.7).toFixed(2)})`);
+      g.addColorStop(0, stops.top);
+      g.addColorStop(1, stops.bottom);
       ctx.fillStyle = g;
       ctx.fill();
 
@@ -251,7 +271,7 @@ export class LiquidWave {
         ctx.lineTo(x, this.#surfaceY(x, wi));
       }
       if ((W % DRAW_STEP) !== 0) ctx.lineTo(W, this.#surfaceY(W, wi));
-      ctx.strokeStyle = `rgba(255,255,255,${(0.25 * w.alpha * baseAlpha).toFixed(2)})`;
+      ctx.strokeStyle = stops.stroke;
       ctx.lineWidth = 1.2;
       ctx.stroke();
     }

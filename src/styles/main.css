@@ -44,13 +44,24 @@ html, body {
   padding: var(--fm-grid-padding, 10px);
   border-radius: 20px;
   width: var(--fm-grid-width, 340px);
-  background: rgba(255,255,255,0.14);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
+  /* Mobile default: no backdrop-filter (too expensive on WebView). Simulate
+     frosted glass with higher-opacity white + inset box-shadow highlight. */
+  background: rgba(255, 255, 255, 0.13);
   border: 1px solid rgba(255,255,255,0.35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(255,255,255,0.10);
   touch-action: none;
   position: relative;
   z-index: 4;
+}
+
+/* Desktop: restore full frosted-glass blur (GPU cost is fine on a mouse device) */
+@media (hover: hover) and (pointer: fine) {
+  .fm-grid {
+    background: rgba(255,255,255,0.14);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    box-shadow: none;
+  }
 }
 
 /* Cell placeholder (empty slot) */
@@ -525,6 +536,29 @@ html, body {
 
 .fm-title-logo-wrapper {
   padding-top: 22vh;
+  opacity: 0;
+}
+
+.fm-title-logo-wrapper.fm-logo-visible {
+  opacity: 1;
+  animation: fm-logo-bounce-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.fm-title-logo-wrapper.fm-logo-floating {
+  animation: fm-logo-float 6s ease-in-out infinite;
+}
+
+@keyframes fm-logo-bounce-in {
+  0%   { opacity: 0; transform: translateY(-30px) scale(0.8); }
+  60%  { opacity: 1; transform: translateY(6px) scale(1.05); }
+  80%  { transform: translateY(-4px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fm-logo-float {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(8px); }
+  100% { transform: translateY(0); }
 }
 
 .fm-title-logo-img {
@@ -534,12 +568,18 @@ html, body {
   display: block;
 }
 
+/* --- Dev credit (native DOM, above modal overlay) --- */
 .fm-title-dev-credit {
-  margin-top: auto;
-  margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
+  position: absolute;
+  left: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
+  width: 100vw;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
+  pointer-events: none;
+  z-index: 150;
 }
 
 .fm-title-dev-logo {
@@ -596,14 +636,21 @@ html, body {
   top: 0;
   width: 100vw;
   height: 100vh;
-  background: var(--fm-modal-backdrop, rgba(0,0,0,0.55));
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  /* Mobile: no blur on overlay backdrop */
+  background: var(--fm-modal-backdrop, rgba(0,0,0,0.72));
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
   font-family: 'Merkin', cursive, sans-serif;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .fm-modal-overlay {
+    background: var(--fm-modal-backdrop, rgba(0,0,0,0.55));
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
 }
 
 .fm-modal {

@@ -10,11 +10,17 @@ export class TitleScene extends Phaser.Scene {
   /** @type {Phaser.GameObjects.DOMElement | null} */
   #titleOverlay = null;
 
+  /** @type {HTMLElement | null} */
+  #devCreditEl = null;
+
   /** @type {Phaser.GameObjects.DOMElement | null} */
   #promptElement = null;
 
   /** @type {MenuModal | null} */
   #menuModal = null;
+
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  #logoAppearTimer = null;
 
   constructor() {
     super({ key: SCENE_KEYS.TITLE });
@@ -35,22 +41,26 @@ export class TitleScene extends Phaser.Scene {
     addBackground(this);
     layout.drawDebugSafeZone(this);
 
-    // Logo + dev credit — full-screen CSS flex overlay, no layout calculations needed
+    // Logo — full-screen CSS flex overlay, no layout calculations needed
     this.#titleOverlay = this.add.dom(0, 0).createFromHTML(`
         <div class="fm-title-overlay">
-          <div class="fm-title-logo-wrapper">
+          <div class="fm-title-logo-wrapper" id="fm-logo-wrapper">
             <img class="fm-title-logo-img" src="/images/logo.png" alt="Fusion Mania" />
-          </div>
-          <div class="fm-title-dev-credit">
-            <img class="fm-title-dev-logo" src="/images/newrare.png" alt="Newrare" />
-            <div class="fm-title-dev-info">
-              <span>A Newrare Game</span>
-              <span class="fm-title-version">v1.0</span>
-            </div>
           </div>
         </div>
       `);
     this.#titleOverlay.setOrigin(0, 0);
+
+    // Logo appears after 0.5 seconds with bounce-in, then floats continuously
+    this.#logoAppearTimer = setTimeout(() => {
+      const wrapper = document.getElementById('fm-logo-wrapper');
+      if (!wrapper) return;
+      wrapper.classList.add('fm-logo-visible');
+      // Switch to floating after bounce-in completes (700 ms)
+      setTimeout(() => {
+        if (wrapper.isConnected) wrapper.classList.add('fm-logo-floating');
+      }, 700);
+    }, 500);
 
     const { safe } = layout;
     const promptY = safe.top + safe.height * 0.7;
@@ -75,29 +85,52 @@ export class TitleScene extends Phaser.Scene {
     this.input.keyboard.off('keydown', this.#openMenu, this);
     this.input.off('pointerdown', this.#openMenu, this);
 
+    // Inject dev credit now — removed again when the modal closes or navigates away
+    const gameContainer = document.getElementById('game-container');
+    if (gameContainer && !this.#devCreditEl) {
+      this.#devCreditEl = document.createElement('div');
+      this.#devCreditEl.className = 'fm-title-dev-credit';
+      this.#devCreditEl.innerHTML = `
+        <img class="fm-title-dev-logo" src="/images/newrare.png" alt="Newrare" />
+        <div class="fm-title-dev-info">
+          <span>A Newrare Game</span>
+          <span class="fm-title-version">v1.0</span>
+        </div>
+      `;
+      gameContainer.appendChild(this.#devCreditEl);
+    }
+
     this.#menuModal = new MenuModal(this, {
       showResume: false,
       onClassic: () => {
+        this.#removeDevCredit();
         this.#destroyModal();
         this.scene.start(SCENE_KEYS.GRID, { mode: 'classic' });
       },
       onBattle: () => {
+        this.#removeDevCredit();
         this.#destroyModal();
         this.scene.start(SCENE_KEYS.GRID, { mode: 'battle' });
       },
       onFree: () => {
+        this.#removeDevCredit();
         this.#destroyModal();
         this.scene.start(SCENE_KEYS.GRID, { mode: 'free' });
       },
       onLoadGame: (slotData) => {
+        this.#removeDevCredit();
         this.#destroyModal();
         this.scene.start(SCENE_KEYS.GRID, { mode: slotData.mode, slotData });
       },
       onClose: () => {
+        this.#removeDevCredit();
         this.#destroyModal();
-        // Re-bind input
-        this.input.keyboard.on('keydown', this.#openMenu, this);
-        this.input.on('pointerdown', this.#openMenu, this);
+        // Re-bind input on next frame to avoid the current touch event
+        // immediately re-triggering #openMenu on mobile (ghost tap).
+        this.time.delayedCall(0, () => {
+          this.input.keyboard.on('keydown', this.#openMenu, this);
+          this.input.on('pointerdown', this.#openMenu, this);
+        });
       },
     });
   };
@@ -109,7 +142,17 @@ export class TitleScene extends Phaser.Scene {
     }
   }
 
+  #removeDevCredit() {
+    this.#devCreditEl?.remove();
+    this.#devCreditEl = null;
+  }
+
   shutdown() {
     this.#destroyModal();
+    this.#removeDevCredit();
+    if (this.#logoAppearTimer !== null) {
+      clearTimeout(this.#logoAppearTimer);
+      this.#logoAppearTimer = null;
+    }
   }
 }
