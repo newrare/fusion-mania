@@ -75,7 +75,7 @@ export class GameOverModal {
           </div>
           <div class="fm-modal-buttons">
             <button class="fm-btn fm-btn--primary" data-action="new-game">${i18n.t('gameover.new_game')}</button>
-            <button class="fm-btn" data-action="menu">${i18n.t('gameover.menu')}</button>
+            <button class="fm-btn" data-action="quit">${i18n.t('gameover.quit')}</button>
           </div>
         </div>
       </div>
@@ -93,7 +93,7 @@ export class GameOverModal {
 
       const action = btn.dataset.action;
       if (action === 'new-game') options.onNewGame?.();
-      else if (action === 'menu') options.onMenu?.();
+      else if (action === 'quit') options.onMenu?.();
     });
 
     this.#keyNav = enableKeyboardNav(overlay, scene.input.keyboard);
@@ -242,8 +242,8 @@ export class GameOverModal {
     if (label) label.textContent = i18n.t('gameover.score');
     const newGameBtn = overlay.querySelector('[data-action="new-game"]');
     if (newGameBtn) newGameBtn.textContent = i18n.t('gameover.new_game');
-    const menuBtn = overlay.querySelector('[data-action="menu"]');
-    if (menuBtn) menuBtn.textContent = i18n.t('gameover.menu');
+    const menuBtn = overlay.querySelector('[data-action="quit"]');
+    if (menuBtn) menuBtn.textContent = i18n.t('gameover.quit');
     const statsEl = overlay.querySelector('#fm-gameover-stats');
     if (statsEl) statsEl.innerHTML = this.#renderStats();
     const rankingEl = overlay.querySelector('#fm-gameover-ranking');

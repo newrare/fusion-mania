@@ -53,6 +53,7 @@ export const fr = {
   'gameover.score': 'Score final',
   'gameover.new_game': 'Nouvelle partie',
   'gameover.menu': 'Menu',
+  'gameover.quit': 'Quitter',
   'confirm.yes': 'Oui',
   'confirm.no': 'Non',
   'free.select_powers': 'Choisir les pouvoirs',

@@ -1197,6 +1197,7 @@ export class GameScene extends Phaser.Scene {
     this.#enemyAreaEl.innerHTML = `
       <div class="fm-enemy-tile${bossClass}">
         <div class="fm-tile fm-enemy-tile-inner ${tileClass}">
+          <div class="fm-enemy-bg"></div>
           <div class="fm-enemy-hp-liquid"></div>
           <div class="fm-enemy-face" data-face-category="${cat}">
             <img src="${getRandomFaceUrl(cat)}" alt="">

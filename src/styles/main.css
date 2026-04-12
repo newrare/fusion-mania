@@ -1816,6 +1816,15 @@ html, body {
   overflow: hidden !important;
 }
 
+/* White semi-transparent background layer — grid-tile look, no blur */
+.fm-enemy-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.18);
+  z-index: 0;
+  pointer-events: none;
+}
+
 /* Face image (centered inside the tile, above the HP liquid) */
 .fm-enemy-face {
   position: absolute;

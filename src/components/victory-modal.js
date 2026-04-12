@@ -74,7 +74,7 @@ export class VictoryModal {
           <div class="fm-modal-buttons">
             ${continueBtn}
             <button class="fm-btn fm-btn--primary" data-action="new-game">${i18n.t('gameover.new_game')}</button>
-            <button class="fm-btn" data-action="menu">${i18n.t('gameover.menu')}</button>
+            <button class="fm-btn" data-action="quit">${i18n.t('gameover.quit')}</button>
           </div>
         </div>
       </div>
@@ -93,7 +93,7 @@ export class VictoryModal {
       const action = btn.dataset.action;
       if (action === 'continue') options.onContinue?.();
       else if (action === 'new-game') options.onNewGame?.();
-      else if (action === 'menu') options.onMenu?.();
+      else if (action === 'quit') options.onMenu?.();
     });
 
     this.#keyNav = enableKeyboardNav(overlay, scene.input.keyboard);
@@ -254,8 +254,8 @@ export class VictoryModal {
     if (continueBtn) continueBtn.textContent = i18n.t('victory.continue');
     const newGameBtn = overlay.querySelector('[data-action="new-game"]');
     if (newGameBtn) newGameBtn.textContent = i18n.t('gameover.new_game');
-    const menuBtn = overlay.querySelector('[data-action="menu"]');
-    if (menuBtn) menuBtn.textContent = i18n.t('gameover.menu');
+    const menuBtn = overlay.querySelector('[data-action="quit"]');
+    if (menuBtn) menuBtn.textContent = i18n.t('gameover.quit');
   }
 
   destroy() {

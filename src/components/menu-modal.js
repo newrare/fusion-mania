@@ -120,7 +120,6 @@ export class MenuModal {
       if (opts.onSave) {
         html += `<button class="fm-btn" data-action="save">${i18n.t('menu.save')}</button>`;
       }
-      html += `<button class="fm-btn" data-action="ranking">${i18n.t('menu.ranking')}</button>`;
       html += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;
       if (opts.onQuit) {
         html += `<button class="fm-btn" data-action="quit">${i18n.t('menu.quit')}</button>`;
@@ -133,7 +132,6 @@ export class MenuModal {
       html += `<button class="fm-btn" data-action="loadgame">${i18n.t('menu.load')}</button>`;
       html += `<button class="fm-btn" data-action="ranking">${i18n.t('menu.ranking')}</button>`;
       html += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;
-      html += `<button class="fm-btn" data-action="close">${i18n.t('menu.close')}</button>`;
       if (opts.onQuit) {
         html += `<button class="fm-btn" data-action="quit">${i18n.t('menu.quit')}</button>`;
       }
