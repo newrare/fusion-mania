@@ -2382,7 +2382,9 @@ html, body {
 .fm-help-bar {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
+  width: calc(3 * var(--fm-hud-box-height, 46px) + 2 * 6px);
 }
 
 .fm-mode-badge {
@@ -2405,6 +2407,15 @@ html, body {
 .fm-mode-badge:active {
   transform: translateY(2px);
   box-shadow: 0 1px 0 var(--fm-hud-shadow, rgba(10,4,30,0.8)), 0 2px 6px var(--fm-hud-glow, rgba(140,80,200,0.15));
+}
+
+/* --- Prediction alert button ("!") --- */
+.fm-pred-btn {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #f59e0b;
+  border-color: rgba(245,158,11,0.45);
+  box-shadow: 0 3px 0 var(--fm-hud-shadow, rgba(10,4,30,0.8)), 0 4px 12px rgba(245,158,11,0.2);
 }
 
 /* --- Enemy face inside help illustration --- */

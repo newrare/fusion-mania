@@ -120,6 +120,9 @@ export class GameScene extends Phaser.Scene {
   /** @type {Phaser.GameObjects.DOMElement | null} Full-list overlay DOM element */
   #powerInfoAllDom = null;
 
+  /** @type {boolean} True when the prediction panel is truncated and the "!" button should be shown */
+  #predPanelTruncated = false;
+
   /** @type {string[] | null} Pending selected power types (from modal) */
   #pendingPowerTypes = null;
 
@@ -229,6 +232,7 @@ export class GameScene extends Phaser.Scene {
     this.#powerInfoEl = null;
     this.#powerInfoDom = null;
     this.#powerInfoAllDom = null;
+    this.#predPanelTruncated = false;
     this.#pendingPowerTypes = data?.selectedPowers ?? null;
     this.#pendingDestructionTiles = new Map();
     this.#gridLife = null;
@@ -294,7 +298,11 @@ export class GameScene extends Phaser.Scene {
       this.matter.world.pause();
     }
 
-    this.#hudManager.createHelpBtn({ onHelpOpen: () => this.#openHelp(), onHistoryOpen: () => this.#openHistory() });
+    this.#hudManager.createHelpBtn({
+      onHelpOpen: () => this.#openHelp(),
+      onHistoryOpen: () => this.#openHistory(),
+      onPredOpen: () => this.#openPredModal(),
+    });
     this.#inputManager = new InputManager(this, {
       onDirection: (dir) => this.#executeMove(dir),
       onMenu: () => this.#openMenu(),
@@ -2237,6 +2245,7 @@ export class GameScene extends Phaser.Scene {
       this.#pendingDestructionTiles.size === 0
     ) {
       this.#powerInfoEl.style.display = 'none';
+      this.#hudManager?.setPredBtnVisible(false);
       return;
     }
 
@@ -2414,28 +2423,170 @@ export class GameScene extends Phaser.Scene {
 
     if (lines.length === 0) {
       this.#powerInfoEl.style.display = 'none';
+      this.#hudManager?.setPredBtnVisible(false);
       return;
     }
 
+    const isTruncated = lines.length > MAX_VISIBLE || linesAll.join('') !== lines.join('');
+    this.#predPanelTruncated = isTruncated;
+
     const visible = lines.slice(0, MAX_VISIBLE);
-    if (lines.length > MAX_VISIBLE) {
+    if (isTruncated) {
       visible.push(`<span class="fm-power-info-more-text">...</span>`);
     }
 
     this.#powerInfoEl.style.display = 'flex';
+    this.#powerInfoEl.classList.remove('fm-power-info--clickable');
+    this.#powerInfoEl.onpointerdown = null;
     this.#powerInfoEl.innerHTML = visible.join('');
-    this.#powerInfoEl.classList.add('fm-power-info--clickable');
 
-    this.#powerInfoEl.onpointerdown = (e) => {
-      if (!e.target.closest('.fm-power-info-line')) return;
-      e.stopPropagation();
-      const overlayEl = this.#powerInfoAllDom?.node.querySelector('#fm-power-info-all-overlay');
-      const titleEl = this.#powerInfoAllDom?.node.querySelector('#fm-power-info-all-title');
-      const linesEl = this.#powerInfoAllDom?.node.querySelector('#fm-power-info-all-lines');
-      if (titleEl) titleEl.textContent = i18n.t('power.predictions');
-      if (linesEl) linesEl.innerHTML = linesAll.join('');
-      if (overlayEl) overlayEl.style.display = 'flex';
+    this.#hudManager?.setPredBtnVisible(isTruncated);
+  }
+
+  /** Open the full prediction modal (called by the "!" HUD button). */
+  #openPredModal() {
+    const pm = this.#powerManager || this.#battlePowerManager;
+    if (!this.#powerInfoAllDom || !pm) return;
+
+    const directions = /** @type {const} */ (['up', 'down', 'left', 'right']);
+    const dirArrows = {
+      up: `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 1 L11 7 H8 V13 H4 V7 H1 Z" fill="currentColor"/></svg>`,
+      down: `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 13 L11 7 H8 V1 H4 V7 H1 Z" fill="currentColor"/></svg>`,
+      left: `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 6 L7 1 V4 H13 V8 H7 V11 Z" fill="currentColor"/></svg>`,
+      right: `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M13 6 L7 1 V4 H1 V8 H7 V11 Z" fill="currentColor"/></svg>`,
     };
+
+    const buildPills = (values) => {
+      if (!values || values.length === 0) return '';
+      const sorted = [...values].sort((a, b) => b - a);
+      return `<div class="fm-power-info-tiles">${sorted.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('')}</div>`;
+    };
+
+    /** @type {string[]} */
+    const linesAll = [];
+    for (const dir of directions) {
+      const predictions = pm.predictForDirection(dir, this.#gm.grid);
+      if (predictions.length === 0) continue;
+      for (const pred of predictions) {
+        const cat = pred.exits ? 'danger' : getPowerCategory(pred.powerType);
+        if (
+          !pred.exits &&
+          cat === 'danger' &&
+          pred.powerType !== POWER_TYPES.LIGHTNING &&
+          (!pred.destroyedValues || pred.destroyedValues.length === 0)
+        )
+          continue;
+        const meta = POWER_META[pred.powerType];
+        let msgKey;
+        let tilesHtml = '';
+        let noColon = false;
+        if (pred.exits) {
+          msgKey = pred.powerType === POWER_TYPES.EXPEL_V ? 'pred.expel_v_off' : 'pred.expel_h_off';
+          tilesHtml = buildPills([pred.tileValue]);
+        } else {
+          switch (pred.powerType) {
+            case POWER_TYPES.FIRE_H:
+            case POWER_TYPES.FIRE_V:
+            case POWER_TYPES.FIRE_X:
+            case POWER_TYPES.BOMB:
+              msgKey = 'pred.destroy';
+              tilesHtml = buildPills(pred.destroyedValues);
+              break;
+            case POWER_TYPES.ICE:
+              msgKey = 'pred.block';
+              tilesHtml = buildPills([pred.tileValue]);
+              break;
+            case POWER_TYPES.TELEPORT:
+              msgKey = 'pred.teleport';
+              tilesHtml = `<div class="fm-power-info-tiles">
+                <span class="fm-power-info-tile fm-t${pred.tileValue}">${pred.tileValue}</span>
+                <span class="fm-range-sep">↔</span>
+                <span class="fm-power-info-tile fm-t-unk">?</span>
+              </div>`;
+              break;
+            case POWER_TYPES.EXPEL_V:
+              msgKey = 'pred.expel_v_on';
+              tilesHtml = buildPills([pred.tileValue]);
+              break;
+            case POWER_TYPES.EXPEL_H:
+              msgKey = 'pred.expel_h_on';
+              tilesHtml = buildPills([pred.tileValue]);
+              break;
+            case POWER_TYPES.WIND_UP:
+            case POWER_TYPES.WIND_DOWN:
+            case POWER_TYPES.WIND_LEFT:
+            case POWER_TYPES.WIND_RIGHT:
+              msgKey = 'pred.block';
+              tilesHtml = buildPills(pred.allGridValues);
+              break;
+            case POWER_TYPES.LIGHTNING: {
+              msgKey = 'pred.lightning';
+              const rawMin = [...(pred.lightningRange?.min ?? [])].sort((a, b) => b - a);
+              const rawMax = [...(pred.lightningRange?.max ?? [])].sort((a, b) => b - a);
+              const minPills =
+                rawMin.length > 0
+                  ? rawMin.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('')
+                  : `<span class="fm-range-empty">∅</span>`;
+              const maxPills = rawMax.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('');
+              tilesHtml = `<div class="fm-power-info-range">
+                <span class="fm-range-label">(Min</span>
+                <div class="fm-power-info-tiles">${minPills}</div>
+                <span class="fm-range-label">)</span>
+                <span class="fm-range-label">(Max</span>
+                <div class="fm-power-info-tiles">${maxPills}</div>
+                <span class="fm-range-label">)</span>
+              </div>`;
+              break;
+            }
+            case POWER_TYPES.NUCLEAR:
+              msgKey = 'pred.nuclear';
+              tilesHtml = buildPills(pred.destroyedValues);
+              break;
+            case POWER_TYPES.BLIND:
+              msgKey = 'pred.blind';
+              tilesHtml = buildPills(pred.allGridValues);
+              break;
+            case POWER_TYPES.ADS: {
+              const adjs = i18n.t('pred.ads_adjectives');
+              const adj = Array.isArray(adjs) && adjs.length > 0 ? adjs[Math.floor(Math.random() * adjs.length)] : '';
+              msgKey = 'pred.ads';
+              tilesHtml = `<span class="fm-pred-ads-adj">${adj}</span>`;
+              noColon = true;
+              break;
+            }
+            default:
+              msgKey = meta.nameKey;
+          }
+        }
+        const powerIconHtml = `<svg class="fm-pred-power-ico fm-pred-power-ico--${cat}" aria-hidden="true"><use href="#${meta.svgId}"/></svg>`;
+        const colonHtml = tilesHtml && !noColon ? `<span class="fm-pred-sep">:</span>` : '';
+        linesAll.push(`
+          <div class="fm-power-info-line">
+            <span class="fm-power-info-dir">${dirArrows[dir]}</span>
+            ${powerIconHtml}
+            <span class="fm-power-info-name">${i18n.t(msgKey)}</span>
+            ${colonHtml}
+            ${tilesHtml}
+          </div>`);
+      }
+    }
+
+    if (this.#pendingDestructionTiles.size > 0) {
+      const sortedVals = [...this.#pendingDestructionTiles.values()].sort((a, b) => b - a);
+      const pills = sortedVals.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('');
+      linesAll.push(`
+        <div class="fm-power-info-line fm-power-info-destroying">
+          <span class="fm-info-destroy-icon">🗑</span>
+          <div class="fm-power-info-tiles">${pills}</div>
+        </div>`);
+    }
+
+    const overlayEl = this.#powerInfoAllDom.node.querySelector('#fm-power-info-all-overlay');
+    const titleEl = this.#powerInfoAllDom.node.querySelector('#fm-power-info-all-title');
+    const linesEl = this.#powerInfoAllDom.node.querySelector('#fm-power-info-all-lines');
+    if (titleEl) titleEl.textContent = i18n.t('power.predictions');
+    if (linesEl) linesEl.innerHTML = linesAll.join('');
+    if (overlayEl) overlayEl.style.display = 'flex';
   }
 
   // ─── GRID LIFE ────────────────────────────────────

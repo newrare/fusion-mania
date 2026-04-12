@@ -27,6 +27,9 @@ export class HudManager {
   /** @type {Phaser.GameObjects.DOMElement | null} */
   #historyBtnDom = null;
 
+  /** @type {HTMLElement | null} "!" button shown when prediction panel is truncated */
+  #predBtnEl = null;
+
   /** @type {HTMLElement | null} */
   #comboEl = null;
 
@@ -129,19 +132,21 @@ export class HudManager {
   }
 
   /**
-   * Create the floating bottom-right bar: (modeIcon → history) (? → help).
-   * @param {{ onHelpOpen: () => void, onHistoryOpen: () => void }} callbacks
+   * Create the floating bottom-right bar: (modeIcon → history) (! → pred) (? → help).
+   * The "!" button is hidden by default; call setPredBtnVisible() to toggle it.
+   * @param {{ onHelpOpen: () => void, onHistoryOpen: () => void, onPredOpen?: () => void }} callbacks
    */
-  createHelpBtn({ onHelpOpen, onHistoryOpen }) {
+  createHelpBtn({ onHelpOpen, onHistoryOpen, onPredOpen }) {
     const modeIcon = HudManager.#MODE_ICONS[this.#mode] ?? '';
     const html = `
       <div class="fm-help-bar">
+        <button class="fm-mode-badge fm-clickable fm-pred-btn" id="fm-pred-btn" aria-label="Predictions" style="display:none">!</button>
         <button class="fm-mode-badge fm-clickable" id="fm-history-mode-btn" aria-label="History">${modeIcon}</button>
         <button class="fm-mode-badge fm-clickable" id="fm-mode-badge" aria-label="Help">?</button>
       </div>
     `;
     const x = layout.safe.right;
-    const y = layout.safe.bottom;
+    const y = layout.safe.bottom - 15;
     this.#helpBtnDom = this.#scene.add.dom(x, y).createFromHTML(html);
     this.#helpBtnDom.setOrigin(1, 1);
 
@@ -150,10 +155,26 @@ export class HudManager {
       onHistoryOpen?.();
     });
 
+    this.#predBtnEl = this.#helpBtnDom.node.querySelector('#fm-pred-btn');
+    this.#predBtnEl?.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      onPredOpen?.();
+    });
+
     this.#helpBtnDom.node.querySelector('#fm-mode-badge')?.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       onHelpOpen();
     });
+  }
+
+  /**
+   * Show or hide the "!" prediction button.
+   * @param {boolean} visible
+   */
+  setPredBtnVisible(visible) {
+    if (this.#predBtnEl) {
+      this.#predBtnEl.style.display = visible ? '' : 'none';
+    }
   }
 
   /**
@@ -402,5 +423,6 @@ export class HudManager {
     this.#hudEl = null;
     this.#comboEl = null;
     this.#scoreBonusEl = null;
+    this.#predBtnEl = null;
   }
 }

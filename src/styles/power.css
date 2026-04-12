@@ -712,10 +712,7 @@
 }
 
 .fm-power-info-line {
-  cursor: pointer;
-}
-.fm-power-info-line:active {
-  opacity: 0.65;
+  cursor: default;
 }
 
 /* SVG arrow icon for move direction */
