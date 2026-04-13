@@ -38,14 +38,12 @@ const WIND_CSS_DIR = { up: 'down', down: 'up', left: 'right', right: 'left' };
 /**
  * Deterministic positions for wind-line elements (percentage along the cross-axis).
  * Horizontal wind (right/left): position = top%. Vertical wind (up/down): position = left%.
+ * 3 lines strike a balance between visual clarity and animated-element count.
  */
 const WIND_LINE_LAYOUT = [
-  { pos: 12, dur: 0.9, dl: 0.0 },
-  { pos: 27, dur: 1.2, dl: -0.55 },
-  { pos: 44, dur: 0.8, dl: -1.1 },
-  { pos: 58, dur: 1.1, dl: -0.35 },
-  { pos: 70, dur: 0.95, dl: -1.7 },
-  { pos: 83, dur: 1.3, dl: -0.85 },
+  { pos: 18, dur: 0.9, dl: 0.0 },
+  { pos: 48, dur: 1.15, dl: -0.55 },
+  { pos: 78, dur: 0.8, dl: -1.1 },
 ];
 
 /**
@@ -55,10 +53,7 @@ const WIND_LINE_LAYOUT = [
  */
 const SPARKLE_LAYOUT = [
   { left: 12, top: 10, size: 9, dur: 2.1, dl: 0 },
-  { left: 72, top: 14, size: 11, dur: 3.4, dl: -1.1 },
-  { left: 28, top: 68, size: 8, dur: 2.7, dl: -0.5 },
   { left: 60, top: 55, size: 13, dur: 3.9, dl: -2.0 },
-  { left: 80, top: 38, size: 10, dur: 2.4, dl: -1.6 },
   { left: 18, top: 40, size: 12, dur: 4.2, dl: -3.0 },
 ];
 

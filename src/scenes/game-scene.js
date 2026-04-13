@@ -28,7 +28,68 @@ import { HistoryManager } from '../managers/history-manager.js';
 import { getRandomFaceUrl } from '../configs/constants.js';
 import { audioManager } from '../managers/audio-manager.js';
 import { addBackground } from '../utils/background.js';
-import { LiquidWave } from '../utils/liquid-wave.js';
+/* ── CSS liquid-fill helper (replaces former canvas LiquidWave) ── */
+
+/** True when the primary pointer is coarse (touch device) */
+const IS_MOBILE = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+const BUBBLE_COUNT = IS_MOBILE ? 6 : 10;
+
+const LIQUID_PRESETS = {
+  info: { c1: 'rgba(80,160,255,0.55)', c2: 'rgba(30,80,180,0.4)' },
+  warning: { c1: 'rgba(255,180,60,0.55)', c2: 'rgba(200,120,0,0.4)' },
+  danger: { c1: 'rgba(255,60,60,0.55)', c2: 'rgba(200,20,20,0.4)' },
+};
+
+/**
+ * Create a `.fm-liquid-fill` div with bubble-ring spans inside a container.
+ * Everything is animated by CSS — no RAF, no canvas.
+ * @param {HTMLElement} container
+ * @param {string} category
+ * @returns {HTMLElement} the fill element
+ */
+function createLiquidFill(container, category = 'info') {
+  const el = document.createElement('div');
+  el.className = 'fm-liquid-fill';
+
+  // Bubble wrapper — overflow:hidden clips bubbles at the waterline
+  const bw = document.createElement('div');
+  bw.className = 'fm-liquid-bubble-zone';
+  for (let i = 0; i < BUBBLE_COUNT; i++) {
+    const b = document.createElement('span');
+    b.className = 'fm-liquid-bubble';
+    const size = 3 + Math.random() * 6;
+    const left = 8 + Math.random() * 84;
+    const delay = Math.random() * 8;
+    const dur = 3 + Math.random() * 5;
+    b.style.cssText = `width:${size}px;height:${size}px;left:${left}%;animation-delay:${delay.toFixed(1)}s;animation-duration:${dur.toFixed(1)}s;`;
+    bw.appendChild(b);
+  }
+  el.appendChild(bw);
+
+  setLiquidCategory(el, category);
+  container.appendChild(el);
+  return el;
+}
+
+/** Update liquid colour preset via CSS custom properties. */
+function setLiquidCategory(fillEl, cat) {
+  const p = LIQUID_PRESETS[cat] ?? LIQUID_PRESETS.info;
+  fillEl.style.setProperty('--fm-liq-c1', p.c1);
+  fillEl.style.setProperty('--fm-liq-c2', p.c2);
+}
+
+/** Set liquid level (0–1) with CSS transition. */
+function setLiquidLevel(fillEl, level) {
+  fillEl.style.height = `${(Math.max(0, Math.min(1, level)) * 100).toFixed(1)}%`;
+}
+
+/** Snap liquid level instantly (no transition). */
+function snapLiquidLevel(fillEl, level) {
+  fillEl.style.transition = 'none';
+  setLiquidLevel(fillEl, level);
+  void fillEl.offsetHeight;
+  fillEl.style.transition = '';
+}
 
 /**
  * Main gameplay scene — 2048 grid rendered with CSS DOM elements.
@@ -141,8 +202,8 @@ export class GameScene extends Phaser.Scene {
   /** @type {HTMLElement | null} Liquid fill inside the grid */
   #liquidEl = null;
 
-  /** @type {LiquidWave | null} Canvas wave renderer for grid HP */
-  #gridWave = null;
+  /** @type {HTMLElement | null} CSS liquid fill element for grid HP */
+  #gridFillEl = null;
 
   /** @type {HTMLElement | null} Critical red vignette overlay */
   #criticalOverlay = null;
@@ -173,8 +234,8 @@ export class GameScene extends Phaser.Scene {
   /** @type {HTMLElement | null} Enemy area container (appended to document.body) */
   #enemyAreaEl = null;
 
-  /** @type {LiquidWave | null} Canvas wave renderer for enemy HP */
-  #enemyWave = null;
+  /** @type {HTMLElement | null} CSS liquid fill element for enemy HP */
+  #enemyFillEl = null;
 
   /** @type {PowerManager | null} Power system shared for battle contamination effects */
   #battlePowerManager = null;
@@ -237,7 +298,7 @@ export class GameScene extends Phaser.Scene {
     this.#pendingDestructionTiles = new Map();
     this.#gridLife = null;
     this.#liquidEl = null;
-    this.#gridWave = null;
+    this.#gridFillEl = null;
     this.#criticalOverlay = null;
     this.#emptyGridTimer = null;
     this.#adsOverlay = null;
@@ -252,7 +313,7 @@ export class GameScene extends Phaser.Scene {
     // Battle mode
     this.#battleManager = null;
     this.#enemyAreaEl = null;
-    this.#enemyWave = null;
+    this.#enemyFillEl = null;
     this.#battlePowerManager = null;
     this.#deadEnemyBodies = [];
     this.#physicsFloor = null;
@@ -1189,9 +1250,9 @@ export class GameScene extends Phaser.Scene {
   #renderEnemy(enemy) {
     if (!this.#enemyAreaEl) return;
 
-    // Destroy previous enemy wave before clearing innerHTML
-    this.#enemyWave?.destroy();
-    this.#enemyWave = null;
+    // Destroy previous enemy fill before clearing innerHTML
+    this.#enemyFillEl?.remove();
+    this.#enemyFillEl = null;
 
     const tileClass = `fm-t${enemy.level}`;
     const bossClass = enemy.isBoss ? ' fm-enemy-boss' : '';
@@ -1208,8 +1269,8 @@ export class GameScene extends Phaser.Scene {
         </div>
       </div>
     `;
-    /* LiquidWave is created in #onEnemySpawn after display:flex + reflow
-       so getBoundingClientRect() returns correct tile dimensions. */
+    /* Liquid fill is created in #onEnemySpawn after display:flex + reflow
+       so layout dimensions are available. */
 
     const tileWrapper = this.#enemyAreaEl.querySelector('.fm-enemy-tile');
     if (tileWrapper) {
@@ -1222,26 +1283,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Attach the canvas wave to the enemy tile after the area is visible.
+   * Attach the CSS liquid fill to the enemy tile after the area is visible.
    * Must be called after enemyAreaEl.style.display = 'flex' + forced reflow.
    * @param {string} category
    * @param {number} level 0-1
    */
   #attachEnemyWave(category, level) {
-    const tileEl = this.#enemyAreaEl?.querySelector('.fm-enemy-tile');
     const liquidEl = this.#enemyAreaEl?.querySelector('.fm-enemy-hp-liquid');
     if (!liquidEl) return;
-    /* Read size from the tile wrapper (offsetWidth/offsetHeight are reliable on
-       visible elements). Fall back to #tileSizePx if layout hasn't settled yet. */
-    const size = tileEl?.offsetWidth || this.#tileSizePx;
-    this.#enemyWave = new LiquidWave(liquidEl, {
-      category,
-      alpha: 0.65,
-      width: size,
-      height: size,
-    });
-    this.#enemyWave.snapLevel(0);
-    this.#enemyWave.level = level;
+    this.#enemyFillEl = createLiquidFill(liquidEl, category);
+    snapLiquidLevel(this.#enemyFillEl, 0);
+    setLiquidLevel(this.#enemyFillEl, level);
   }
 
   /** Update the enemy HP bar visual. */
@@ -1249,9 +1301,9 @@ export class GameScene extends Phaser.Scene {
     if (!this.#enemyAreaEl || !this.#battleManager?.enemy) return;
     const enemy = this.#battleManager.enemy;
     const cat = enemy.life.getColorCategory();
-    if (this.#enemyWave) {
-      this.#enemyWave.level = enemy.life.percent;
-      this.#enemyWave.setCategory(cat);
+    if (this.#enemyFillEl) {
+      setLiquidLevel(this.#enemyFillEl, enemy.life.percent);
+      setLiquidCategory(this.#enemyFillEl, cat);
     }
     // Update face image when HP category changes
     const faceEl = this.#enemyAreaEl.querySelector('.fm-enemy-face');
@@ -1300,14 +1352,14 @@ export class GameScene extends Phaser.Scene {
     this.#gridLife = null;
     this.#criticalOverlay?.remove();
     this.#criticalOverlay = null;
-    const dyingWave = this.#gridWave;
-    this.#gridWave = null;
+    const dyingWave = this.#gridFillEl;
+    this.#gridFillEl = null;
     const dyingLiquid = this.#liquidEl;
     this.#liquidEl = null;
     if (dyingLiquid) {
       dyingLiquid.classList.add('fm-grid-life-liquid--out');
       const removeDying = () => {
-        dyingWave?.destroy();
+        dyingWave?.remove();
         if (dyingLiquid.isConnected) dyingLiquid.remove();
       };
       dyingLiquid.addEventListener('transitionend', removeDying, { once: true });
@@ -1324,8 +1376,8 @@ export class GameScene extends Phaser.Scene {
     this.#enemyInfoModal = null;
 
     // Clear enemy display
-    this.#enemyWave?.destroy();
-    this.#enemyWave = null;
+    this.#enemyFillEl?.remove();
+    this.#enemyFillEl = null;
     if (this.#enemyAreaEl) {
       this.#enemyAreaEl.style.display = 'none';
       this.#enemyAreaEl.innerHTML = '';
@@ -1366,16 +1418,16 @@ export class GameScene extends Phaser.Scene {
     this.#gridLife = null;
     this.#criticalOverlay?.remove();
     this.#criticalOverlay = null;
-    this.#gridWave?.destroy();
-    this.#gridWave = null;
+    this.#gridFillEl?.remove();
+    this.#gridFillEl = null;
     if (this.#liquidEl) {
       this.#liquidEl.remove();
       this.#liquidEl = null;
     }
     this.#enemyInfoModal?.destroy();
     this.#enemyInfoModal = null;
-    this.#enemyWave?.destroy();
-    this.#enemyWave = null;
+    this.#enemyFillEl?.remove();
+    this.#enemyFillEl = null;
     if (this.#enemyAreaEl) {
       this.#enemyAreaEl.style.display = 'none';
       this.#enemyAreaEl.innerHTML = '';
@@ -1419,7 +1471,7 @@ export class GameScene extends Phaser.Scene {
     const ex = enemyRect.left + enemyRect.width / 2;
     const ey = enemyRect.top + enemyRect.height / 2;
 
-    const COUNT = 12; // particles per merged tile
+    const COUNT = 4; // particles per merged tile
     const DURATION = 560; // ms — all particles guaranteed to arrive
 
     /** Quadratic Bézier position at parameter t ∈ [0,1]. */
@@ -1545,7 +1597,7 @@ export class GameScene extends Phaser.Scene {
     const ex = tileRect.left + tileRect.width / 2;
     const ey = tileRect.top + tileRect.height / 2;
 
-    const COUNT = 10;
+    const COUNT = 4;
     const DURATION = 550;
 
     /** Quadratic Bézier position at parameter t ∈ [0,1]. */
@@ -2646,8 +2698,8 @@ export class GameScene extends Phaser.Scene {
   /** Create (or reset) the liquid fill element inside the grid container. */
   #createLiquidOverlay() {
     // Tear down previous
-    this.#gridWave?.destroy();
-    this.#gridWave = null;
+    this.#gridFillEl?.remove();
+    this.#gridFillEl = null;
     if (this.#liquidEl) this.#liquidEl.remove();
 
     const gridEl = this.#gm.gridEl;
@@ -2662,9 +2714,9 @@ export class GameScene extends Phaser.Scene {
     this.#liquidEl.className = 'fm-grid-life-liquid';
     gridEl.prepend(this.#liquidEl);
 
-    this.#gridWave = new LiquidWave(this.#liquidEl, { category: 'info', alpha: 0.5 });
+    this.#gridFillEl = createLiquidFill(this.#liquidEl, 'info');
     /* Start at 0 so the fill animates from empty to full */
-    this.#gridWave.snapLevel(0);
+    snapLiquidLevel(this.#gridFillEl, 0);
   }
 
   /**
@@ -2697,14 +2749,14 @@ export class GameScene extends Phaser.Scene {
 
   /** Update liquid height + colour based on current HP percentage. */
   #updateLifeVisual() {
-    if (!this.#gridLife || !this.#gridWave) return;
+    if (!this.#gridLife || !this.#gridFillEl) return;
 
     const pct = this.#gridLife.percent;
-    this.#gridWave.level = pct;
+    setLiquidLevel(this.#gridFillEl, pct);
 
     // Colour by category
     const cat = this.#gridLife.getColorCategory();
-    this.#gridWave.setCategory(cat);
+    setLiquidCategory(this.#gridFillEl, cat);
 
     // Critical overlay
     if (this.#gridLife.isCritical && !this.#criticalOverlay) {
@@ -2778,10 +2830,10 @@ export class GameScene extends Phaser.Scene {
     this.#powerInfoAllDom?.destroy();
     this.#criticalOverlay?.remove();
     this.#criticalOverlay = null;
-    this.#gridWave?.destroy();
-    this.#gridWave = null;
-    this.#enemyWave?.destroy();
-    this.#enemyWave = null;
+    this.#gridFillEl?.remove();
+    this.#gridFillEl = null;
+    this.#enemyFillEl?.remove();
+    this.#enemyFillEl = null;
     this.#adsOverlay?.remove();
     this.#adsOverlay = null;
     document.querySelectorAll('.fm-new-best-notif').forEach((el) => el.remove());

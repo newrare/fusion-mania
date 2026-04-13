@@ -109,10 +109,6 @@
 @keyframes fm-dot-spin { to { transform: rotate(360deg); } }
 
 /* --- Power select modal --- */
-.fm-power-select-modal {
-  /* Uses base .fm-modal sizing */
-}
-
 .fm-power-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -510,6 +506,7 @@
   z-index: 6;
   border-radius: 6px;
   opacity: 0;
+  will-change: opacity, width, height;
 }
 
 /* --- Wind right (blocks left movement) --- */
@@ -656,7 +653,8 @@
   pointer-events: none;
   opacity: 0;
   z-index: 1; /* behind val and face */
-  filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 6px currentColor);
+  filter: drop-shadow(0 0 4px currentColor);
+  will-change: transform, opacity;
   animation: fm-sparkle-float var(--fm-sp-dur, 2.5s) var(--fm-sp-dl, 0s) ease-in-out infinite;
 }
 
@@ -870,10 +868,6 @@
 
 /* --- Power info full-list modal --- */
 /* Width matches 90% of the safe zone; no scroll needed — all lines visible */
-.fm-power-info-all-modal {
-  /* Uses base .fm-modal sizing */
-}
-
 .fm-power-info-all-lines {
   display: flex;
   flex-direction: column;

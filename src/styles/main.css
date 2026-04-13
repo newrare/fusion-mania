@@ -1382,13 +1382,109 @@ html, body {
   pointer-events: none;
 }
 
-/* Shared canvas style for liquid wave overlays */
-.fm-liquid-canvas {
+/* ── CSS liquid wave fill ─────────────────────────────── */
+/* GPU-composited liquid effect. Two pseudo-elements form the
+   wavy surface; bubble-ring spans float up inside. All animations
+   use transform/opacity only → fully GPU-composited, no repaint. */
+
+.fm-liquid-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 0%;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    var(--fm-liq-c1, rgba(80,160,255,0.55)),
+    var(--fm-liq-c2, rgba(30,80,180,0.4))
+  );
+  transition: height 0.5s ease-out;
+}
+
+/* Primary wave crest — tight amplitude */
+.fm-liquid-fill::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: -50%;
+  width: 200%;
+  height: 20px;
+  border-radius: 44%;
+  background: var(--fm-liq-c1, rgba(80,160,255,0.55));
+  animation: fm-liquid-sway-a 4s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Secondary wave crest — close to the first, different rhythm */
+.fm-liquid-fill::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -50%;
+  width: 200%;
+  height: 14px;
+  border-radius: 40%;
+  background: var(--fm-liq-c2, rgba(30,80,180,0.4));
+  opacity: 0.55;
+  animation: fm-liquid-sway-b 5.5s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Two independent keyframes — subtle scaleY keeps the crests tight */
+@keyframes fm-liquid-sway-a {
+  0%   { transform: translateX(-5%) rotate(0deg)    scaleY(1);   }
+  25%  { transform: translateX(2%)  rotate(1deg)    scaleY(0.9); }
+  50%  { transform: translateX(5%)  rotate(0deg)    scaleY(1.1); }
+  75%  { transform: translateX(-2%) rotate(-1deg)   scaleY(0.9); }
+  100% { transform: translateX(-5%) rotate(0deg)    scaleY(1);   }
+}
+
+@keyframes fm-liquid-sway-b {
+  0%   { transform: translateX(4%)  rotate(0deg)   scaleY(1);   }
+  25%  { transform: translateX(-3%) rotate(-1deg)  scaleY(1.05);}
+  50%  { transform: translateX(-5%) rotate(0deg)   scaleY(0.9); }
+  75%  { transform: translateX(3%)  rotate(1deg)   scaleY(1.05);}
+  100% { transform: translateX(4%)  rotate(0deg)   scaleY(1);   }
+}
+
+/* ── Bubble rings floating inside the liquid ─────────── */
+
+/* Clip zone — matches the fill, clip-path reliably clips GPU-composited bubbles */
+.fm-liquid-bubble-zone {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
+  overflow: hidden;
+  clip-path: inset(0);
   pointer-events: none;
+}
+
+/* animation-* longhands avoid conflict with inline delay/duration */
+.fm-liquid-bubble {
+  position: absolute;
+  bottom: 5%;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  background: radial-gradient(
+    circle at 35% 35%,
+    rgba(255, 255, 255, 0.15),
+    transparent 60%
+  );
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  animation-name: fm-liquid-bubble-rise;
+  animation-duration: 6s;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes fm-liquid-bubble-rise {
+  0%   { transform: translateY(0) scale(0.5); opacity: 0; }
+  8%   { opacity: 0.55; }
+  50%  { transform: translateY(-150px) scale(0.85); opacity: 0.4; }
+  100% { transform: translateY(-300px) scale(1); opacity: 0; }
 }
 
 /* --- Grid hurt flash when taking damage --- */

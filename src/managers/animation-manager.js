@@ -250,7 +250,12 @@ export class AnimationManager {
   bumpInDirection(direction) {
     const cls = `fm-tile--bump-${direction}`;
     for (const el of this.#tileElements.values()) {
-      el.classList.remove('fm-tile--bump-up', 'fm-tile--bump-down', 'fm-tile--bump-left', 'fm-tile--bump-right');
+      el.classList.remove(
+        'fm-tile--bump-up',
+        'fm-tile--bump-down',
+        'fm-tile--bump-left',
+        'fm-tile--bump-right',
+      );
       void el.offsetWidth; /* force reflow so re-triggering the same direction restarts the animation */
       el.classList.add(cls);
       el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
