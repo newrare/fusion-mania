@@ -10,7 +10,7 @@ export const fr = {
   'menu.ranking': 'Classement',
   'menu.options': 'Options',
   'menu.close': 'Fermer',
-  'menu.quit': 'Quitter',
+  'menu.quit': 'Fin de partie',
   'menu.quit_confirm': 'Voulez-vous vraiment quitter ?',
   'menu.exit': 'Quitter',
   'options.title': 'Options',

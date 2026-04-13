@@ -10,7 +10,7 @@ npm run dev        # Start dev server (http://localhost:3000)
 npm test           # Run tests (617+ unit tests)
 npm run build      # Production build → dist/
 npm run format     # Format code with Prettier
-npm run build && npx cap sync && cd android && ./gradlew assembleDebug # Construct APK for Android version (Dev)
+npm run build && npx cap sync && cd android && ./gradlew assembleDebug && cd .. # Construct APK for Android version (Dev)
 ```
 
 ## Documentation

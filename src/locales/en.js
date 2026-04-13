@@ -10,7 +10,7 @@ export const en = {
   'menu.ranking': 'Ranking',
   'menu.options': 'Options',
   'menu.close': 'Close',
-  'menu.quit': 'Quit Game',
+  'menu.quit': 'End Game',
   'menu.quit_confirm': 'Are you sure you want to quit?',
   'menu.exit': 'Exit',
   'options.title': 'Options',

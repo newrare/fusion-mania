@@ -35,7 +35,7 @@ export class MenuModal {
 
   /**
    * @param {Phaser.Scene} scene
-   * @param {{ showResume?: boolean, onResume?: Function, onClassic?: Function, onBattle?: Function, onFree?: Function, onClose?: Function, onQuit?: Function, onAdmin?: Function, onSave?: Function, onLoadGame?: (slotData: object) => void }} options
+   * @param {{ showResume?: boolean, onResume?: Function, onClassic?: Function, onBattle?: Function, onFree?: Function, onClose?: Function, onQuit?: Function, onAdmin?: Function, onSave?: Function, onLoadGame?: (slotData: object) => void, onSubModalOpen?: Function, onSubModalClose?: Function }} options
    */
   constructor(scene, options = {}) {
     this.#scene = scene;
@@ -57,6 +57,15 @@ export class MenuModal {
     this.#domElement.setDepth(100);
 
     const overlay = this.#domElement.node.querySelector('#fm-menu-overlay');
+
+    // Close on outside click — only when no game is in progress (title scene)
+    if (!options.showResume) {
+      overlay?.addEventListener('pointerdown', (e) => {
+        const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
+        if (!modal) options.onClose?.();
+      });
+    }
+
     overlay?.addEventListener('pointerdown', (e) => {
       const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
       if (!btn) return;
@@ -156,47 +165,56 @@ export class MenuModal {
 
   #openOptions() {
     if (this.#optionsModal) return;
+    this.#options.onSubModalOpen?.();
     this.#optionsModal = new OptionsModal(this.#scene, {
       showResume: !!this.#options.showResume,
       onResume: () => {
         this.#optionsModal?.destroy();
         this.#optionsModal = null;
+        this.#options.onSubModalClose?.();
         this.#options.onResume?.();
       },
       onClose: () => {
         this.#optionsModal?.destroy();
         this.#optionsModal = null;
+        this.#options.onSubModalClose?.();
       },
     });
   }
 
   #openRanking() {
     if (this.#rankingModal) return;
+    this.#options.onSubModalOpen?.();
     this.#rankingModal = new RankingModal(this.#scene, {
       showResume: !!this.#options.showResume,
       onResume: () => {
         this.#rankingModal?.destroy();
         this.#rankingModal = null;
+        this.#options.onSubModalClose?.();
         this.#options.onResume?.();
       },
       onClose: () => {
         this.#rankingModal?.destroy();
         this.#rankingModal = null;
+        this.#options.onSubModalClose?.();
       },
     });
   }
 
   #openSaveLoad() {
     if (this.#saveLoadModal) return;
+    this.#options.onSubModalOpen?.();
     this.#saveLoadModal = new SaveLoadModal(this.#scene, {
       onLoad: (slotData) => {
         this.#saveLoadModal?.destroy();
         this.#saveLoadModal = null;
+        this.#options.onSubModalClose?.();
         this.#options.onLoadGame?.(slotData);
       },
       onClose: () => {
         this.#saveLoadModal?.destroy();
         this.#saveLoadModal = null;
+        this.#options.onSubModalClose?.();
       },
     });
   }

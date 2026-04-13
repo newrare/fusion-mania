@@ -102,6 +102,12 @@ export class TitleScene extends Phaser.Scene {
 
     this.#menuModal = new MenuModal(this, {
       showResume: false,
+      onSubModalOpen: () => {
+        if (this.#devCreditEl) this.#devCreditEl.style.display = 'none';
+      },
+      onSubModalClose: () => {
+        if (this.#devCreditEl) this.#devCreditEl.style.display = '';
+      },
       onClassic: () => {
         this.#removeDevCredit();
         this.#destroyModal();
