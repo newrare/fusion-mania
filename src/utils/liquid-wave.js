@@ -7,14 +7,17 @@
  * Inspired by the Liquid Wave preview (docs/preview-wave.html).
  */
 
-const WAVE_LAYERS = 2;
-const BUBBLE_COUNT = 3;
-const FPS_LIMIT = 24;
+/** True when the primary pointer is coarse (touch device) */
+const IS_MOBILE = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+
+const WAVE_LAYERS = IS_MOBILE ? 1 : 2;
+const BUBBLE_COUNT = IS_MOBILE ? 2 : 3;
+const FPS_LIMIT = IS_MOBILE ? 12 : 24;
 const MS_PER_FRAME = 1000 / FPS_LIMIT;
-/** Sample every N CSS pixels — sine waves are smooth, quality is unchanged at 6px steps */
-const DRAW_STEP = 6;
+/** Sample every N CSS pixels — sine waves are smooth, quality is unchanged at larger steps */
+const DRAW_STEP = IS_MOBILE ? 10 : 6;
 /** Cap canvas DPR to avoid huge backing stores on 3× mobile screens */
-const MAX_DPR = 2;
+const MAX_DPR = IS_MOBILE ? 1.5 : 2;
 
 /* ── Shared RAF loop for all active instances ───────────── */
 

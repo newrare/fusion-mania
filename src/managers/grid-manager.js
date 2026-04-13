@@ -137,6 +137,14 @@ export class GridManager {
   // ─── Move + animation sequence ───────────────────
 
   /**
+   * Play a short directional bump on all tiles (blocked-move feedback).
+   * @param {'up' | 'down' | 'left' | 'right'} direction
+   */
+  bumpTiles(direction) {
+    this.#animator.bumpInDirection(direction);
+  }
+
+  /**
    * Snap the DOM to the true grid state (for interrupting an animation).
    */
   snapToGrid() {

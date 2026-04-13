@@ -100,6 +100,9 @@ export class MenuModal {
         case 'close':
           options.onClose?.();
           break;
+        case 'replay':
+          options.onReplay?.();
+          break;
         case 'quit':
           options.onQuit?.();
           break;
@@ -130,6 +133,9 @@ export class MenuModal {
         html += `<button class="fm-btn" data-action="save">${i18n.t('menu.save')}</button>`;
       }
       html += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;
+      if (opts.onReplay) {
+        html += `<button class="fm-btn" data-action="replay">${i18n.t('menu.replay')}</button>`;
+      }
       if (opts.onQuit) {
         html += `<button class="fm-btn" data-action="quit">${i18n.t('menu.quit')}</button>`;
       }

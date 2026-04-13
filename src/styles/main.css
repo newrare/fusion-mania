@@ -94,8 +94,11 @@ html, body {
   border: 2px solid transparent;
   box-shadow: 0 5px 16px rgba(140,80,200,0.13);
   z-index: 2;
-  /* Position via left/top — transform stays free for animations */
+  /* Position via left/top — transform stays free for animations.
+     translateZ(0) promotes tiles to their own compositor layer for GPU rendering. */
   will-change: left, top;
+  transform: translateZ(0);
+  contain: layout style;
   transition: left var(--slide-duration, 120ms) ease-in-out,
               top  var(--slide-duration, 120ms) ease-in-out;
 }
@@ -157,6 +160,17 @@ html, body {
   z-index: 4;
   mix-blend-mode: screen;
 }
+
+/* --- Directional bump: feedback when no tile can move in that direction --- */
+@keyframes fm-bump-right { 0%{transform:translateX(0)} 40%{transform:translateX(6px)} 100%{transform:translateX(0)} }
+@keyframes fm-bump-left  { 0%{transform:translateX(0)} 40%{transform:translateX(-6px)} 100%{transform:translateX(0)} }
+@keyframes fm-bump-down  { 0%{transform:translateY(0)} 40%{transform:translateY(6px)} 100%{transform:translateY(0)} }
+@keyframes fm-bump-up    { 0%{transform:translateY(0)} 40%{transform:translateY(-6px)} 100%{transform:translateY(0)} }
+
+.fm-tile--bump-right { animation: fm-bump-right 180ms ease-out forwards; }
+.fm-tile--bump-left  { animation: fm-bump-left  180ms ease-out forwards; }
+.fm-tile--bump-down  { animation: fm-bump-down  180ms ease-out forwards; }
+.fm-tile--bump-up    { animation: fm-bump-up    180ms ease-out forwards; }
 
 /* --- Imminent fusion: electric arc between paired tiles + subtle pull --- */
 @keyframes fm-pull-right { 0%,100%{transform:translateX(0)} 50%{transform:translateX(3px)} }
@@ -1275,14 +1289,14 @@ html, body {
 /* Tile static-noise hit → disintegrate */
 @keyframes fm-lightning-tile {
   0%,26%   { opacity:1; filter:none; transform:translateX(0); }
-  29%      { filter:brightness(2.2) contrast(2); }
-  33%      { filter:brightness(.3) contrast(3) hue-rotate(28deg);    transform:translateX(2px); }
-  36%      { filter:brightness(3.8) contrast(.4);                    transform:translateX(-2px); }
-  39%      { filter:brightness(.5) contrast(2.2) hue-rotate(-22deg); transform:translateX(1px); }
-  42%      { filter:brightness(2.5) contrast(1.5);                   transform:translateX(0); }
+  29%      { filter:brightness(2.2); }
+  33%      { filter:brightness(.3);    transform:translateX(2px); }
+  36%      { filter:brightness(3.8);   transform:translateX(-2px); }
+  39%      { filter:brightness(.5);    transform:translateX(1px); }
+  42%      { filter:brightness(2.5);   transform:translateX(0); }
   45%      { filter:none; opacity:1; transform:translateX(0); }
   55%      { opacity:1; }
-  63%      { opacity:0; transform:scale(.68); filter:blur(2px); }
+  63%      { opacity:0; transform:scale(.68); }
   100%     { opacity:0; }
 }
 
@@ -1302,7 +1316,7 @@ html, body {
   transform: translateX(-50%) scaleY(0);
   transform-origin: top center;
   background: linear-gradient(180deg,#fff,#ccecff,#88ccff,#4466ff);
-  filter: blur(.2px) drop-shadow(0 0 7px #aaddff) drop-shadow(0 0 18px #4466ff);
+  filter: drop-shadow(0 0 8px #88bbff);
   animation: fm-lightning-bolt 1.5s ease-in-out forwards;
 }
 
@@ -1321,7 +1335,7 @@ html, body {
 .fm-lightning-scene .fm-sw { position:absolute; transform-origin:top center; }
 .fm-lightning-scene .fm-si {
   transform-origin: top center;
-  filter: blur(.35px) drop-shadow(0 0 3px #aaddff) drop-shadow(0 0 8px #4466ff);
+  filter: drop-shadow(0 0 5px #88bbff);
 }
 
 /* Spark positions */
@@ -1436,7 +1450,7 @@ html, body {
     transparent 28%,
     rgba(200, 0, 0, 0.75) 100%
   );
-  animation: fm-critical-pulse 0.9s ease-in-out infinite;
+  animation: fm-critical-pulse 1.8s ease-in-out infinite;
 }
 
 .fm-critical-overlay--stopped {
@@ -2666,4 +2680,5 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
 .fm-history-power-icon.fm-pw-danger { color: #e57373; }
 .fm-history-power-icon.fm-pw-warning { color: #ffb74d; }
 .fm-history-power-icon.fm-pw-info { color: #64b5f6; }
+
 

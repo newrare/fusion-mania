@@ -443,11 +443,13 @@ export class GameScene extends Phaser.Scene {
 
     // Wind blocks this direction — input is accepted but no tiles move
     if (this.#powerManager?.windDirection === direction) {
+      this.#gm.bumpTiles(direction);
       this.#gm.updateFusionIndicators();
       this.#updatePowerVisuals();
       return;
     }
     if (this.#battlePowerManager?.windDirection === direction) {
+      this.#gm.bumpTiles(direction);
       this.#gm.updateFusionIndicators();
       this.#updatePowerVisuals();
       return;
@@ -474,6 +476,7 @@ export class GameScene extends Phaser.Scene {
     );
 
     if (!moveResult.moved) {
+      this.#gm.bumpTiles(direction);
       this.#gm.updateFusionIndicators();
       this.#updatePowerVisuals();
       if (!this.#gm.grid.canMove()) {
@@ -1819,6 +1822,10 @@ export class GameScene extends Phaser.Scene {
       onFree: () => {
         this.#destroyMenuModal();
         this.scene.restart({ mode: 'free' });
+      },
+      onReplay: () => {
+        this.#destroyMenuModal();
+        this.scene.restart({ mode: this.#mode });
       },
       onClose: () => this.#destroyMenuModal(),
       onQuit: () => {

@@ -47,6 +47,8 @@ export const ANIM = {
   ADS_OPEN_DURATION: 1500,
   /** Duration of the ads overlay exit animation (ms) */
   ADS_CLOSE_DURATION: 300,
+  /** Duration of the directional bump animation when no tile can move (ms) */
+  BUMP_DURATION: 180,
 };
 
 /** Background pan settings */

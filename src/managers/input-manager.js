@@ -32,6 +32,10 @@ export class InputManager {
   /** @type {boolean} True when the current touch started on an interactive element */
   #touchOnUI = false;
 
+  /** @type {boolean} True once the current touch gesture has fired a swipe — prevents
+   *  duplicate moves from a single physical swipe. Reset on the next touchstart. */
+  #swipeFired = false;
+
   /** @type {(direction: 'up'|'down'|'left'|'right') => void} */
   #onDirection;
 
@@ -124,6 +128,7 @@ export class InputManager {
     }
 
     this.#touchOnUI = false;
+    this.#swipeFired = false;
     // Prevent default within the game zone to avoid 300 ms tap delay,
     // text selection, and browser scroll during swipes.
     e.preventDefault();
@@ -148,6 +153,7 @@ export class InputManager {
     }
 
     e.preventDefault();
+    if (this.#swipeFired) return;
     if (this.#isBlocked()) return;
     if (e.changedTouches.length === 0) return;
 
@@ -168,6 +174,7 @@ export class InputManager {
     /** @type {'up' | 'down' | 'left' | 'right'} */
     const direction = absDx > absDy ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
     this.#lastSwipeTime = now;
+    this.#swipeFired = true;
     this.#onDirection(direction);
   };
 

@@ -244,6 +244,20 @@ export class AnimationManager {
   // ─── Animation Primitives ────────────────────────
 
   /**
+   * Play a short directional bump on all tiles to signal that no move was possible.
+   * @param {'up' | 'down' | 'left' | 'right'} direction
+   */
+  bumpInDirection(direction) {
+    const cls = `fm-tile--bump-${direction}`;
+    for (const el of this.#tileElements.values()) {
+      el.classList.remove('fm-tile--bump-up', 'fm-tile--bump-down', 'fm-tile--bump-left', 'fm-tile--bump-right');
+      void el.offsetWidth; /* force reflow so re-triggering the same direction restarts the animation */
+      el.classList.add(cls);
+      el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
+    }
+  }
+
+  /**
    * Slide moved/merged tiles to their new CSS positions (uses `left`/`top` transition).
    * The DOM transition begins immediately; the caller awaits the slide duration.
    *
@@ -574,7 +588,8 @@ export class AnimationManager {
    * every single frame (expensive on mobile with many fusion pairs visible).
    */
   #startArcLoop() {
-    const MS_PER_FRAME = 1000 / 30;
+    const isMobile = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+    const MS_PER_FRAME = 1000 / (isMobile ? 15 : 30);
     let lastTs = 0;
     const tick = (ts) => {
       if (this.#arcElements.size === 0) {
@@ -634,7 +649,7 @@ export class AnimationManager {
       const { x, y } = cellPositionFn(tile.row, tile.col);
       const cx = x + tileSize / 2;
       const cy = y + tileSize / 2;
-      const count = 28;
+      const count = 14;
       for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
         const spd = 0.4 + Math.random() * 2.5;
@@ -645,7 +660,7 @@ export class AnimationManager {
           vy: Math.sin(angle) * spd * (Math.random() < 0.5 ? 0.3 : 1),
           tx: cx,
           ty: cy,
-          r: 1.2 + Math.random() * 2.5,
+          r: 1.5 + Math.random() * 2.8,
           life: 0.7 + Math.random() * 0.3,
           decay: 0.008 + Math.random() * 0.014,
           rgb: i < count / 2 ? '250,204,21' : '200,160,255',
@@ -1074,15 +1089,17 @@ export class AnimationManager {
 
     el.style.left = `${startLeft}px`;
     el.style.top = `${startTop}px`;
-    el.style.transition = `left ${duration}ms linear, top ${duration}ms linear`;
+    el.style.willChange = 'transform';
+    el.style.transition = `transform ${duration}ms linear`;
 
     this.#gridEl.appendChild(el);
 
     // Force reflow so the browser registers the start position before animating
     void el.offsetWidth;
 
-    el.style.left = `${endLeft}px`;
-    el.style.top = `${endTop}px`;
+    const dx = endLeft - startLeft;
+    const dy = endTop - startTop;
+    el.style.transform = `translate(${dx}px, ${dy}px)`;
 
     // Self-remove after the transition ends
     setTimeout(() => {
