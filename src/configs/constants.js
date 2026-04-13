@@ -59,16 +59,10 @@ export const BG = {
   PAN_THRESHOLD: 0.9,
 };
 
-/** Swipe detection */
+/** Swipe detection — detect-on-move architecture.
+ *  Direction fires during touchmove as soon as the threshold is crossed.
+ *  One direction per gesture (flag-based), no time-based cooldown. */
 export const SWIPE_THRESHOLD = 30;
-/** Minimum movement (px) during touchmove before the gesture is considered real */
-export const SWIPE_MOVE_MIN = 10;
-/** Minimum cooldown (ms) between accepted swipe moves */
-export const SWIPE_COOLDOWN = 300;
-/** Maximum time (ms) between touchstart and touchend to count as a swipe */
-export const SWIPE_MAX_DURATION = 700;
-/** Minimum swipe velocity (px/ms). Rejects slow accidental drags. */
-export const SWIPE_MIN_VELOCITY = 0.08;
 
 /** localStorage keys */
 export const STORAGE_KEYS = {

@@ -271,6 +271,12 @@ export class GameScene extends Phaser.Scene {
 
   /** @param {{ mode?: string, restore?: boolean, selectedPowers?: string[], slotData?: object }} data */
   init(data) {
+    // Clean up previous game's listeners (InputManager, HudManager, etc.)
+    // before resetting references. Without this, window-level touch listeners
+    // from a prior InputManager survive scene.restart() and cause duplicate
+    // move detection on subsequent games.
+    this.#inputManager?.shutdown();
+
     this.#mode = data?.mode ?? 'classic';
     this.#gameOver = false;
     this.#fusions = 0;
@@ -383,6 +389,11 @@ export class GameScene extends Phaser.Scene {
         ),
     });
     this.#inputManager.bind();
+
+    // Ensure full cleanup runs when Phaser shuts down this scene (scene.start
+    // to TitleScene or scene.restart). Phaser clears all event listeners after
+    // emitting 'shutdown', so re-registering each create() is safe.
+    this.events.on('shutdown', () => this.shutdown());
 
     // Cache CSS tile size for physics body sizing (read after container is in DOM)
     this.events.once('create', () => {

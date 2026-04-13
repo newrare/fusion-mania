@@ -87,7 +87,7 @@ fusion-mania/
 │   │   ├── history-manager.js # Game event history/log (pure data, no DOM)
 │   │   ├── hud-manager.js     # HUD stats, combo display, card rotations, help button
 │   │   ├── i18n-manager.js    # Locale switching & translation lookups (singleton)
-│   │   ├── input-manager.js   # Keyboard + swipe input handling
+│   │   ├── input-manager.js   # Keyboard + swipe input (detect-on-move architecture)
 │   │   ├── layout-manager.js  # Responsive layout & CSS custom properties (singleton)
 │   │   ├── power-manager.js   # Power assignment, activation, prediction (Free/Battle)
 │   │   ├── save-manager.js    # Persistence: rankings, save slots, auto-save (singleton)
@@ -121,6 +121,7 @@ fusion-mania/
     │   ├── audio-manager.test.js
     │   ├── battle-manager.test.js
     │   ├── i18n-manager.test.js
+    │   ├── input-manager.test.js
     │   ├── power-manager.test.js
     │   ├── save-manager.test.js
     │   └── history-manager.test.js
@@ -156,6 +157,7 @@ Managers are **singleton-ish** classes for cross-cutting concerns:
 - **AudioManager** — singleton managing background music and SFX via HTML5 Audio (no Phaser dependency). Preloads all audio in `PreloadScene`, unlocks on first user gesture in `TitleScene`. Persists music/sound toggle preferences to localStorage. SFX keys map to `AUDIO.SFX` and `AUDIO.POWER_SFX` in `constants.js`.
 - **GridManager** — orchestrates the 4×4 grid DOM, tile rendering via `TileRenderer`, and animation sequencing with generation-based cancellation.
 - **HistoryManager** — pure data manager recording chronological game events (fusions, powers, enemy events, score, contamination). See [HISTORY.md](HISTORY.md).
+- **InputManager** — keyboard (arrows/WASD) and touch swipe handling. Uses a **detect-on-move** architecture: direction fires during `touchmove` as soon as the finger crosses `SWIPE_THRESHOLD` px, with a one-direction-per-gesture flag. No time-based cooldown — ghost events are rejected structurally (near-zero displacement). 34 unit tests.
 - **I18nManager** — singleton handling locale selection, translation lookups (`i18n.t('key')`), and persistence to `localStorage`. See [TRANSLATE.md](TRANSLATE.md).
 - **LayoutManager** — singleton computing responsive layout from viewport. See [LAYOUT.md](LAYOUT.md).
 - **PowerManager** — handles power assignment, activation of all 16 power types, and directional prediction for edge indicators. Used in Free and Battle modes.

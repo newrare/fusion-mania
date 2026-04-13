@@ -47,6 +47,18 @@ Scenes are thin and delegate everything to managers. The main gameplay scene is 
 | **Utils**      | `src/utils/`      | Pure functions, no side effects                                     |
 | **Configs**    | `src/configs/`    | All constants live in `constants.js` — never hardcode magic numbers |
 
+### Input system
+
+`InputManager` (`src/managers/input-manager.js`) handles keyboard (arrows/WASD/Escape) and touch swipe input. It uses a **detect-on-move** architecture:
+
+- Direction fires during `touchmove` as soon as the finger crosses `SWIPE_THRESHOLD` px from start.
+- A `#fired` flag ensures **one direction per gesture** — no time-based cooldown.
+- Ghost events (Android WebView / Capacitor) are rejected structurally: their near-zero displacement never crosses the threshold.
+- Fast successive legitimate swipes work with zero artificial delay.
+- Fallback: if `touchmove` was throttled by the browser, `touchend` performs a final threshold check.
+
+Swipe constant: `SWIPE_THRESHOLD` (30 px) in `constants.js`. 34 unit tests in `tests/managers/input-manager.test.js`.
+
 ### Animation system
 
 `AnimationManager` (`src/managers/animation-manager.js`) owns all tile animations and has **no Phaser dependency**. It uses 6 layers: CSS slide, merge bounce, consumed fade, spawn pop, canvas particles, and fusion glow. All durations are constants under the `ANIM` object in `constants.js`.
