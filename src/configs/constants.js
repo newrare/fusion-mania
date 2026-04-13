@@ -87,22 +87,22 @@ export const DEFAULT_OPTIONS = {
 /** Audio file paths and settings */
 export const AUDIO = {
   MUSIC: 'sounds/music.wav',
-  MUSIC_VOLUME: 0.03,
+  MUSIC_VOLUME: 0.05,
   /** Base SFX volume — each key can be adjusted via SFX_VOLUMES multiplier */
   SFX_VOLUME: 0.3,
   /** Per-key volume multipliers (applied on top of SFX_VOLUME). Tune these to balance levels on mobile. */
   SFX_VOLUMES: {
     click: 0.5,
     hover: 0.15,
-    fusion: 1.0,
+    fusion: 1.5,
     victory: 0.9,
     gameOver: 0.9,
     notification: 0.8,
     gridHurt: 0.9,
-    enemyHurt: 0.9,
+    enemyHurt: 0.5,
     enemyDeath: 1.0,
     enemyIn: 0.8,
-    contamination: 0.8,
+    contamination: 0.5,
   },
   /** Per-key volume multipliers for power SFX */
   POWER_SFX_VOLUMES: {

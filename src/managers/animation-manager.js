@@ -1092,19 +1092,27 @@ export class AnimationManager {
     const dist = Math.hypot(endLeft - startLeft, endTop - startTop);
     const duration = Math.round(dist / speed);
 
+    // Rotation angle matching the CSS class, kept constant throughout the flight
+    // so the transition only animates the translation, never the rotation.
+    const rotDeg = { right: -90, left: 90, up: 180, down: 0 }[dir] ?? 0;
+
     el.style.left = `${startLeft}px`;
     el.style.top = `${startTop}px`;
     el.style.willChange = 'transform';
-    el.style.transition = `transform ${duration}ms linear`;
+    // Set initial transform inline (same structure as final) so the browser
+    // has an identical function list to interpolate from.
+    el.style.transform = `translateX(0px) translateY(0px) rotate(${rotDeg}deg)`;
 
     this.#gridEl.appendChild(el);
 
-    // Force reflow so the browser registers the start position before animating
+    // Force reflow so the browser registers the start state before animating
     void el.offsetWidth;
+
+    el.style.transition = `transform ${duration}ms linear`;
 
     const dx = endLeft - startLeft;
     const dy = endTop - startTop;
-    el.style.transform = `translate(${dx}px, ${dy}px)`;
+    el.style.transform = `translateX(${dx}px) translateY(${dy}px) rotate(${rotDeg}deg)`;
 
     // Self-remove after the transition ends
     setTimeout(() => {
