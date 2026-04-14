@@ -822,7 +822,7 @@ export class GameScene extends Phaser.Scene {
       } else {
         this.#onEnemyDefeatedImmediate();
       }
-      this.#gm.animating = false;
+      if (moveGen === this.#moveGen) this.#gm.animating = false;
       if (this.#battleManager?.allDefeated() && !this.#victoryShown) {
         this.#onVictory();
       }
@@ -846,7 +846,7 @@ export class GameScene extends Phaser.Scene {
       // Data already applied to tile, DOM already synced
     }
 
-    this.#gm.animating = false;
+    if (moveGen === this.#moveGen) this.#gm.animating = false;
 
     // Check for victory (2048 tile reached) — classic and free modes only.
     // Battle mode victory is handled above when the level-2048 enemy is killed.
@@ -1406,6 +1406,7 @@ export class GameScene extends Phaser.Scene {
     if (this.#powerInfoEl) {
       this.#powerInfoEl.style.display = 'none';
     }
+    this.#hudManager?.setPredBtnVisible(false);
     // Victory check is handled by the caller (#executeMove) after this method returns.
   }
 
@@ -1452,6 +1453,7 @@ export class GameScene extends Phaser.Scene {
     if (this.#powerInfoEl) {
       this.#powerInfoEl.style.display = 'none';
     }
+    this.#hudManager?.setPredBtnVisible(false);
   }
 
   /** Open the enemy info modal (tap on enemy tile). */
@@ -1738,9 +1740,10 @@ export class GameScene extends Phaser.Scene {
     const cy = srcRect.top + srcRect.height / 2;
 
     // ── DOM element (visual only) ──────────────────────────────────────────
-    // Hide the live enemy tile immediately so there is no overlap between the
-    // still-visible live tile and the newly created dead tile.
-    if (this.#enemyAreaEl) this.#enemyAreaEl.style.visibility = 'hidden';
+    // Hide only the live tile element so damage popups (siblings) remain visible.
+    const liveTileEl = this.#enemyAreaEl?.querySelector('.fm-enemy-tile');
+    if (liveTileEl) liveTileEl.style.visibility = 'hidden';
+    else if (this.#enemyAreaEl) this.#enemyAreaEl.style.visibility = 'hidden';
 
     const deadTile = document.createElement('div');
     deadTile.className = 'fm-dead-enemy';
@@ -2738,6 +2741,7 @@ export class GameScene extends Phaser.Scene {
   #onGridLifeDamage(damage) {
     if (!this.#gridLife || damage <= 0) return;
 
+    this.#historyManager.addGridDamage(damage);
     audioManager.playSfx('gridHurt');
 
     // Hurt flash on the grid

@@ -99,12 +99,33 @@ export class HistoryManager {
   }
 
   /**
+   * Record damage dealt to the grid (Free / Battle mode HP bar).
+   * Merges into the existing grid_damage entry for the turn if one exists.
+   * @param {number} damage
+   */
+  addGridDamage(damage) {
+    if (!this.#current || damage <= 0) return;
+    const existing = this.#current.entries.find((e) => e.type === 'grid_damage');
+    if (existing) {
+      existing.damage += damage;
+    } else {
+      this.#current.entries.push({ type: 'grid_damage', damage });
+    }
+  }
+
+  /**
    * Record tiles lost (destroyed by powers or expelled).
+   * Merges into the existing tiles_lost entry for the turn if one exists.
    * @param {number[]} values — tile values that were removed
    */
   addTilesLost(values) {
     if (!this.#current || values.length === 0) return;
-    this.#current.entries.push({ type: 'tiles_lost', values });
+    const existing = this.#current.entries.find((e) => e.type === 'tiles_lost');
+    if (existing) {
+      existing.values.push(...values);
+    } else {
+      this.#current.entries.push({ type: 'tiles_lost', values });
+    }
   }
 
   /**

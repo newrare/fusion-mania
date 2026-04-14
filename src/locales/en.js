@@ -240,6 +240,7 @@ export const en = {
   'history.score': 'Score gained',
   'history.combo_bonus': 'Combo bonus',
   'history.tiles_lost': 'Tiles lost',
+  'history.grid_damage': 'Grid takes -{damage} HP',
   'history.dir_up': '↑',
   'history.dir_down': '↓',
   'history.dir_left': '←',

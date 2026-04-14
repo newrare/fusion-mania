@@ -160,6 +160,8 @@ export class HistoryModal {
         return `<div class="fm-history-sub">${i18n.t('history.score')}: +${entry.points}</div>`;
       case 'combo_bonus':
         return `<div class="fm-history-sub fm-history-sub--bonus">${i18n.t('history.combo_bonus')}: +${entry.points}</div>`;
+      case 'grid_damage':
+        return `<div class="fm-history-sub fm-history-sub--danger">${i18n.t('history.grid_damage').replace('{damage}', entry.damage)}</div>`;
       case 'tiles_lost': {
         const tiles = entry.values.map((v) => this.#pill(v)).join('');
         return `<div class="fm-history-sub fm-history-sub--danger">${i18n.t('history.tiles_lost')}: ${tiles}</div>`;

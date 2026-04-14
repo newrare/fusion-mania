@@ -229,10 +229,10 @@ export function getPowerCategory(type) {
 
 /** Default duration (in moves) for timed power effects */
 export const POWER_DURATIONS = {
-  ICE: 4,
-  BLIND: 5,
+  ICE: 6,
+  BLIND: 2,
   EXPEL: 5,
-  WIND: 3,
+  WIND: 2,
 };
 
 /**

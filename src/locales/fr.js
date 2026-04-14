@@ -252,6 +252,7 @@ export const fr = {
   'history.score': 'Score gagné',
   'history.combo_bonus': 'Bonus combo',
   'history.tiles_lost': 'Tuiles perdues',
+  'history.grid_damage': 'Grille -{damage} PV',
   'history.dir_up': '↑',
   'history.dir_down': '↓',
   'history.dir_left': '←',
