@@ -4,6 +4,7 @@ import {
   POWER_META,
   POWER_TYPES,
   ANIM,
+  BATTLE,
   getPowerCategory,
 } from '../configs/constants.js';
 import { i18n } from '../managers/i18n-manager.js';
@@ -246,6 +247,12 @@ export class GameScene extends Phaser.Scene {
   /** @type {EnemyInfoModal | null} */
   #enemyInfoModal = null;
 
+  /** @type {number} Battle level index (0–29), or -1 for legacy */
+  #battleLevel = -1;
+
+  /** @type {HTMLElement | null} Enemy sequence frise element (appended to document.body) */
+  #enemyFriseEl = null;
+
   /** @type {HelpModal | null} */
   #helpModal = null;
 
@@ -269,7 +276,7 @@ export class GameScene extends Phaser.Scene {
     this.#gm = new GridManager();
   }
 
-  /** @param {{ mode?: string, restore?: boolean, selectedPowers?: string[], slotData?: object }} data */
+  /** @param {{ mode?: string, restore?: boolean, selectedPowers?: string[], slotData?: object, battleLevel?: number }} data */
   init(data) {
     // Clean up previous game's listeners (InputManager, HudManager, etc.)
     // before resetting references. Without this, window-level touch listeners
@@ -323,6 +330,8 @@ export class GameScene extends Phaser.Scene {
     this.#battlePowerManager = null;
     this.#deadEnemyBodies = [];
     this.#physicsFloor = null;
+    this.#battleLevel = data?.battleLevel ?? -1;
+    this.#enemyFriseEl = null;
   }
 
   create() {
@@ -490,7 +499,8 @@ export class GameScene extends Phaser.Scene {
 
     // Battle mode initialisation
     if (this.#mode === 'battle') {
-      this.#battleManager = new BattleManager();
+      this.#battleManager = new BattleManager(this.#battleLevel >= 0 ? this.#battleLevel : undefined);
+      this.#createEnemyFrise();
     }
 
     this.#updateHUD();
@@ -1093,7 +1103,7 @@ export class GameScene extends Phaser.Scene {
     const hudRect = this.#hudManager?.hudEl?.getBoundingClientRect();
     const gridRect = this.#gm.gridEl?.getBoundingClientRect();
     if (!hudRect || !gridRect) return;
-    const spaceCenter = hudRect.bottom + (gridRect.top - hudRect.bottom) / 2;
+    const spaceCenter = hudRect.bottom + (gridRect.top - hudRect.bottom) / 2 + 20;
     this.#enemyAreaEl.style.position = 'fixed';
     this.#enemyAreaEl.style.left = '50%';
     this.#enemyAreaEl.style.top = `${spaceCenter}px`;
@@ -1101,6 +1111,86 @@ export class GameScene extends Phaser.Scene {
     // z-index 1: above background canvas but below grid tiles, panels, and modals.
     // The CSS :has(.fm-modal-overlay) rule hides this element entirely when any modal is open.
     this.#enemyAreaEl.style.zIndex = '1';
+  }
+
+  // ─── ENEMY SEQUENCE FRISE ─────────────────────────
+
+  /**
+   * Create the enemy sequence timeline — a horizontal track showing all enemies
+   * for the current level, appended to document.body (fixed position below HUD).
+   */
+  #createEnemyFrise() {
+    if (!this.#battleManager) return;
+    const seq = this.#battleManager.levelSequence;
+    if (seq.length === 0) return;
+
+    document.querySelector('#fm-enemy-frise')?.remove();
+
+    let track = '';
+    for (let i = 0; i < seq.length; i++) {
+      const level = seq[i];
+      const isBoss = i === seq.length - 1;
+      const nodeClasses = `fm-tl-node fm-frise-item${isBoss ? ' fm-frise-boss' : ''}`;
+
+      if (isBoss) {
+        track += `<div class="${nodeClasses}" data-idx="${i}">
+          <div class="fm-tl-boss"><span>🔥</span>${level}</div>
+        </div>`;
+      } else {
+        track += `<div class="${nodeClasses}" data-idx="${i}">
+          <div class="fm-tl-tile fm-t${level}">${level}</div>
+        </div>`;
+      }
+
+      if (i < seq.length - 1) {
+        const isLastConnector = i === seq.length - 2;
+        if (isLastConnector) {
+          track += `<div class="fm-tl-connector"><span class="fm-tl-line"></span></div>`;
+        } else {
+          track += `<div class="fm-tl-connector">
+            <span class="fm-tl-line"></span>
+            <span class="fm-tl-arrow">▶</span>
+            <span class="fm-tl-line"></span>
+          </div>`;
+        }
+      }
+    }
+
+    const el = document.createElement('div');
+    el.className = 'fm-enemy-frise';
+    el.id = 'fm-enemy-frise';
+    el.innerHTML = `<div class="fm-tl-track">${track}</div>`;
+    document.body.appendChild(el);
+    this.#enemyFriseEl = el;
+    // Defer positioning until grid is laid out
+    requestAnimationFrame(() => this.#positionEnemyFrise());
+    this.#updateEnemyFrise();
+  }
+
+  /** Position the frise below the HUD + 15 px. */
+  #positionEnemyFrise() {
+    if (!this.#enemyFriseEl) return;
+    const hudRect = this.#hudManager?.hudEl?.getBoundingClientRect();
+    const top = hudRect && hudRect.bottom > 0 ? hudRect.bottom + 15 : layout.safe.top + 75;
+    this.#enemyFriseEl.style.top = `${top}px`;
+  }
+
+  /** Update timeline visual state: defeated / active / pending. */
+  #updateEnemyFrise() {
+    if (!this.#enemyFriseEl || !this.#battleManager) return;
+    const idx = this.#battleManager.nextLevelIndex;
+    const defeated = this.#battleManager.defeatedEnemies;
+    const items = this.#enemyFriseEl.querySelectorAll('.fm-frise-item');
+    items.forEach((el, i) => {
+      el.classList.remove('fm-frise--defeated', 'fm-frise--active', 'fm-frise--pending');
+      if (i < defeated.length) {
+        el.classList.add('fm-frise--defeated');
+      } else if (i === idx && this.#battleManager.isBattlePhase) {
+        el.classList.add('fm-frise--active');
+      } else {
+        el.classList.add('fm-frise--pending');
+      }
+    });
   }
 
   /**
@@ -1225,6 +1315,7 @@ export class GameScene extends Phaser.Scene {
         await this.#wait(600);
       }
     }
+    this.#updateEnemyFrise();
   }
 
   /**
@@ -1251,6 +1342,7 @@ export class GameScene extends Phaser.Scene {
       this.#attachEnemyWave(cat, enemy.life.percent);
       this.#updateLifeVisual();
     }
+    this.#updateEnemyFrise();
   }
 
   /**
@@ -1408,6 +1500,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.#hudManager?.setPredBtnVisible(false);
     // Victory check is handled by the caller (#executeMove) after this method returns.
+    this.#updateEnemyFrise();
   }
 
   /**
@@ -1454,6 +1547,7 @@ export class GameScene extends Phaser.Scene {
       this.#powerInfoEl.style.display = 'none';
     }
     this.#hudManager?.setPredBtnVisible(false);
+    this.#updateEnemyFrise();
   }
 
   /** Open the enemy info modal (tap on enemy tile). */
@@ -1891,7 +1985,7 @@ export class GameScene extends Phaser.Scene {
       },
       onReplay: () => {
         this.#destroyMenuModal();
-        this.scene.restart({ mode: this.#mode });
+        this.scene.restart({ mode: this.#mode, battleLevel: this.#battleLevel >= 0 ? this.#battleLevel : undefined });
       },
       onClose: () => this.#destroyMenuModal(),
       onQuit: () => {
@@ -2081,7 +2175,9 @@ export class GameScene extends Phaser.Scene {
 
     // Battle mode: restore battle manager, power manager, grid life
     if (this.#mode === 'battle') {
-      this.#battleManager = new BattleManager();
+      const savedBL = data.battleManager?.battleLevel;
+      this.#battleLevel = savedBL != null && savedBL >= 0 ? savedBL : this.#battleLevel;
+      this.#battleManager = new BattleManager(this.#battleLevel >= 0 ? this.#battleLevel : undefined);
       if (data.battleManager) this.#battleManager.restore(data.battleManager);
       if (data.battlePowerManager) {
         this.#battlePowerManager = new PowerManager([]);
@@ -2108,6 +2204,8 @@ export class GameScene extends Phaser.Scene {
       if (defeated.length > 0) {
         this.#restoreDeadEnemyTiles(defeated);
       }
+      // Restore enemy frise
+      this.#createEnemyFrise();
     }
 
     // Render restored grid and update HUD
@@ -2186,13 +2284,32 @@ export class GameScene extends Phaser.Scene {
       extra.enemiesDefeated = this.#battleManager.enemiesDefeated;
       extra.enemyMaxLevel = this.#battleManager.maxEnemyLevel;
       extra.defeatedEnemies = this.#battleManager.defeatedEnemies;
+      if (this.#battleLevel >= 0) extra.battleLevel = this.#battleLevel;
     }
 
     // In battle mode, victory ends the game — save score
     if (isBattle) {
       this.#gameOver = true;
       this.#endCombo();
-      saveManager.addRanking(this.#mode, this.#gm.grid.score, extra);
+      extra.won = true;
+      if (this.#battleLevel >= 0) {
+        // Level difficulty bonus (always applied)
+        let levelPct = BATTLE.LEVEL_BONUS_EASY;
+        if (this.#battleLevel >= BATTLE.TIER_HARD.start) levelPct = BATTLE.LEVEL_BONUS_HARD;
+        else if (this.#battleLevel >= BATTLE.TIER_NORMAL.start) levelPct = BATTLE.LEVEL_BONUS_NORMAL;
+        const levelBonus = Math.round(this.#gm.grid.score * levelPct);
+        this.#gm.grid.score += levelBonus;
+        extra.levelBonus = levelBonus;
+        // Additional victory bonus
+        let victoryPct = BATTLE.VICTORY_BONUS_EASY;
+        if (this.#battleLevel >= BATTLE.TIER_HARD.start) victoryPct = BATTLE.VICTORY_BONUS_HARD;
+        else if (this.#battleLevel >= BATTLE.TIER_NORMAL.start) victoryPct = BATTLE.VICTORY_BONUS_NORMAL;
+        const victoryBonus = Math.round(this.#gm.grid.score * victoryPct);
+        this.#gm.grid.score += victoryBonus;
+        extra.victoryBonus = victoryBonus;
+      }
+      const rankingMode = this.#battleLevel >= 0 ? `battle_L${this.#battleLevel}` : this.#mode;
+      saveManager.addRanking(rankingMode, this.#gm.grid.score, extra);
       saveManager.clearGame();
       saveManager.clearAutoSave();
     }
@@ -2223,7 +2340,11 @@ export class GameScene extends Phaser.Scene {
       onNewGame: () => {
         this.#victoryModal?.destroy();
         this.#victoryModal = null;
-        this.scene.restart({ mode: this.#mode });
+        if (isBattle) {
+          this.scene.start(SCENE_KEYS.TITLE, { openBattle: true });
+        } else {
+          this.scene.restart({ mode: this.#mode });
+        }
       },
       onMenu: () => {
         this.#victoryModal?.destroy();
@@ -2250,8 +2371,19 @@ export class GameScene extends Phaser.Scene {
       extra.enemiesDefeated = this.#battleManager.enemiesDefeated;
       extra.enemyMaxLevel = this.#battleManager.maxEnemyLevel;
       extra.defeatedEnemies = this.#battleManager.defeatedEnemies;
+      if (this.#battleLevel >= 0) extra.battleLevel = this.#battleLevel;
     }
-    saveManager.addRanking(this.#mode, this.#gm.grid.score, extra);
+    // Level difficulty bonus (battle mode)
+    if (this.#mode === 'battle' && this.#battleLevel >= 0) {
+      let levelPct = BATTLE.LEVEL_BONUS_EASY;
+      if (this.#battleLevel >= BATTLE.TIER_HARD.start) levelPct = BATTLE.LEVEL_BONUS_HARD;
+      else if (this.#battleLevel >= BATTLE.TIER_NORMAL.start) levelPct = BATTLE.LEVEL_BONUS_NORMAL;
+      const levelBonus = Math.round(this.#gm.grid.score * levelPct);
+      this.#gm.grid.score += levelBonus;
+      extra.levelBonus = levelBonus;
+    }
+    const rankingMode = (this.#mode === 'battle' && this.#battleLevel >= 0) ? `battle_L${this.#battleLevel}` : this.#mode;
+    saveManager.addRanking(rankingMode, this.#gm.grid.score, extra);
     saveManager.clearGame();
     saveManager.clearAutoSave();
 
@@ -2264,7 +2396,7 @@ export class GameScene extends Phaser.Scene {
       onNewGame: () => {
         this.#gameOverModal?.destroy();
         this.#gameOverModal = null;
-        this.scene.restart({ mode: this.#mode });
+        this.scene.restart({ mode: this.#mode, battleLevel: this.#battleLevel >= 0 ? this.#battleLevel : undefined });
       },
       onMenu: () => {
         this.#gameOverModal?.destroy();
@@ -2854,6 +2986,8 @@ export class GameScene extends Phaser.Scene {
     document.querySelectorAll('.fm-new-best-notif').forEach((el) => el.remove());
     this.#enemyAreaEl?.remove();
     this.#enemyAreaEl = null;
+    this.#enemyFriseEl?.remove();
+    this.#enemyFriseEl = null;
     // Remove all dead enemy DOM nodes (in-flight or settled)
     document.querySelectorAll('.fm-dead-enemy').forEach((el) => el.remove());
     this.#deadEnemyBodies = [];

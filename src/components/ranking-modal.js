@@ -204,9 +204,12 @@ export class RankingModal {
 
       let rankHtml = `<span class="fm-ranking-cell fm-ranking-rank">${r ? i + 1 : '-'}</span>`;
 
-      const mainHtml = r
-        ? `<span class="fm-ranking-cell fm-ranking-main-col">${r.score}</span>`
-        : `<span class="fm-ranking-cell fm-ranking-main-col">-</span>`;
+      let mainHtml;
+      if (!r) {
+        mainHtml = `<span class="fm-ranking-cell fm-ranking-main-col">-</span>`;
+      } else {
+        mainHtml = `<span class="fm-ranking-cell fm-ranking-main-col">${r.score}</span>`;
+      }
 
       let dateHtml;
       if (!r) {

@@ -1,4 +1,5 @@
 import { i18n } from '../managers/i18n-manager.js';
+import { layout } from '../managers/layout-manager.js';
 import { Power } from '../entities/power.js';
 import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
@@ -93,6 +94,7 @@ export class PowerChoiceModal {
    * Compute popover placement and pixel coordinates.
    * The popover is positioned in viewport space relative to the grid.
    * If the tile is in the bottom half → show above, otherwise show below.
+   * Clamps horizontally to stay within the safe zone.
    * @param {{ tileRow: number, tileCol: number, gridEl: HTMLElement, cellPositionFn: (r: number, c: number) => { x: number, y: number } }} options
    * @returns {{ placement: 'above' | 'below', popoverX: number, popoverY: number }}
    */
@@ -105,11 +107,16 @@ export class PowerChoiceModal {
     const tileCenterX = gridRect.left + cellX + tileSize / 2;
     const tileCenterY = gridRect.top + cellY + tileSize / 2;
 
+    // Clamp X within the safe zone
+    const minPad = 12;
+    const minX = (layout.safe?.left ?? 0) + minPad;
+    const maxX = (layout.safe?.right ?? window.innerWidth) - minPad;
+    const popoverX = Math.max(minX, Math.min(maxX, tileCenterX));
+
     // Decide placement: if tile is in bottom half of viewport → above, else below
     const placement = tileCenterY > window.innerHeight / 2 ? 'above' : 'below';
 
     const gap = 12;
-    const popoverX = tileCenterX;
     const popoverY =
       placement === 'above' ? gridRect.top + cellY - gap : gridRect.top + cellY + tileSize + gap;
 

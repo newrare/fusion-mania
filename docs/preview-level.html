@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FusionMania — Preview · Level Select v3</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: linear-gradient(160deg, #f2e8ff 0%, #e8f2ff 55%, #efffee 100%);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh;
+  padding: 40px 16px 80px;
+}
+
+h1 {
+  text-align: center;
+  font-size: 1.8rem;
+  color: #9955cc;
+  margin-bottom: 6px;
+  letter-spacing: 2px;
+  font-family: 'Comic Sans MS', cursive;
+}
+.subtitle {
+  text-align: center;
+  color: #aa88cc;
+  margin-bottom: 56px;
+  font-size: 0.82rem;
+}
+
+.section { margin-bottom: 72px; }
+.section-title {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+.section-desc {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #aaa;
+  margin-bottom: 20px;
+}
+
+/* ══════════════════════════════════════════════════════
+   SHARED — phone frame
+══════════════════════════════════════════════════════ */
+.phone {
+  max-width: 390px;
+  margin: 0 auto;
+  border-radius: 44px;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(120,60,200,0.22), 0 0 0 2px rgba(255,255,255,0.6);
+  position: relative;
+}
+.phone-notch {
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  width: 110px; height: 26px;
+  border-radius: 0 0 16px 16px;
+  z-index: 10;
+}
+
+/* ══════════════════════════════════════════════════════
+   THEME 1 — Candy Float
+══════════════════════════════════════════════════════ */
+
+.candy .phone-notch { background: rgba(240,220,255,0.7); }
+
+.candy-screen {
+  background: linear-gradient(155deg, #f2e0ff 0%, #e0f0ff 55%, #e8fff2 100%);
+  padding: 40px 18px 36px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* top bar */
+.candy-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.candy-back {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.8);
+  box-shadow: 0 2px 8px rgba(160,80,220,0.12);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; color: #9955cc;
+  cursor: pointer;
+}
+.candy-heading {
+  font-family: 'Comic Sans MS', cursive;
+  font-size: 1.2rem;
+  color: #9955cc;
+  letter-spacing: 1px;
+}
+.candy-progress-pill {
+  font-size: 0.65rem; font-weight: 700;
+  background: rgba(200,140,255,0.18);
+  color: #9940cc;
+  border: 1px solid rgba(200,140,255,0.35);
+  border-radius: 20px;
+  padding: 3px 10px;
+  backdrop-filter: blur(4px);
+}
+
+/* card */
+.candy-card {
+  background: rgba(255,255,255,0.28);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.6);
+  border-radius: 28px;
+  padding: 18px 14px 22px;
+  box-shadow: 0 8px 30px rgba(160,80,220,0.10);
+}
+
+/* difficulty label */
+.candy-diff-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.candy-diff-label {
+  font-family: 'Comic Sans MS', cursive;
+  font-size: 0.72rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.candy-diff-label.easy   { color: #4cb87a; }
+.candy-diff-label.normal { color: #a060e0; }
+.candy-diff-label.hard   { color: #e05060; }
+.candy-diff-count {
+  font-size: 0.60rem;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 2px 7px;
+  margin-left: auto;
+}
+.candy-diff-count.easy   { background: rgba(76,184,122,0.15); color: #3a9e66; border: 1px solid rgba(76,184,122,0.3); }
+.candy-diff-count.normal { background: rgba(160,96,224,0.15); color: #8844cc; border: 1px solid rgba(160,96,224,0.3); }
+.candy-diff-count.hard   { background: rgba(224,80,96,0.15);  color: #c03048; border: 1px solid rgba(224,80,96,0.3);  }
+
+/* grid */
+.candy-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+/* divider */
+.candy-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(200,140,255,0.28), transparent);
+  margin: 14px 0 14px;
+}
+
+/* cells */
+.candy-cell {
+  aspect-ratio: 1;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Comic Sans MS', cursive;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+  transition: transform .15s;
+  user-select: none;
+}
+
+/* done */
+.candy-cell.done {
+  box-shadow: 0 3px 10px rgba(160,80,220,0.12);
+}
+.candy-cell.done::after {
+  content: '✓';
+  position: absolute;
+  top: 3px; right: 5px;
+  font-size: 0.42rem;
+  font-family: sans-serif;
+  opacity: .5;
+}
+.candy-cell.done.easy   { background: linear-gradient(135deg, #c8ffdc, #a8f0c0); color: #2a7a50; border: 1.5px solid rgba(76,184,122,0.40); }
+.candy-cell.done.easy::after { color: #2a7a50; }
+.candy-cell.done.normal { background: linear-gradient(135deg, #e8d0ff, #d4b8ff); color: #7030cc; border: 1.5px solid rgba(180,120,255,0.40); }
+.candy-cell.done.normal::after { color: #7030cc; }
+.candy-cell.done.hard   { background: linear-gradient(135deg, #ffd0d8, #ffb8c4); color: #c02840; border: 1.5px solid rgba(224,80,96,0.38); }
+.candy-cell.done.hard::after { color: #c02840; }
+
+/* not done */
+.candy-cell.open {
+  background: rgba(255,255,255,0.38);
+  border: 1.5px solid rgba(255,255,255,0.65);
+  box-shadow: 0 2px 6px rgba(160,80,220,0.06);
+  color: rgba(160,100,220,0.55);
+}
+.candy-cell.open.easy   { color: rgba(60,160,100,0.50); }
+.candy-cell.open.hard   { color: rgba(200,60,80,0.45);  }
+
+/* selected / active */
+.candy-cell.selected {
+  transform: scale(1.08);
+  z-index: 2;
+  animation: candyPulse 2s ease-in-out infinite;
+  border: 2px solid rgba(255,255,255,0.95) !important;
+  color: #fff !important;
+  text-shadow: 0 1px 6px rgba(120,50,200,0.5);
+  box-shadow: 0 0 0 3px rgba(200,140,255,0.5), 0 6px 20px rgba(160,80,220,0.35) !important;
+}
+.candy-cell.selected.easy   { background: linear-gradient(135deg, #40cc88, #20b070) !important; }
+.candy-cell.selected.normal { background: linear-gradient(135deg, #b070ff, #8844dd) !important; }
+.candy-cell.selected.hard   { background: linear-gradient(135deg, #ff5070, #dd2848) !important; }
+
+@keyframes candyPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(200,140,255,0.5), 0 6px 20px rgba(160,80,220,0.35); }
+  50%       { box-shadow: 0 0 0 5px rgba(200,140,255,0.28), 0 8px 28px rgba(160,80,220,0.5); }
+}
+
+/* ══════════════════════════════════════════════════════
+   THEME 2 — Chroma Burst
+══════════════════════════════════════════════════════ */
+
+.chroma .phone {
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 0 0 2px rgba(255,255,255,0.08);
+}
+.chroma .phone-notch { background: rgba(14,8,28,0.95); }
+
+.chroma-screen {
+  background: linear-gradient(160deg, #12041e 0%, #080420 60%, #060c18 100%);
+  padding: 40px 18px 36px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* top bar */
+.chroma-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.chroma-back {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; color: rgba(255,255,255,0.45);
+  cursor: pointer;
+}
+.chroma-heading {
+  font-family: 'Comic Sans MS', cursive;
+  font-size: 1.2rem;
+  color: #fff;
+  letter-spacing: 2px;
+  text-shadow: 0 0 20px rgba(200,120,255,0.5);
+}
+.chroma-progress-pill {
+  font-size: 0.65rem; font-weight: 700;
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.40);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+
+/* card */
+.chroma-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 28px;
+  padding: 18px 14px 22px;
+}
+
+/* difficulty label */
+.chroma-diff-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.chroma-diff-label {
+  font-family: 'Comic Sans MS', cursive;
+  font-size: 0.68rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.chroma-diff-label.easy   { color: #10b981; }
+.chroma-diff-label.normal { color: #a855f7; }
+.chroma-diff-label.hard   { color: #ef4444; }
+.chroma-diff-count {
+  font-size: 0.60rem;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 2px 7px;
+  margin-left: auto;
+}
+.chroma-diff-count.easy   { background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); }
+.chroma-diff-count.normal { background: rgba(168,85,247,0.12); color: #a855f7; border: 1px solid rgba(168,85,247,0.25); }
+.chroma-diff-count.hard   { background: rgba(239,68,68,0.12);  color: #ef4444; border: 1px solid rgba(239,68,68,0.25);  }
+
+/* grid */
+.chroma-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+/* divider */
+.chroma-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent);
+  margin: 14px 0 14px;
+}
+
+/* cells */
+.chroma-cell {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Comic Sans MS', cursive;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+  transition: transform .15s;
+  user-select: none;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+/* done */
+.chroma-cell.done {
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.3);
+}
+.chroma-cell.done::after {
+  content: '✓';
+  position: absolute;
+  top: 3px; right: 5px;
+  font-size: 0.42rem;
+  font-family: sans-serif;
+  opacity: .6;
+  color: #fff;
+}
+.chroma-cell.done.easy   { background: linear-gradient(135deg, #059669, #10b981); border: 1.5px solid rgba(16,185,129,0.3); }
+.chroma-cell.done.normal { background: linear-gradient(135deg, #7c3aed, #a855f7); border: 1.5px solid rgba(168,85,247,0.3); }
+.chroma-cell.done.hard   { background: linear-gradient(135deg, #dc2626, #ef4444); border: 1.5px solid rgba(239,68,68,0.3);  }
+
+/* not done */
+.chroma-cell.open {
+  background: rgba(255,255,255,0.05);
+  border: 1.5px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.20);
+  box-shadow: none;
+  text-shadow: none;
+}
+
+/* selected / active */
+.chroma-cell.selected {
+  transform: scale(1.10);
+  z-index: 2;
+  color: #fff;
+  border: none !important;
+  animation: chromaGlow 2.5s ease-in-out infinite;
+}
+.chroma-cell.selected.easy {
+  background: linear-gradient(135deg, #10b981, #34d399, #10b981);
+  background-size: 300% 300%;
+  animation: chromaGradShift 2.5s ease infinite, chromaGlowGreen 2.5s ease-in-out infinite;
+}
+.chroma-cell.selected.normal {
+  background: linear-gradient(135deg, #a855f7, #fbbf24, #a855f7);
+  background-size: 300% 300%;
+  animation: chromaGradShift 2.5s ease infinite, chromaGlowPurple 2.5s ease-in-out infinite;
+}
+.chroma-cell.selected.hard {
+  background: linear-gradient(135deg, #ef4444, #fbbf24, #ef4444);
+  background-size: 300% 300%;
+  animation: chromaGradShift 2.5s ease infinite, chromaGlowRed 2.5s ease-in-out infinite;
+}
+
+@keyframes chromaGradShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes chromaGlowGreen {
+  0%, 100% { box-shadow: 0 0 0 2.5px rgba(16,185,129,0.8), 0 6px 22px rgba(16,185,129,0.5); }
+  50%       { box-shadow: 0 0 0 4px rgba(16,185,129,0.4), 0 10px 32px rgba(16,185,129,0.7); }
+}
+@keyframes chromaGlowPurple {
+  0%, 100% { box-shadow: 0 0 0 2.5px rgba(168,85,247,0.8), 0 6px 22px rgba(168,85,247,0.5); }
+  50%       { box-shadow: 0 0 0 4px rgba(168,85,247,0.4), 0 10px 32px rgba(168,85,247,0.7); }
+}
+@keyframes chromaGlowRed {
+  0%, 100% { box-shadow: 0 0 0 2.5px rgba(239,68,68,0.8), 0 6px 22px rgba(239,68,68,0.5); }
+  50%       { box-shadow: 0 0 0 4px rgba(239,68,68,0.4), 0 10px 32px rgba(239,68,68,0.7); }
+}
+</style>
+</head>
+<body>
+
+<h1>LEVEL SELECT</h1>
+<p class="subtitle">2 styles · 30 niveaux libres · Easy / Normal / Hard</p>
+
+<!-- ══════════════════════════════════════════════════════
+     THEME 1 — Candy Float
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title" style="color:#9955cc;font-family:'Comic Sans MS',cursive">✦ Candy Float</div>
+  <div class="section-desc">Pastel · frosted glass · dégradés doux</div>
+
+  <div class="phone candy">
+    <div class="phone-notch"></div>
+    <div class="candy-screen">
+
+      <div class="candy-top">
+        <div class="candy-back">‹</div>
+        <span class="candy-heading">Levels</span>
+        <span class="candy-progress-pill" id="candy-pill">12 / 30</span>
+      </div>
+
+      <div class="candy-card">
+
+        <div class="candy-diff-row">
+          <span class="candy-diff-label easy">🌿 Easy</span>
+          <span class="candy-diff-count easy" id="candy-easy-count"></span>
+        </div>
+        <div class="candy-grid" id="candy-easy"></div>
+
+        <div class="candy-divider"></div>
+
+        <div class="candy-diff-row">
+          <span class="candy-diff-label normal">✦ Normal</span>
+          <span class="candy-diff-count normal" id="candy-normal-count"></span>
+        </div>
+        <div class="candy-grid" id="candy-normal"></div>
+
+        <div class="candy-divider"></div>
+
+        <div class="candy-diff-row">
+          <span class="candy-diff-label hard">🔥 Hard</span>
+          <span class="candy-diff-count hard" id="candy-hard-count"></span>
+        </div>
+        <div class="candy-grid" id="candy-hard"></div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     THEME 2 — Chroma Burst
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title" style="color:#a855f7;font-family:'Comic Sans MS',cursive">⚡ Chroma Burst</div>
+  <div class="section-desc">Dark · vibrant · spectre de couleurs</div>
+
+  <div class="phone chroma">
+    <div class="phone-notch"></div>
+    <div class="chroma-screen">
+
+      <div class="chroma-top">
+        <div class="chroma-back">‹</div>
+        <span class="chroma-heading">Levels</span>
+        <span class="chroma-progress-pill" id="chroma-pill">12 / 30</span>
+      </div>
+
+      <div class="chroma-card">
+
+        <div class="chroma-diff-row">
+          <span class="chroma-diff-label easy">🌿 EASY</span>
+          <span class="chroma-diff-count easy" id="chroma-easy-count"></span>
+        </div>
+        <div class="chroma-grid" id="chroma-easy"></div>
+
+        <div class="chroma-divider"></div>
+
+        <div class="chroma-diff-row">
+          <span class="chroma-diff-label normal">✦ NORMAL</span>
+          <span class="chroma-diff-count normal" id="chroma-normal-count"></span>
+        </div>
+        <div class="chroma-grid" id="chroma-normal"></div>
+
+        <div class="chroma-divider"></div>
+
+        <div class="chroma-diff-row">
+          <span class="chroma-diff-label hard">🔥 HARD</span>
+          <span class="chroma-diff-count hard" id="chroma-hard-count"></span>
+        </div>
+        <div class="chroma-grid" id="chroma-hard"></div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─── state ──────────────────────────────────────────
+   Freely chosen done levels (no forced order).
+   Level 13 is "selected" (the one we're about to play).
+─────────────────────────────────────────────────────── */
+const DONE     = new Set([1,2,3,4,5,6,7,8,9,10,11,12,14,15,21,22,23]);
+const SELECTED = 13;
+const TOTAL    = 30;
+
+function getState(n) {
+  if (n === SELECTED) return 'selected';
+  if (DONE.has(n))    return 'done';
+  return 'open';
+}
+
+function buildSection(containerId, countId, start, count, diff, theme) {
+  const grid  = document.getElementById(containerId);
+  const badge = document.getElementById(countId);
+  let doneCount = 0;
+
+  for (let i = 0; i < count; i++) {
+    const n  = start + i + 1;
+    const st = getState(n);
+    if (st === 'done' || st === 'selected') doneCount++;
+
+    const cell = document.createElement('div');
+    cell.className = `${theme}-cell ${st} ${diff}`;
+    cell.textContent = n;
+    cell.title = `Level ${n}`;
+    grid.appendChild(cell);
+  }
+
+  badge.textContent = `${doneCount} / ${count}`;
+}
+
+/* ─── candy ─────────────────────────────────────────── */
+buildSection('candy-easy',   'candy-easy-count',   0,  10, 'easy',   'candy');
+buildSection('candy-normal', 'candy-normal-count', 10, 10, 'normal', 'candy');
+buildSection('candy-hard',   'candy-hard-count',   20, 10, 'hard',   'candy');
+
+const candyTotal = [...DONE].length + (DONE.has(SELECTED) ? 0 : (SELECTED ? 0 : 0));
+document.getElementById('candy-pill').textContent  = `${DONE.size} / ${TOTAL}`;
+
+/* ─── chroma ────────────────────────────────────────── */
+buildSection('chroma-easy',   'chroma-easy-count',   0,  10, 'easy',   'chroma');
+buildSection('chroma-normal', 'chroma-normal-count', 10, 10, 'normal', 'chroma');
+buildSection('chroma-hard',   'chroma-hard-count',   20, 10, 'hard',   'chroma');
+
+document.getElementById('chroma-pill').textContent = `${DONE.size} / ${TOTAL}`;
+</script>
+</body>
+</html>

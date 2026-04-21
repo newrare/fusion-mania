@@ -47,7 +47,7 @@ export class VictoryModal {
     this.#mode = options.mode ?? 'classic';
 
     const isBattle = this.#mode === 'battle';
-    const rankings = saveManager.getRankings(this.#mode);
+    const rankings = saveManager.getRankings(isBattle ? 'battle' : this.#mode);
     this.#currentRank = this.#computeProvisionalRank(rankings, options.score);
 
     const continueBtn =
@@ -67,7 +67,7 @@ export class VictoryModal {
           <div class="fm-gameover-stats" id="fm-victory-stats">
             ${this.#renderStats()}
           </div>
-          <div class="fm-gameover-ranking" id="fm-victory-ranking">
+          <div class="fm-gameover-ranking" id="fm-victory-ranking"${this.#currentRank === null || this.#currentRank > 10 ? ' style="display:none"' : ''}>
             <div class="fm-gameover-ranking-title">${i18n.t('ranking.title')}</div>
             ${this.#renderRankObtained()}
           </div>
@@ -100,6 +100,22 @@ export class VictoryModal {
     this.#unsubI18n = i18n.onChange(() => this.#refresh());
 
     this.#startConfetti();
+    // Align sunburst to score element after DOM is painted
+    requestAnimationFrame(() => this.#alignSunburst());
+  }
+
+  /** Position the sunburst center over the score element dynamically. */
+  #alignSunburst() {
+    const modal = this.#domElement?.node.querySelector('.fm-victory');
+    const scoreEl = this.#domElement?.node.querySelector('.fm-gameover-score');
+    const sunburst = this.#domElement?.node.querySelector('.fm-victory-sunburst');
+    if (!modal || !scoreEl || !sunburst) return;
+    const modalRect = modal.getBoundingClientRect();
+    const scoreRect = scoreEl.getBoundingClientRect();
+    // Center of score element relative to the modal, as a percentage
+    const scoreCenterY = scoreRect.top + scoreRect.height / 2 - modalRect.top;
+    const pct = Math.round((scoreCenterY / modalRect.height) * 100);
+    sunburst.style.setProperty('--fm-sunburst-top', `${pct}%`);
   }
 
   #renderStats() {
@@ -111,6 +127,27 @@ export class VictoryModal {
       `<div class="fm-gameover-stat-row"><span class="fm-gameover-stat-label">${label}</span><span class="fm-gameover-stat-value">${value}</span></div>`;
 
     let html = '';
+    if (isBattle && s.battleLevel != null) {
+      const num = s.battleLevel + 1;
+      html += `<div class="fm-gameover-stat-row fm-battle-level-row">`
+        + `<span class="fm-gameover-stat-label">${i18n.t('battle.level')}</span>`
+        + `<span class="fm-gameover-stat-value">`
+        + `<span class="fm-battle-level-num">${num}</span>`
+        + `<span class="fm-battle-level-status fm-battle-level-status--win">✓</span>`
+        + `</span></div>`;
+      if (s.levelBonus > 0) {
+        html += `<div class="fm-gameover-stat-row">`
+          + `<span class="fm-gameover-stat-label">${i18n.t('battle.level_bonus')}</span>`
+          + `<span class="fm-gameover-stat-value fm-battle-level-bonus">+${s.levelBonus.toLocaleString()}</span>`
+          + `</div>`;
+      }
+      if (s.victoryBonus > 0) {
+        html += `<div class="fm-gameover-stat-row">`
+          + `<span class="fm-gameover-stat-label">${i18n.t('battle.victory_bonus')}</span>`
+          + `<span class="fm-gameover-stat-value fm-battle-level-bonus">+${s.victoryBonus.toLocaleString()}</span>`
+          + `</div>`;
+      }
+    }
     html += row(i18n.t('ranking.moves'), s.moves ?? '-');
     html += row(i18n.t('ranking.fusions'), s.fusions ?? '-');
 
@@ -181,8 +218,8 @@ export class VictoryModal {
   /** @returns {string} */
   #renderRankObtained() {
     const rank = this.#currentRank;
-    if (rank === null) {
-      return `<div class="fm-gameover-ranking-empty">${i18n.t('ranking.empty')}</div>`;
+    if (rank === null || rank > 10) {
+      return '';
     }
     if (rank === 1) {
       return `<div class="fm-gameover-rank-obtained fm-gameover-rank-obtained--1">${i18n.t('gameover.rank_1')}</div>`;
@@ -248,14 +285,21 @@ export class VictoryModal {
     const statsEl = overlay.querySelector('#fm-victory-stats');
     if (statsEl) statsEl.innerHTML = this.#renderStats();
     const rankingEl = overlay.querySelector('#fm-victory-ranking');
-    if (rankingEl)
-      rankingEl.innerHTML = `<div class="fm-gameover-ranking-title">${i18n.t('ranking.title')}</div>${this.#renderRankObtained()}`;
+    if (rankingEl) {
+      if (this.#currentRank === null || this.#currentRank > 10) {
+        rankingEl.style.display = 'none';
+      } else {
+        rankingEl.style.display = '';
+        rankingEl.innerHTML = `<div class="fm-gameover-ranking-title">${i18n.t('ranking.title')}</div>${this.#renderRankObtained()}`;
+      }
+    }
     const continueBtn = overlay.querySelector('[data-action="continue"]');
     if (continueBtn) continueBtn.textContent = i18n.t('victory.continue');
     const newGameBtn = overlay.querySelector('[data-action="new-game"]');
     if (newGameBtn) newGameBtn.textContent = i18n.t('gameover.new_game');
     const menuBtn = overlay.querySelector('[data-action="quit"]');
     if (menuBtn) menuBtn.textContent = i18n.t('gameover.quit');
+    requestAnimationFrame(() => this.#alignSunburst());
   }
 
   destroy() {

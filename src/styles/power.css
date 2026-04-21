@@ -155,6 +155,7 @@
   font-family: 'Merkin', cursive, sans-serif;
   z-index: 101;
   white-space: nowrap;
+  max-width: calc(100vw - 24px);
 }
 
 /* --- Caret arrow --- */

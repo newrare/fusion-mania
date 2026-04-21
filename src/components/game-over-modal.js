@@ -56,7 +56,7 @@ export class GameOverModal {
     this.#stats = options.stats ?? {};
     this.#mode = options.mode ?? 'classic';
 
-    const rankings = saveManager.getRankings(this.#mode);
+    const rankings = saveManager.getRankings(this.#mode === 'battle' ? 'battle' : this.#mode);
     this.#currentRank = this.#computeRank(rankings);
 
     const html = `
@@ -69,7 +69,7 @@ export class GameOverModal {
           <div class="fm-gameover-stats" id="fm-gameover-stats">
             ${this.#renderStats()}
           </div>
-          <div class="fm-gameover-ranking" id="fm-gameover-ranking">
+          <div class="fm-gameover-ranking" id="fm-gameover-ranking"${this.#currentRank === null || this.#currentRank > 10 ? ' style="display:none"' : ''}>
             <div class="fm-gameover-ranking-title">${i18n.t('ranking.title')}</div>
             ${this.#renderRankObtained()}
           </div>
@@ -117,6 +117,21 @@ export class GameOverModal {
       `<div class="fm-gameover-stat-row"><span class="fm-gameover-stat-label">${label}</span><span class="fm-gameover-stat-value">${value}</span></div>`;
 
     let html = '';
+    if (isBattle && s.battleLevel != null) {
+      const num = s.battleLevel + 1;
+      html += `<div class="fm-gameover-stat-row fm-battle-level-row">`
+        + `<span class="fm-gameover-stat-label">${i18n.t('battle.level')}</span>`
+        + `<span class="fm-gameover-stat-value">`
+        + `<span class="fm-battle-level-num">${num}</span>`
+        + `<span class="fm-battle-level-status fm-battle-level-status--fail">✗</span>`
+        + `</span></div>`;
+      if (s.levelBonus > 0) {
+        html += `<div class="fm-gameover-stat-row">`
+          + `<span class="fm-gameover-stat-label">${i18n.t('battle.level_bonus')}</span>`
+          + `<span class="fm-gameover-stat-value fm-battle-level-bonus">+${s.levelBonus.toLocaleString()}</span>`
+          + `</div>`;
+      }
+    }
     html += row(i18n.t('ranking.moves'), s.moves ?? '-');
     html += row(i18n.t('ranking.fusions'), s.fusions ?? '-');
 
@@ -165,27 +180,21 @@ export class GameOverModal {
    */
   #computeRank(rankings) {
     if (rankings.length === 0) return null;
-    const s = this.#stats;
-    let lastIdx = -1;
-    if (this.#mode === 'battle') {
-      const lvl = s.enemyMaxLevel ?? 0;
-      for (let i = 0; i < rankings.length; i++) {
-        if ((rankings[i].enemyMaxLevel ?? 0) === lvl && rankings[i].score === this.#score)
-          lastIdx = i;
-      }
-    } else {
-      for (let i = 0; i < rankings.length; i++) {
-        if (rankings[i].score === this.#score) lastIdx = i;
-      }
+    // Count how many entries scored strictly higher than this score.
+    // The current entry was already saved before this modal is shown,
+    // so among equals we are the newest — we lose ties (rank last of equals).
+    let rank = 1;
+    for (const r of rankings) {
+      if ((r.score ?? 0) > this.#score) rank++;
     }
-    return lastIdx >= 0 ? lastIdx + 1 : null;
+    return rank;
   }
 
   /** @returns {string} */
   #renderRankObtained() {
     const rank = this.#currentRank;
-    if (rank === null) {
-      return `<div class="fm-gameover-ranking-empty">${i18n.t('ranking.empty')}</div>`;
+    if (rank === null || rank > 10) {
+      return '';
     }
     if (rank === 1) {
       return `<div class="fm-gameover-rank-obtained fm-gameover-rank-obtained--1">${i18n.t('gameover.rank_1')}</div>`;
@@ -247,8 +256,14 @@ export class GameOverModal {
     const statsEl = overlay.querySelector('#fm-gameover-stats');
     if (statsEl) statsEl.innerHTML = this.#renderStats();
     const rankingEl = overlay.querySelector('#fm-gameover-ranking');
-    if (rankingEl)
-      rankingEl.innerHTML = `<div class="fm-gameover-ranking-title">${i18n.t('ranking.title')}</div>${this.#renderRankObtained()}`;
+    if (rankingEl) {
+      if (this.#currentRank === null || this.#currentRank > 10) {
+        rankingEl.style.display = 'none';
+      } else {
+        rankingEl.style.display = '';
+        rankingEl.innerHTML = `<div class="fm-gameover-ranking-title">${i18n.t('ranking.title')}</div>${this.#renderRankObtained()}`;
+      }
+    }
   }
 
   destroy() {

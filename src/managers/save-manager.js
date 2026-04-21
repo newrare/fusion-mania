@@ -81,6 +81,7 @@ class SaveManager {
    *   enemiesDefeated?: number,
    *   enemyMaxLevel?: number,
    *   defeatedEnemies?: { name: string, level: number }[],
+   *   won?: boolean,
    * }} extra
    */
   addRanking(mode, score, extra = {}) {
@@ -95,6 +96,10 @@ class SaveManager {
     if (extra.enemiesDefeated != null) entry.enemiesDefeated = extra.enemiesDefeated;
     if (extra.enemyMaxLevel != null) entry.enemyMaxLevel = extra.enemyMaxLevel;
     if (extra.defeatedEnemies) entry.defeatedEnemies = extra.defeatedEnemies;
+    if (extra.won) entry.won = true;
+    if (extra.battleLevel != null) entry.battleLevel = extra.battleLevel;
+    if (extra.levelBonus != null) entry.levelBonus = extra.levelBonus;
+    if (extra.victoryBonus != null) entry.victoryBonus = extra.victoryBonus;
     rankings[mode].push(entry);
     rankings[mode].sort((a, b) => this.#compareEntries(a, b));
     rankings[mode] = rankings[mode].slice(0, 10);
@@ -116,11 +121,22 @@ class SaveManager {
 
   /**
    * Get top 10 scores for a mode, sorted by score DESC.
+   * For 'battle', aggregates all battle_L* keys across all levels.
    * @param {string} mode
    * @returns {{ score: number, date: number }[]}
    */
   getRankings(mode) {
     const rankings = this.#loadRankings();
+    if (mode === 'battle') {
+      // Aggregate all per-level keys (battle_L0, battle_L1, …)
+      const all = [];
+      for (const key of Object.keys(rankings)) {
+        if (key.startsWith('battle_L')) all.push(...rankings[key]);
+      }
+      // Also include legacy 'battle' key if present
+      if (rankings['battle']) all.push(...rankings['battle']);
+      return all.sort((a, b) => this.#compareEntries(a, b)).slice(0, 10);
+    }
     const list = rankings[mode] ?? [];
     return [...list].sort((a, b) => this.#compareEntries(a, b));
   }
@@ -128,6 +144,14 @@ class SaveManager {
   /** Reset all rankings. */
   resetRankings() {
     localStorage.removeItem(STORAGE_KEYS.RANKINGS);
+  }
+
+  /** Reset all game data: rankings, saves, save slots, and autosave. Options (audio/theme) are kept. */
+  resetAllData() {
+    localStorage.removeItem(STORAGE_KEYS.RANKINGS);
+    localStorage.removeItem(STORAGE_KEYS.SAVE);
+    localStorage.removeItem(STORAGE_KEYS.SAVE_SLOTS);
+    localStorage.removeItem(STORAGE_KEYS.AUTOSAVE);
   }
 
   /**

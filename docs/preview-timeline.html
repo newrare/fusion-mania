@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FusionMania — Preview · Timeline v2</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: linear-gradient(160deg, #f2e8ff 0%, #e8f2ff 55%, #efffee 100%);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh;
+  padding: 48px 16px 80px;
+}
+
+h1 {
+  text-align: center;
+  font-size: 1.8rem;
+  color: #9955cc;
+  margin-bottom: 6px;
+  letter-spacing: 2px;
+  font-family: 'Comic Sans MS', cursive;
+}
+.subtitle {
+  text-align: center;
+  color: #aa88cc;
+  margin-bottom: 60px;
+  font-size: 0.82rem;
+}
+
+.section { margin-bottom: 72px; }
+.section-title {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+.section-desc {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #aaa;
+  margin-bottom: 22px;
+}
+
+.preview-wrap {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SHARED TIMELINE STRUCTURE
+   Each row: [label] [track: flex]
+   Track:    [node] [connector flex:1] [node] ... [boss]
+   Connectors take equal remaining space → equal gaps
+═══════════════════════════════════════════════════════ */
+
+.tl-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.tl-label {
+  flex: 0 0 36px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* The track stretches to fill remaining width */
+.tl-track {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Each connector between nodes fills equal space */
+.tl-connector {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.tl-line {
+  flex: 1;
+  height: 2px;
+  min-width: 4px;
+}
+
+.tl-arrow {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 0 1px;
+}
+
+/* Nodes are fixed-size */
+.tl-node { flex: 0 0 auto; }
+
+.tl-tile {
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  border: 1.5px solid;
+  white-space: nowrap;
+}
+
+.tl-boss {
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  border: 1.5px solid;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tl-boss-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   THEME 1 — CANDY FLOAT
+   Pastel pink-purple palette · frosted glass card
+═══════════════════════════════════════════════════════ */
+
+.candy-card {
+  background: rgba(255,255,255,0.72);
+  border-radius: 22px;
+  padding: 20px 22px;
+  border: 1.5px solid rgba(200,150,255,0.35);
+  box-shadow: 0 8px 32px rgba(160,80,240,0.12), 0 1px 0 rgba(255,255,255,0.9) inset;
+  backdrop-filter: blur(8px);
+}
+
+.candy-card .tl-row {
+  border-bottom: 1px solid rgba(200,150,255,0.15);
+}
+.candy-card .tl-row:last-child { border-bottom: none; }
+
+.candy-card .tl-label { color: #8844bb; }
+
+.candy-card .tl-line {
+  background: linear-gradient(90deg, rgba(200,150,255,0.4), rgba(160,120,255,0.4));
+}
+
+.candy-card .tl-arrow { color: #bb88ee; }
+
+/* Candy tile colors — extracted from preview-theme-candy-float.html */
+.candy-card .t2   { background: #fff2ff; color: #d44db8; border-color: #d44db8; }
+.candy-card .t4   { background: #ffe5fd; color: #c02ea8; border-color: #c02ea8; }
+.candy-card .t8   { background: #ffd6f5; color: #aa0f96; border-color: #aa0f96; }
+.candy-card .t16  { background: #ffcaff; color: #8800b8; border-color: #8800b8; }
+.candy-card .t32  { background: #edd2ff; color: #6600cc; border-color: #6600cc; }
+.candy-card .t64  { background: #dcc2ff; color: #4400e0; border-color: #4400e0; }
+.candy-card .t128 { background: linear-gradient(135deg, #c8b8ff, #a898ff); color: #1a00cc; border-color: #1a00cc; }
+.candy-card .t256 { background: linear-gradient(135deg, #b0ceff, #8ab2ff); color: #0030ee; border-color: #0030ee; }
+.candy-card .t512 {
+  background: linear-gradient(135deg, #a0eedc, #6cd8c0);
+  color: #006699; border-color: #006699;
+}
+.candy-card .t1024 {
+  background: linear-gradient(135deg, #aaffe0, #72e8a8);
+  color: #00aa44; border-color: #00aa44;
+}
+
+.candy-card .tl-boss {
+  background: linear-gradient(135deg, #fff2ff, #ffd6f5);
+  border-color: #d44db8;
+  color: #9900aa;
+  box-shadow: 0 0 12px rgba(212,77,184,0.25);
+}
+
+/* Dot marker at track start */
+.candy-card .tl-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #cc88ee;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1.5px #cc88ee;
+  flex: 0 0 auto;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   THEME 2 — CHROMA BURST
+   Vivid opaque tiles · dark card
+═══════════════════════════════════════════════════════ */
+
+.chroma-card {
+  background: #14141f;
+  border-radius: 22px;
+  padding: 20px 22px;
+  border: 1.5px solid rgba(255,255,255,0.08);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.4);
+}
+
+.chroma-card .tl-row {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.chroma-card .tl-row:last-child { border-bottom: none; }
+
+.chroma-card .tl-label { color: #6677aa; }
+
+/* The track line shifts through the chroma spectrum */
+.chroma-card .tl-line {
+  background: rgba(255,255,255,0.1);
+}
+
+.chroma-card .tl-arrow { color: #444466; }
+
+/* Chroma tile colors — extracted from preview-theme-chroma-burst.html */
+.chroma-card .t2   { background: #facc15; color: #fff; border-color: #a16207; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.chroma-card .t4   { background: #f97316; color: #fff; border-color: #9a3412; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.chroma-card .t8   { background: #ef4444; color: #fff; border-color: #991b1b; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.chroma-card .t16  { background: #a855f7; color: #fff; border-color: #6b21a8; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.chroma-card .t32  { background: #3b82f6; color: #fff; border-color: #1e40af; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.chroma-card .t64  { background: #06b6d4; color: #fff; border-color: #0e7490; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.chroma-card .t128 { background: linear-gradient(135deg, #059669, #34d399); color: #fff; border-color: #065f46; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.chroma-card .t256 { background: linear-gradient(135deg, #84cc16, #d9f99d); color: #fff; border-color: #4d7c0f; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.chroma-card .t512 {
+  background: linear-gradient(135deg, #f43f5e, #ec4899);
+  color: #fff; border-color: #9f1239;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.chroma-card .t1024 {
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+  color: #fff; border-color: #92400e;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.chroma-card .tl-boss {
+  background: #1e0808;
+  border-color: #dc2626;
+  color: #fca5a5;
+  box-shadow: 0 0 16px rgba(220,38,38,0.35);
+  animation: chroma-boss-pulse 2s ease-in-out infinite;
+}
+@keyframes chroma-boss-pulse {
+  50% { box-shadow: 0 0 24px rgba(220,38,38,0.6); border-color: #ef4444; }
+}
+
+.chroma-card .tl-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #444466;
+  border: 2px solid #14141f;
+  box-shadow: 0 0 0 1.5px #444466;
+  flex: 0 0 auto;
+}
+
+</style>
+</head>
+<body>
+
+<h1>FUSION MANIA</h1>
+<p class="subtitle">Level Timeline · 2 Game Themes · Equal-spaced nodes</p>
+
+
+<!-- ══════════════════════════════════════════════════════
+     CANDY FLOAT
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <p class="section-title" style="color:#7744aa;font-family:'Comic Sans MS',cursive;">Candy Float</p>
+  <p class="section-desc">Pastel pink-purple · frosted glass card · 2 to 4 steps</p>
+  <div class="preview-wrap">
+    <div class="candy-card">
+
+      <!-- Lv1: 2 steps -->
+      <div class="tl-row">
+        <span class="tl-label">Lv1</span>
+        <div class="tl-track">
+          <div class="tl-node"><div class="tl-tile t2">2</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t8">8</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node">
+            <div class="tl-boss"><span class="tl-boss-icon">🔥</span>Boss 16</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lv2: 2 steps -->
+      <div class="tl-row">
+        <span class="tl-label">Lv2</span>
+        <div class="tl-track">
+          <div class="tl-node"><div class="tl-tile t2">2</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t16">16</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node">
+            <div class="tl-boss"><span class="tl-boss-icon">🔥</span>Boss 64</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lv3: 3 steps -->
+      <div class="tl-row">
+        <span class="tl-label">Lv3</span>
+        <div class="tl-track">
+          <div class="tl-node"><div class="tl-tile t4">4</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t16">16</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t64">64</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node">
+            <div class="tl-boss"><span class="tl-boss-icon">🔥</span>Boss 256</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lv4: 3 steps -->
+      <div class="tl-row">
+        <span class="tl-label">Lv4</span>
+        <div class="tl-track">
+          <div class="tl-node"><div class="tl-tile t8">8</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t32">32</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t128">128</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node">
+            <div class="tl-boss"><span class="tl-boss-icon">🔥</span>Boss 512</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lv5: 4 steps -->
+      <div class="tl-row">
+        <span class="tl-label">Lv5</span>
+        <div class="tl-track">
+          <div class="tl-node"><div class="tl-tile t16">16</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t64">64</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t256">256</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t512">512</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node">
+            <div class="tl-boss"><span class="tl-boss-icon">🔥</span>Boss 2048</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     CHROMA BURST
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <p class="section-title" style="color:#a855f7;font-family:'Comic Sans MS',cursive;">Chroma Burst</p>
+  <p class="section-desc">Vivid opaque tiles · dark card · 2 to 4 steps</p>
+  <div class="preview-wrap">
+    <div class="chroma-card">
+
+      <!-- Lv1: 2 steps -->
+      <div class="tl-row">
+        <span class="tl-label">Lv1</span>
+        <div class="tl-track">
+          <div class="tl-node"><div class="tl-tile t2">2</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t8">8</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node">
+            <div class="tl-boss"><span class="tl-boss-icon">🔥</span>Boss 16</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lv2: 2 steps -->
+      <div class="tl-row">
+        <span class="tl-label">Lv2</span>
+        <div class="tl-track">
+          <div class="tl-node"><div class="tl-tile t2">2</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t16">16</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node">
+            <div class="tl-boss"><span class="tl-boss-icon">🔥</span>Boss 64</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lv3: 3 steps -->
+      <div class="tl-row">
+        <span class="tl-label">Lv3</span>
+        <div class="tl-track">
+          <div class="tl-node"><div class="tl-tile t4">4</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t16">16</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t64">64</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node">
+            <div class="tl-boss"><span class="tl-boss-icon">🔥</span>Boss 256</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lv4: 3 steps -->
+      <div class="tl-row">
+        <span class="tl-label">Lv4</span>
+        <div class="tl-track">
+          <div class="tl-node"><div class="tl-tile t8">8</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t32">32</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t128">128</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node">
+            <div class="tl-boss"><span class="tl-boss-icon">🔥</span>Boss 512</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lv5: 4 steps -->
+      <div class="tl-row">
+        <span class="tl-label">Lv5</span>
+        <div class="tl-track">
+          <div class="tl-node"><div class="tl-tile t16">16</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t64">64</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t256">256</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+            <span class="tl-arrow">▶</span>
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node"><div class="tl-tile t512">512</div></div>
+          <div class="tl-connector">
+            <span class="tl-line"></span>
+          </div>
+          <div class="tl-node">
+            <div class="tl-boss"><span class="tl-boss-icon">🔥</span>Boss 2048</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

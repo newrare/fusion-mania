@@ -4,6 +4,7 @@ import { i18n } from '../managers/i18n-manager.js';
 import { layout } from '../managers/layout-manager.js';
 import { audioManager } from '../managers/audio-manager.js';
 import { MenuModal } from '../components/menu-modal.js';
+import { LevelSelectModal } from '../components/level-select-modal.js';
 import { addBackground } from '../utils/background.js';
 
 export class TitleScene extends Phaser.Scene {
@@ -19,11 +20,22 @@ export class TitleScene extends Phaser.Scene {
   /** @type {MenuModal | null} */
   #menuModal = null;
 
+  /** @type {LevelSelectModal | null} */
+  #levelSelectModal = null;
+
   /** @type {ReturnType<typeof setTimeout> | null} */
   #logoAppearTimer = null;
 
+  /** @type {boolean} */
+  #openBattle = false;
+
   constructor() {
     super({ key: SCENE_KEYS.TITLE });
+  }
+
+  /** @param {{ openBattle?: boolean }} [data] */
+  init(data) {
+    this.#openBattle = data?.openBattle ?? false;
   }
 
   create() {
@@ -73,6 +85,31 @@ export class TitleScene extends Phaser.Scene {
     // Any key or tap → open menu
     this.input.keyboard.on('keydown', this.#openMenu, this);
     this.input.on('pointerdown', this.#openMenu, this);
+
+    if (this.#openBattle) {
+      this.#openBattle = false;
+      this.time.delayedCall(100, () => this.#openLevelSelectDirect());
+    }
+  }
+
+  #openLevelSelectDirect() {
+    this.input.keyboard.off('keydown', this.#openMenu, this);
+    this.input.off('pointerdown', this.#openMenu, this);
+    audioManager.unlock();
+    this.#levelSelectModal = new LevelSelectModal(this, {
+      onSelect: (levelIndex) => {
+        this.#levelSelectModal?.destroy();
+        this.#levelSelectModal = null;
+        this.#removeDevCredit();
+        this.scene.start(SCENE_KEYS.GRID, { mode: 'battle', battleLevel: levelIndex });
+      },
+      onCancel: () => {
+        this.#levelSelectModal?.destroy();
+        this.#levelSelectModal = null;
+        this.input.keyboard.on('keydown', this.#openMenu, this);
+        this.input.on('pointerdown', this.#openMenu, this);
+      },
+    });
   }
 
   #openMenu = () => {
@@ -114,9 +151,21 @@ export class TitleScene extends Phaser.Scene {
         this.scene.start(SCENE_KEYS.GRID, { mode: 'classic' });
       },
       onBattle: () => {
-        this.#removeDevCredit();
-        this.#destroyModal();
-        this.scene.start(SCENE_KEYS.GRID, { mode: 'battle' });
+        if (this.#devCreditEl) this.#devCreditEl.style.display = 'none';
+        this.#levelSelectModal = new LevelSelectModal(this, {
+          onSelect: (levelIndex) => {
+            this.#levelSelectModal?.destroy();
+            this.#levelSelectModal = null;
+            this.#removeDevCredit();
+            this.#destroyModal();
+            this.scene.start(SCENE_KEYS.GRID, { mode: 'battle', battleLevel: levelIndex });
+          },
+          onCancel: () => {
+            this.#levelSelectModal?.destroy();
+            this.#levelSelectModal = null;
+            if (this.#devCreditEl) this.#devCreditEl.style.display = '';
+          },
+        });
       },
       onFree: () => {
         this.#removeDevCredit();
@@ -145,6 +194,10 @@ export class TitleScene extends Phaser.Scene {
     if (this.#menuModal) {
       this.#menuModal.destroy();
       this.#menuModal = null;
+    }
+    if (this.#levelSelectModal) {
+      this.#levelSelectModal.destroy();
+      this.#levelSelectModal = null;
     }
   }
 

@@ -61,10 +61,10 @@ export class OptionsModal {
               <span class="fm-option-label">${i18n.t('options.language')}</span>
               <button class="fm-theme-btn" data-action="language" id="fm-lang-label">${langLabel}</button>
             </div>
-            <button class="fm-btn fm-btn--danger" data-action="reset-ranking" id="fm-reset-ranking-btn">${i18n.t('options.reset_ranking')}</button>
+            <button class="fm-btn fm-btn--danger" data-action="reset-ranking" id="fm-reset-ranking-btn">${i18n.t('options.reset_data')}</button>
             <div class="fm-reset-success" id="fm-reset-success" style="display:none"></div>
             <div class="fm-confirm-row" id="fm-reset-confirm" style="display:none">
-              <span class="fm-confirm-label" id="fm-reset-confirm-label">${i18n.t('options.reset_confirm')}</span>
+              <span class="fm-confirm-label" id="fm-reset-confirm-label">${i18n.t('options.reset_data_confirm')}</span>
               <div class="fm-confirm-btns">
                 <button class="fm-btn fm-btn--primary" data-action="reset-yes">${i18n.t('confirm.yes')}</button>
                 <button class="fm-btn" data-action="reset-no">${i18n.t('confirm.no')}</button>
@@ -125,7 +125,7 @@ export class OptionsModal {
           break;
         }
         case 'reset-yes': {
-          saveManager.resetRankings();
+          saveManager.resetAllData();
           const confirmRow = this.#domElement?.node.querySelector('#fm-reset-confirm');
           const resetBtn = this.#domElement?.node.querySelector('#fm-reset-ranking-btn');
           if (confirmRow) confirmRow.style.display = 'none';
@@ -133,7 +133,7 @@ export class OptionsModal {
           // Show success message
           const successEl = this.#domElement?.node.querySelector('#fm-reset-success');
           if (successEl) {
-            successEl.textContent = i18n.t('options.reset_success');
+            successEl.textContent = i18n.t('options.reset_data_success');
             successEl.style.display = 'block';
             setTimeout(() => {
               if (successEl) successEl.style.display = 'none';
@@ -183,9 +183,9 @@ export class OptionsModal {
     const langEl = overlay.querySelector('#fm-lang-label');
     if (langEl) langEl.textContent = i18n.t(`options.lang_${i18n.locale}`);
     const resetBtn = overlay.querySelector('#fm-reset-ranking-btn');
-    if (resetBtn) resetBtn.textContent = i18n.t('options.reset_ranking');
+    if (resetBtn) resetBtn.textContent = i18n.t('options.reset_data');
     const confirmLabel = overlay.querySelector('#fm-reset-confirm-label');
-    if (confirmLabel) confirmLabel.textContent = i18n.t('options.reset_confirm');
+    if (confirmLabel) confirmLabel.textContent = i18n.t('options.reset_data_confirm');
     const yesBtn = overlay.querySelector('[data-action="reset-yes"]');
     if (yesBtn) yesBtn.textContent = i18n.t('confirm.yes');
     const noBtn = overlay.querySelector('[data-action="reset-no"]');

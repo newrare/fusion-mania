@@ -114,6 +114,20 @@ export class RankingDetailModal {
     html += row(i18n.t('ranking.score'), entry.score ?? '-');
 
     if (isBattle) {
+      // Battle level
+      if (entry.battleLevel != null) {
+        const lvlNum = entry.battleLevel + 1;
+        const wonMark = entry.won ? ' ✓' : ' ✗';
+        html += row(i18n.t('battle.level'), `${lvlNum}${wonMark}`);
+      }
+      // Level bonus
+      if (entry.levelBonus > 0) {
+        html += row(i18n.t('battle.level_bonus'), `+${entry.levelBonus.toLocaleString()}`);
+      }
+      // Victory bonus
+      if (entry.victoryBonus > 0) {
+        html += row(i18n.t('battle.victory_bonus'), `+${entry.victoryBonus.toLocaleString()}`);
+      }
       // Max enemy level for battle
       const lvl = entry.enemyMaxLevel;
       const lvlHtml = lvl

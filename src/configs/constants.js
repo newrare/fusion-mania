@@ -259,8 +259,59 @@ export const BATTLE = {
   CLASSIC_MOVES: 10,
   /** HP multiplier for enemy: HP = log2(level) × HP_PER_LEVEL */
   HP_PER_LEVEL: 10,
-  /** Enemy levels in progression order */
+  /** Enemy levels in progression order (legacy — used as fallback when no battleLevel is set) */
   LEVELS: [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048],
+  /**
+   * 30 battle levels grouped into 3 tiers of 10.
+   * Each entry is an array of enemy values; the last one is the Boss.
+   */
+  BATTLE_LEVELS: [
+    // ── Easy (1–10) ──
+    [2, 4, 8],
+    [2, 8, 16],
+    [2, 16, 32],
+    [4, 16, 32],
+    [4, 16, 64],
+    [4, 32, 64],
+    [8, 32, 128],
+    [8, 64, 128],
+    [16, 64, 256],
+    [16, 128, 256],
+    // ── Normal (11–20) ──
+    [4, 16, 64, 256],
+    [4, 32, 128, 256],
+    [8, 32, 128, 512],
+    [8, 64, 256, 512],
+    [8, 64, 256, 512],
+    [16, 64, 256, 512],
+    [16, 128, 256, 1024],
+    [16, 128, 512, 1024],
+    [32, 128, 512, 1024],
+    [32, 256, 512, 1024],
+    // ── Hard (21–30) ──
+    [8, 32, 64, 256, 1024],
+    [8, 32, 128, 256, 1024],
+    [16, 32, 128, 512, 1024],
+    [16, 64, 128, 512, 1024],
+    [16, 64, 256, 512, 2048],
+    [32, 64, 256, 1024, 2048],
+    [32, 128, 256, 1024, 2048],
+    [32, 128, 512, 1024, 2048],
+    [64, 128, 512, 1024, 2048],
+    [64, 256, 512, 1024, 2048],
+  ],
+  /** Tier boundaries for BATTLE_LEVELS (0-indexed) */
+  TIER_EASY: { start: 0, end: 10 },
+  TIER_NORMAL: { start: 10, end: 20 },
+  TIER_HARD: { start: 20, end: 30 },
+  /** Level difficulty bonus multiplier applied to the final score (always, win or lose) */
+  LEVEL_BONUS_EASY: 0.05,
+  LEVEL_BONUS_NORMAL: 0.10,
+  LEVEL_BONUS_HARD: 0.20,
+  /** Additional victory score bonus multiplier applied on top of level bonus upon winning */
+  VICTORY_BONUS_EASY: 0.10,
+  VICTORY_BONUS_NORMAL: 0.25,
+  VICTORY_BONUS_HARD: 0.50,
   /** Available powers for each enemy level */
   LEVEL_POWERS: {
     2: [POWER_TYPES.ICE],
