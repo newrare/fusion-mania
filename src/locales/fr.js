@@ -159,6 +159,7 @@ export const fr = {
   'save.moves': 'Mouvements',
   'save.mode_col': 'Mode',
   'battle.powers_label': 'Pouvoirs',
+  'battle.available_powers_label': 'Pouvoirs disponibles',
   'help.title': 'Aide',
   'help.close': 'Fermer',
   'help.back': 'Retour',

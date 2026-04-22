@@ -92,8 +92,12 @@ export class Enemy {
   /** @type {GridLife} Enemy HP system */
   life;
 
-  /** @type {string[]} Powers available to this enemy for contamination */
-  availablePowers;
+  /**
+   * Remaining cast count per power type. Decremented each time the enemy
+   * casts the power; removed entirely once it reaches 0.
+   * @type {Record<string, number>}
+   */
+  powerStock;
 
   /** @type {boolean} Whether this enemy is the boss of its level sequence */
   boss = false;
@@ -105,10 +109,20 @@ export class Enemy {
   constructor(level, name) {
     this.level = level;
     this.name = name ?? ENEMY_NAMES[Math.floor(Math.random() * ENEMY_NAMES.length)];
-    this.availablePowers = BATTLE.LEVEL_POWERS[level] ?? [];
+    this.powerStock = { ...(BATTLE.ENEMY_POWER_STOCK[level] ?? {}) };
 
     const maxHp = Math.ceil(Math.log2(level)) * BATTLE.HP_PER_LEVEL;
     this.life = new GridLife(maxHp);
+  }
+
+  /** @returns {string[]} Power types with at least one charge remaining. */
+  get availablePowers() {
+    return Object.keys(this.powerStock).filter((t) => this.powerStock[t] > 0);
+  }
+
+  /** @returns {boolean} True if the enemy has at least one power left. */
+  hasAnyStock() {
+    return this.availablePowers.length > 0;
   }
 
   /** @returns {boolean} */
@@ -131,12 +145,26 @@ export class Enemy {
   }
 
   /**
-   * Pick a random power from the enemy's repertoire.
+   * Pick a random power from the enemy's remaining stock.
    * @returns {string | null}
    */
   pickRandomPower() {
-    if (this.availablePowers.length === 0) return null;
-    return this.availablePowers[Math.floor(Math.random() * this.availablePowers.length)];
+    const available = this.availablePowers;
+    if (available.length === 0) return null;
+    return available[Math.floor(Math.random() * available.length)];
+  }
+
+  /**
+   * Decrement a power charge after casting. The key is removed once it hits 0.
+   * @param {string} type
+   * @returns {boolean} True if consumed, false if no charge was available.
+   */
+  consumePower(type) {
+    const count = this.powerStock[type] ?? 0;
+    if (count <= 0) return false;
+    this.powerStock[type] = count - 1;
+    if (this.powerStock[type] <= 0) delete this.powerStock[type];
+    return true;
   }
 
   /** @returns {object} */
@@ -145,6 +173,7 @@ export class Enemy {
       name: this.name,
       level: this.level,
       life: this.life.serialize(),
+      powerStock: { ...this.powerStock },
       boss: this.boss,
     };
   }
@@ -157,6 +186,7 @@ export class Enemy {
   static restore(data) {
     const enemy = new Enemy(data.level, data.name);
     enemy.life.restore(data.life);
+    if (data.powerStock) enemy.powerStock = { ...data.powerStock };
     enemy.boss = data.boss ?? false;
     return enemy;
   }

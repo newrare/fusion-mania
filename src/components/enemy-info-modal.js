@@ -34,18 +34,27 @@ export class EnemyInfoModal {
     const hpPercent = enemy.life.percent * 100;
     const cat = enemy.life.getColorCategory();
 
-    const powersHtml = enemy.availablePowers
-      .map((p) => {
-        const svgId = Power.svgId(p);
+    // Render one line per power type still in stock, with N icons stacked
+    // so the player sees how many charges remain.
+    const stockEntries = Object.entries(enemy.powerStock ?? {}).filter(([, n]) => n > 0);
+    const powersHtml = stockEntries
+      .map(([type, count]) => {
+        const svgId = Power.svgId(type);
         if (!svgId) return '';
-        const pcat = Power.category(p);
-        const name = i18n.t(Power.nameKey(p));
+        const pcat = Power.category(type);
+        const name = i18n.t(Power.nameKey(type));
+        // Icons overlap with 6 px horizontal offset; last icon sits on top (highest z-index).
+        const stackWidth = 28 + (count - 1) * 6;
+        const iconsHtml = Array.from({ length: count })
+          .map(
+            (_, i) =>
+              `<div class="fm-power-dot ${pcat} tiny" style="position:absolute;left:${i * 6}px;z-index:${i};top:0"><svg class="fm-power-icon" aria-hidden="true"><use href="#${svgId}"/></svg></div>`,
+          )
+          .join('');
         return `
         <div class="fm-ei-power-item">
-          <div class="fm-power-dot ${pcat} tiny">
-            <svg class="fm-power-icon" aria-hidden="true"><use href="#${svgId}"/></svg>
-          </div>
-          <span class="fm-ei-power-name">${name}</span>
+          <div class="fm-ei-power-stack" style="width:${stackWidth}px">${iconsHtml}</div>
+          <span class="fm-ei-power-name">${name} × ${count}</span>
         </div>
       `;
       })
@@ -65,7 +74,7 @@ export class EnemyInfoModal {
               <span class="fm-ei-hp-val">${currentHp}/${maxHp}</span>
             </div>
           </div>
-          <div class="fm-ei-section-title">${i18n.t('battle.powers_label')}</div>
+          <div class="fm-ei-section-title">${i18n.t('battle.available_powers_label')}</div>
           <div class="fm-ei-powers">
             ${powersHtml || '<span class="fm-ei-no-powers">—</span>'}
           </div>

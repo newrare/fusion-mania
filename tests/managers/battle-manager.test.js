@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { BattleManager } from '../../src/managers/battle-manager.js';
+import { PowerManager } from '../../src/managers/power-manager.js';
 import { Grid } from '../../src/entities/grid.js';
 import { Tile } from '../../src/entities/tile.js';
 import { BATTLE, POWER_TYPES } from '../../src/configs/constants.js';
@@ -120,44 +121,56 @@ describe('BattleManager', () => {
   });
 
   describe('contaminate', () => {
+    /** @type {PowerManager} */
+    let pm;
+    beforeEach(() => {
+      pm = new PowerManager([]);
+    });
+
     it('returns null when no enemy is active', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
-      expect(bm.contaminate(grid)).toBeNull();
+      expect(bm.contaminate(grid, pm)).toBeNull();
     });
 
-    it('assigns a power to a random unpowered tile', () => {
+    it('direct powers (ice) pick a tile without applying state (deferred to after animation)', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
       grid.cells[1][1] = new Tile(4, 1, 1);
-      // Spawn enemy
-      for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
-        bm.tickClassicPhase(grid);
-      }
-      expect(bm.enemy).not.toBeNull();
-
-      const result = bm.contaminate(grid);
+      for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) bm.tickClassicPhase(grid);
+      // Level 2 enemy only has ICE in its stock
+      const result = bm.contaminate(grid, pm);
       expect(result).not.toBeNull();
-      expect(result.tile.power).toBe(result.power);
+      expect(result.kind).toBe('direct');
+      expect(result.tile).not.toBeNull();
+      // State is NOT applied here — the scene applies it after the animation plays.
+      expect(result.tile.state).toBeNull();
     });
 
-    it('does not contaminate tiles that already have a power', () => {
+    it('edge-charged powers (e.g. bomb) are placed on a grid edge', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
-      grid.cells[0][0].power = POWER_TYPES.ICE;
-      // Only one tile on grid, already has power
-      for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
-        bm.tickClassicPhase(grid);
-      }
-      const result = bm.contaminate(grid);
-      expect(result).toBeNull();
+      for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) bm.tickClassicPhase(grid);
+      // Force the enemy to only have BOMB (edge-charged)
+      bm.enemy.powerStock = { [POWER_TYPES.BOMB]: 1 };
+
+      const result = bm.contaminate(grid, pm);
+      expect(result).not.toBeNull();
+      expect(result.kind).toBe('edge');
+      expect(['top', 'bottom', 'left', 'right']).toContain(result.side);
+      expect(pm.edges[result.side]).toBe(POWER_TYPES.BOMB);
     });
 
-    it('does not contaminate tiles with active state', () => {
+    it('decrements the enemy stock after each cast', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
-      grid.cells[0][0].applyState('ice', 3);
-      for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
-        bm.tickClassicPhase(grid);
-      }
-      const result = bm.contaminate(grid);
-      expect(result).toBeNull();
+      for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) bm.tickClassicPhase(grid);
+      bm.enemy.powerStock = { [POWER_TYPES.ICE]: 2 };
+      bm.contaminate(grid, pm);
+      expect(bm.enemy.powerStock[POWER_TYPES.ICE]).toBe(1);
+    });
+
+    it('returns null when the enemy stock is empty', () => {
+      grid.cells[0][0] = new Tile(2, 0, 0);
+      for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) bm.tickClassicPhase(grid);
+      bm.enemy.powerStock = {};
+      expect(bm.contaminate(grid, pm)).toBeNull();
     });
   });
 
@@ -244,20 +257,22 @@ describe('BattleManager', () => {
   });
 
   describe('clearGridPowers', () => {
-    it('removes all powers from grid tiles', () => {
+    it('clears tile states and edge charges', () => {
       grid.cells[0][0] = new Tile(2, 0, 0);
-      grid.cells[0][0].power = POWER_TYPES.ICE;
+      grid.cells[0][0].applyState('ice', 3);
       grid.cells[1][1] = new Tile(4, 1, 1);
-      grid.cells[1][1].power = POWER_TYPES.BOMB;
-      grid.cells[2][2] = new Tile(8, 2, 2);
-      grid.cells[2][2].applyState('blind', 3);
+      grid.cells[1][1].applyState('blind', 2);
 
-      bm.clearGridPowers(grid);
+      const pm = new PowerManager([]);
+      pm.chargeEdge('top', POWER_TYPES.BOMB);
+      pm.chargeEdge('left', POWER_TYPES.FIRE_H);
+
+      bm.clearGridPowers(grid, pm);
 
       for (const tile of grid.getAllTiles()) {
-        expect(tile.power).toBeNull();
         expect(tile.state).toBeNull();
       }
+      expect(pm.edges).toEqual({ top: null, bottom: null, left: null, right: null });
     });
   });
 

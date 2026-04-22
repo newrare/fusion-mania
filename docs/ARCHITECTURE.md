@@ -63,7 +63,6 @@ fusion-mania/
 │   │   ├── help-modal.js      # In-game help/tutorial (6 categories)
 │   │   ├── menu-modal.js      # Main menu overlay (resume, modes, save, quit)
 │   │   ├── options-modal.js   # Options (music, sound, theme, language, reset)
-│   │   ├── power-choice-modal.js  # Choose between 2 conflicting powers on merge
 │   │   ├── power-select-modal.js  # Pre-game power selection (Free mode)
 │   │   ├── ranking-detail-modal.js# Detailed ranking entry view
 │   │   ├── ranking-modal.js   # Leaderboard with tabs (Classic, Battle, Free)

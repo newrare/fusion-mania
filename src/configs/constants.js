@@ -217,6 +217,34 @@ export const POWER_CATEGORIES = {
 };
 
 /**
+ * Behavioral classification — how a power is charged and triggered.
+ * - `target`: charged on a grid edge; uses the targeted tile (sunburst) as source.
+ * - `global`: charged on a grid edge; affects the whole grid (no targeted tile).
+ * - `special`: charged on a grid edge; has a bespoke visual on potential victims.
+ * - `direct`: not charged — applied directly to a random tile by the game/enemy.
+ */
+export const POWER_BEHAVIOR = {
+  target: [
+    POWER_TYPES.FIRE_H,
+    POWER_TYPES.FIRE_V,
+    POWER_TYPES.FIRE_X,
+    POWER_TYPES.BOMB,
+    POWER_TYPES.TELEPORT,
+  ],
+  global: [
+    POWER_TYPES.NUCLEAR,
+    POWER_TYPES.WIND_UP,
+    POWER_TYPES.WIND_DOWN,
+    POWER_TYPES.WIND_LEFT,
+    POWER_TYPES.WIND_RIGHT,
+    POWER_TYPES.BLIND,
+    POWER_TYPES.ADS,
+  ],
+  special: [POWER_TYPES.LIGHTNING],
+  direct: [POWER_TYPES.ICE, POWER_TYPES.EXPEL_H, POWER_TYPES.EXPEL_V],
+};
+
+/**
  * Get the badge color category for a power type.
  * @param {string} type — POWER_TYPES value
  * @returns {'danger' | 'warning' | 'info'}
@@ -229,7 +257,7 @@ export function getPowerCategory(type) {
 
 /** Default duration (in moves) for timed power effects */
 export const POWER_DURATIONS = {
-  ICE: 6,
+  ICE: 200,
   BLIND: 2,
   EXPEL: 5,
   WIND: 2,
@@ -387,6 +415,107 @@ export const BATTLE = {
       POWER_TYPES.LIGHTNING,
       POWER_TYPES.ADS,
     ],
+  },
+  /**
+   * Initial power stock per enemy level.
+   * Each entry maps a power type to the number of times the enemy can cast it
+   * during the fight. When the counter reaches 0, the power is removed.
+   * Tune these values to balance the difficulty of each enemy.
+   */
+  ENEMY_POWER_STOCK: {
+    2: {
+      [POWER_TYPES.ICE]: 3,
+    },
+    4: {
+      [POWER_TYPES.WIND_UP]: 1,
+      [POWER_TYPES.WIND_DOWN]: 1,
+      [POWER_TYPES.WIND_LEFT]: 1,
+      [POWER_TYPES.WIND_RIGHT]: 1,
+    },
+    8: {
+      [POWER_TYPES.EXPEL_H]: 2,
+      [POWER_TYPES.EXPEL_V]: 2,
+    },
+    16: {
+      [POWER_TYPES.BLIND]: 3,
+    },
+    32: {
+      [POWER_TYPES.FIRE_H]: 2,
+      [POWER_TYPES.FIRE_V]: 2,
+      [POWER_TYPES.ADS]: 1,
+    },
+    64: {
+      [POWER_TYPES.FIRE_X]: 2,
+      [POWER_TYPES.ADS]: 2,
+    },
+    128: {
+      [POWER_TYPES.BOMB]: 3,
+      [POWER_TYPES.ADS]: 2,
+    },
+    256: {
+      [POWER_TYPES.ICE]: 2,
+      [POWER_TYPES.WIND_UP]: 1,
+      [POWER_TYPES.WIND_DOWN]: 1,
+      [POWER_TYPES.EXPEL_H]: 1,
+      [POWER_TYPES.EXPEL_V]: 1,
+      [POWER_TYPES.BLIND]: 2,
+      [POWER_TYPES.FIRE_H]: 1,
+      [POWER_TYPES.FIRE_V]: 1,
+      [POWER_TYPES.TELEPORT]: 2,
+      [POWER_TYPES.LIGHTNING]: 2,
+      [POWER_TYPES.ADS]: 1,
+    },
+    512: {
+      [POWER_TYPES.ICE]: 3,
+      [POWER_TYPES.WIND_UP]: 1,
+      [POWER_TYPES.WIND_DOWN]: 1,
+      [POWER_TYPES.WIND_LEFT]: 1,
+      [POWER_TYPES.WIND_RIGHT]: 1,
+      [POWER_TYPES.EXPEL_H]: 2,
+      [POWER_TYPES.EXPEL_V]: 2,
+      [POWER_TYPES.BLIND]: 2,
+      [POWER_TYPES.FIRE_H]: 2,
+      [POWER_TYPES.FIRE_V]: 2,
+      [POWER_TYPES.FIRE_X]: 1,
+      [POWER_TYPES.TELEPORT]: 2,
+      [POWER_TYPES.LIGHTNING]: 2,
+      [POWER_TYPES.ADS]: 2,
+    },
+    1024: {
+      [POWER_TYPES.ICE]: 3,
+      [POWER_TYPES.WIND_UP]: 2,
+      [POWER_TYPES.WIND_DOWN]: 2,
+      [POWER_TYPES.WIND_LEFT]: 2,
+      [POWER_TYPES.WIND_RIGHT]: 2,
+      [POWER_TYPES.EXPEL_H]: 2,
+      [POWER_TYPES.EXPEL_V]: 2,
+      [POWER_TYPES.BLIND]: 3,
+      [POWER_TYPES.FIRE_H]: 2,
+      [POWER_TYPES.FIRE_V]: 2,
+      [POWER_TYPES.FIRE_X]: 2,
+      [POWER_TYPES.BOMB]: 2,
+      [POWER_TYPES.TELEPORT]: 2,
+      [POWER_TYPES.LIGHTNING]: 3,
+      [POWER_TYPES.ADS]: 2,
+    },
+    2048: {
+      [POWER_TYPES.ICE]: 4,
+      [POWER_TYPES.WIND_UP]: 2,
+      [POWER_TYPES.WIND_DOWN]: 2,
+      [POWER_TYPES.WIND_LEFT]: 2,
+      [POWER_TYPES.WIND_RIGHT]: 2,
+      [POWER_TYPES.EXPEL_H]: 3,
+      [POWER_TYPES.EXPEL_V]: 3,
+      [POWER_TYPES.BLIND]: 3,
+      [POWER_TYPES.FIRE_H]: 3,
+      [POWER_TYPES.FIRE_V]: 3,
+      [POWER_TYPES.FIRE_X]: 2,
+      [POWER_TYPES.BOMB]: 2,
+      [POWER_TYPES.NUCLEAR]: 1,
+      [POWER_TYPES.TELEPORT]: 2,
+      [POWER_TYPES.LIGHTNING]: 3,
+      [POWER_TYPES.ADS]: 2,
+    },
   },
   /** Duration of contamination animation (ms) */
   CONTAMINATE_DURATION: 400,

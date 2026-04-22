@@ -383,18 +383,6 @@ describe('Grid', () => {
       expect(newGrid.cells[0][1]).toBeNull();
     });
 
-    it('serializes and restores tile powers', () => {
-      const tile = new Tile(4, 0, 0);
-      tile.power = 'fire-h';
-      grid.cells[0][0] = tile;
-
-      const state = grid.serializeFull();
-      const newGrid = new Grid();
-      newGrid.restoreFull(state);
-
-      expect(newGrid.cells[0][0].power).toBe('fire-h');
-    });
-
     it('serializes and restores tile states', () => {
       const tile = new Tile(4, 0, 0);
       tile.applyState('ice', 3);
@@ -508,16 +496,17 @@ describe('Grid', () => {
       expect(result.merges).toEqual([]);
     });
 
-    it('iced tiles block other tiles from merging through them', () => {
+    it('iced tiles cannot be merged into (merge is blocked)', () => {
       const frozen = new Tile(2, 0, 1);
       const slider = new Tile(2, 0, 3);
       grid.cells[0][1] = frozen;
       grid.cells[0][3] = slider;
       frozen.applyState('ice', 4);
       const result = grid.simulateMove('left', { iceIds: new Set([frozen.id]) });
-      // Slider merges INTO the iced tile (ice is cleared on real move)
-      expect(result.merges.length).toBe(1);
-      expect(result.merges[0].tileId).toBe(frozen.id);
+      // Frozen tiles can no longer be merged into — slider just stops next to it.
+      expect(result.merges).toEqual([]);
+      const pos = result.positions.get(slider.id);
+      expect(pos).toEqual({ row: 0, col: 2 });
     });
   });
 });

@@ -2,6 +2,7 @@ import {
   POWER_TYPES,
   POWER_META,
   POWER_CATEGORIES,
+  POWER_BEHAVIOR,
   POWER_DURATIONS,
 } from '../configs/constants.js';
 
@@ -58,6 +59,21 @@ export class Power {
     return Power.isGridWide(this.type);
   }
 
+  /** @returns {boolean} */
+  get needsTarget() {
+    return Power.needsTarget(this.type);
+  }
+
+  /** @returns {boolean} */
+  get isDirect() {
+    return Power.isDirect(this.type);
+  }
+
+  /** @returns {boolean} */
+  get isEdgeCharged() {
+    return Power.isEdgeCharged(this.type);
+  }
+
   /** @returns {number} Default duration in moves (0 if not a timed effect) */
   get duration() {
     return Power.duration(this.type);
@@ -105,16 +121,42 @@ export class Power {
 
   /**
    * Whether a power type affects the whole grid (no specific target tile needed).
+   * Legacy helper — prefer `needsTarget()` / `isDirect()` for behavioral checks.
    * @param {string} type
    * @returns {boolean}
    */
   static isGridWide(type) {
-    return (
-      type === POWER_TYPES.NUCLEAR ||
-      type === POWER_TYPES.BLIND ||
-      type === POWER_TYPES.ADS ||
-      type === POWER_TYPES.LIGHTNING
-    );
+    return POWER_BEHAVIOR.global.includes(type) || POWER_BEHAVIOR.special.includes(type);
+  }
+
+  /**
+   * Whether a power type uses the current targeted tile (sunburst) as source
+   * when it fires (fire h/v/x, bomb, teleport, nuclear).
+   * @param {string} type
+   * @returns {boolean}
+   */
+  static needsTarget(type) {
+    return POWER_BEHAVIOR.target.includes(type);
+  }
+
+  /**
+   * Whether a power type is applied directly to a random tile by the game or
+   * enemy (ice, expel-h, expel-v). Direct powers are never charged on an edge.
+   * @param {string} type
+   * @returns {boolean}
+   */
+  static isDirect(type) {
+    return POWER_BEHAVIOR.direct.includes(type);
+  }
+
+  /**
+   * Whether a power type is charged on one of the 4 grid edges and triggered
+   * by a swipe in that direction.
+   * @param {string} type
+   * @returns {boolean}
+   */
+  static isEdgeCharged(type) {
+    return !POWER_BEHAVIOR.direct.includes(type);
   }
 
   /**

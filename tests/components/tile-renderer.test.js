@@ -148,66 +148,16 @@ describe('TileRenderer', () => {
     });
   });
 
-  describe('power animation', () => {
-    it('adds fm-tile-powered and fm-pw-face when tile has a power', () => {
-      tile.power = POWER_TYPES.FIRE_H; // danger
+  describe('targeted tile', () => {
+    it('adds fm-state-active when tile.targeted is true', () => {
+      tile.targeted = true;
       TileRenderer.applyState(el, tile);
-      expect(el.classList.contains('fm-tile-powered')).toBe(true);
-      expect(el.querySelector('.fm-pw-face')).not.toBeNull();
+      expect(el.classList.contains('fm-state-active')).toBe(true);
     });
 
-    it('injects sparkle particles when tile has a power', () => {
-      tile.power = POWER_TYPES.FIRE_H;
+    it('does not add fm-state-active when tile.targeted is false', () => {
       TileRenderer.applyState(el, tile);
-      const sparkles = el.querySelectorAll('.fm-pw-sparkle');
-      expect(sparkles.length).toBeGreaterThan(0);
-    });
-
-    it('sets the correct category class on fm-pw-face', () => {
-      tile.power = POWER_TYPES.FIRE_H; // danger
-      TileRenderer.applyState(el, tile);
-      expect(el.querySelector('.fm-pw-face.fm-pw-danger')).not.toBeNull();
-
-      tile.power = POWER_TYPES.TELEPORT; // warning
-      TileRenderer.applyState(el, tile);
-      expect(el.querySelector('.fm-pw-face.fm-pw-warning')).not.toBeNull();
-
-      tile.power = POWER_TYPES.ICE; // info
-      TileRenderer.applyState(el, tile);
-      expect(el.querySelector('.fm-pw-face.fm-pw-info')).not.toBeNull();
-    });
-
-    it('updates category class when power changes type', () => {
-      tile.power = POWER_TYPES.FIRE_H; // danger
-      TileRenderer.applyState(el, tile);
-      tile.power = POWER_TYPES.ICE; // info
-      TileRenderer.applyState(el, tile);
-      const face = el.querySelector('.fm-pw-face');
-      expect(face.classList.contains('fm-pw-info')).toBe(true);
-      expect(face.classList.contains('fm-pw-danger')).toBe(false);
-    });
-
-    it('removes fm-tile-powered, fm-pw-face and sparkles when power is cleared', () => {
-      tile.power = POWER_TYPES.FIRE_H;
-      TileRenderer.applyState(el, tile);
-      tile.power = null;
-      TileRenderer.applyState(el, tile);
-      expect(el.classList.contains('fm-tile-powered')).toBe(false);
-      expect(el.querySelector('.fm-pw-face')).toBeNull();
-      expect(el.querySelectorAll('.fm-pw-sparkle').length).toBe(0);
-    });
-
-    it('preserves fm-val with correct value inside powered tile', () => {
-      tile.power = POWER_TYPES.LIGHTNING;
-      TileRenderer.applyState(el, tile);
-      expect(el.querySelector('.fm-val').textContent).toBe('8');
-    });
-
-    it('shows "?" in fm-val when blind state is active on powered tile', () => {
-      tile.power = POWER_TYPES.FIRE_H;
-      tile.applyState('blind', 3);
-      TileRenderer.applyState(el, tile);
-      expect(el.querySelector('.fm-val').textContent).toBe('?');
+      expect(el.classList.contains('fm-state-active')).toBe(false);
     });
   });
 

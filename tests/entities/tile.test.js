@@ -26,14 +26,14 @@ describe('Tile', () => {
     expect(tile.id.length).toBeGreaterThan(0);
   });
 
-  it('starts with power = null', () => {
+  it('starts with state = null and stateTurns = 0', () => {
     const tile = new Tile(2, 0, 0);
-    expect(tile.power).toBeNull();
+    expect(tile.state).toBeNull();
+    expect(tile.stateTurns).toBe(0);
   });
 
-  it('can have a power assigned', () => {
+  it('starts with targeted = false', () => {
     const tile = new Tile(2, 0, 0);
-    tile.power = 'fire-h';
-    expect(tile.power).toBe('fire-h');
+    expect(tile.targeted).toBe(false);
   });
 });

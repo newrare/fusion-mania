@@ -17,7 +17,6 @@ import { HudManager } from '../managers/hud-manager.js';
 import { MenuModal } from '../components/menu-modal.js';
 import { GameOverModal } from '../components/game-over-modal.js';
 import { PowerSelectModal } from '../components/power-select-modal.js';
-import { PowerChoiceModal } from '../components/power-choice-modal.js';
 import { AdminModal } from '../components/admin-modal.js';
 import { VictoryModal } from '../components/victory-modal.js';
 import { EnemyInfoModal } from '../components/enemy-info-modal.js';
@@ -155,14 +154,19 @@ export class GameScene extends Phaser.Scene {
   /** @type {number} Move generation counter — prevents stale async continuations */
   #moveGen = 0;
 
+  /**
+   * Tracks directions attempted without any tile moving. When all 4 unique
+   * directions are tried with no movement, a deadlock is detected and all
+   * tile power states are cleared to unblock the game.
+   * @type {Set<string>}
+   */
+  #stuckDirections = new Set();
+
   /** @type {PowerManager | null} Power system (Free mode only) */
   #powerManager = null;
 
   /** @type {PowerSelectModal | null} */
   #powerSelectModal = null;
-
-  /** @type {PowerChoiceModal | null} */
-  #powerChoiceModal = null;
 
   /** @type {AdminModal | null} */
   #adminModal = null;
@@ -299,7 +303,6 @@ export class GameScene extends Phaser.Scene {
     this.#hudManager = null;
     this.#powerManager = null;
     this.#powerSelectModal = null;
-    this.#powerChoiceModal = null;
     this.#adminModal = null;
     this.#victoryModal = null;
     this.#victoryShown = false;
@@ -391,7 +394,6 @@ export class GameScene extends Phaser.Scene {
           this.#gameOverModal ||
           this.#enemyInfoModal ||
           this.#adminModal ||
-          this.#powerChoiceModal ||
           this.#powerSelectModal ||
           this.#showingAds ||
           this.#victoryModal
@@ -528,32 +530,33 @@ export class GameScene extends Phaser.Scene {
       this.#gm.bumpTiles(direction);
       this.#gm.updateFusionIndicators();
       this.#updatePowerVisuals();
+      this.#stuckDirections.add(direction);
+      this.#checkDeadlock();
       return;
     }
     if (this.#battlePowerManager?.windDirection === direction) {
       this.#gm.bumpTiles(direction);
       this.#gm.updateFusionIndicators();
       this.#updatePowerVisuals();
+      this.#stuckDirections.add(direction);
+      this.#checkDeadlock();
       return;
     }
 
     const waitFn = (ms) => this.#wait(ms);
+    // Detect whether a power would fire on this move, so we suppress the fusion
+    // SFX when another power SFX will take over (lightning is the one exception —
+    // it plays its own SFX per-strike and coexists with the fusion cue).
+    const edgePm = this.#powerManager || this.#battlePowerManager;
+    const firedType = edgePm ? edgePm.edges[{ up: 'top', down: 'bottom', left: 'left', right: 'right' }[direction]] : null;
     const moveResult = await this.#gm.executeMove(
       direction,
       waitFn,
       () => this.#hudManager.advanceCards(direction),
       (merges) => {
-        // Play fusion SFX at the moment the merge bounce animation starts,
-        // but only if no power SFX will override it on this move.
-        // Lightning is excluded — it allows fusion SFX (lightning plays per-strike separately).
-        // NOTE: checkMergeTriggers mutates tile state, so we inspect merges directly here.
         if (merges.length === 0) return;
-        const hasSuppressingPower = merges.some((m) => {
-          const pa = m.tile.power;
-          const pb = m.consumedPower ?? null;
-          return (pa && pa !== POWER_TYPES.LIGHTNING) || (pb && pb !== POWER_TYPES.LIGHTNING);
-        });
-        if (!hasSuppressingPower) audioManager.playSfx('fusion');
+        const suppresses = firedType && firedType !== POWER_TYPES.LIGHTNING;
+        if (!suppresses) audioManager.playSfx('fusion');
       },
     );
 
@@ -561,11 +564,15 @@ export class GameScene extends Phaser.Scene {
       this.#gm.bumpTiles(direction);
       this.#gm.updateFusionIndicators();
       this.#updatePowerVisuals();
+      this.#stuckDirections.add(direction);
+      this.#checkDeadlock();
       if (!this.#gm.grid.canMove()) {
         this.#onGameOver();
       }
       return;
     }
+
+    this.#stuckDirections.clear();
 
     const { merges, expelled, hasMergePossible, scoreBefore } = moveResult;
 
@@ -613,39 +620,28 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // ── Free-mode power triggers (logic only) ──
+    // ── Free-mode power fire (edge-charged + direct) ──
     const powerWork = [];
     if (this.#powerManager) {
-      const triggers = this.#powerManager.checkMergeTriggers(merges, this.#gm.grid);
-      for (const trigger of triggers) {
-        let chosenPower = trigger.powerType;
-        // Power choice modal blocks input — safe to await even mid-logic
-        if (trigger.needsChoice && !moveResult.cancelled && moveGen === this.#moveGen) {
-          chosenPower = await this.#showPowerChoiceModal(
-            trigger.powerType,
-            trigger.powerTypeB,
-            trigger.tile,
-          );
-        }
-        this.#powersTriggered.push(chosenPower);
-        this.#historyManager.addPower(chosenPower);
-        const effectResult = this.#powerManager.executeEffect(
-          chosenPower,
-          this.#gm.grid,
-          trigger.tile,
-        );
+      const fired = this.#powerManager.fireEdge(direction);
+      if (fired) {
+        const target = this.#powerManager.getTargetedTile(this.#gm.grid);
+        this.#powersTriggered.push(fired.type);
+        this.#historyManager.addPower(fired.type);
+        const effectResult = this.#powerManager.executeEffect(fired.type, this.#gm.grid, target);
         for (const tile of effectResult.destroyed) {
           this.#pendingDestructionTiles.set(tile.id, tile.value);
         }
+        let freeDamage = 0;
         if (effectResult.destroyed.length > 0) {
           this.#historyManager.addTilesLost(effectResult.destroyed.map((t) => t.value));
           if (this.#gridLife) {
-            const damage = this.#gridLife.takeDamage(effectResult.destroyed.map((t) => t.value));
-            this.#onGridLifeDamage(damage);
+            freeDamage = this.#gridLife.takeDamage(effectResult.destroyed.map((t) => t.value));
           }
         }
-        powerWork.push({ chosenPower, target: trigger.tile, effectResult, pm: this.#powerManager });
+        powerWork.push({ chosenPower: fired.type, target, effectResult, pm: this.#powerManager, damage: freeDamage });
       }
+      // Assign next power (edge charge or direct apply)
       this.#powerManager.onMove(this.#gm.grid);
     }
 
@@ -666,41 +662,35 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // ── Battle power triggers (logic only) ──
+    // ── Battle power fire (edge-charged only — ice/expel apply via contaminate) ──
     const battlePowerWork = [];
-    if (this.#battlePowerManager && merges.length > 0 && !enemyKilled) {
-      const triggers = this.#battlePowerManager.checkMergeTriggers(merges, this.#gm.grid);
-      for (const trigger of triggers) {
-        let chosenPower = trigger.powerType;
-        if (trigger.needsChoice && !moveResult.cancelled && moveGen === this.#moveGen) {
-          chosenPower = await this.#showPowerChoiceModal(
-            trigger.powerType,
-            trigger.powerTypeB,
-            trigger.tile,
-          );
-        }
-        this.#powersTriggered.push(chosenPower);
-        this.#historyManager.addPower(chosenPower);
+    if (this.#battlePowerManager && !enemyKilled) {
+      const fired = this.#battlePowerManager.fireEdge(direction);
+      if (fired) {
+        const target = this.#battlePowerManager.getTargetedTile(this.#gm.grid);
+        this.#powersTriggered.push(fired.type);
+        this.#historyManager.addPower(fired.type);
         const effectResult = this.#battlePowerManager.executeEffect(
-          chosenPower,
+          fired.type,
           this.#gm.grid,
-          trigger.tile,
+          target,
         );
         for (const tile of effectResult.destroyed) {
           this.#pendingDestructionTiles.set(tile.id, tile.value);
         }
+        let battleEdgeDamage = 0;
         if (effectResult.destroyed.length > 0) {
           this.#historyManager.addTilesLost(effectResult.destroyed.map((t) => t.value));
           if (this.#gridLife) {
-            const damage = this.#gridLife.takeDamage(effectResult.destroyed.map((t) => t.value));
-            this.#onGridLifeDamage(damage);
+            battleEdgeDamage = this.#gridLife.takeDamage(effectResult.destroyed.map((t) => t.value));
           }
         }
         battlePowerWork.push({
-          chosenPower,
-          target: trigger.tile,
+          chosenPower: fired.type,
+          target,
           effectResult,
           pm: this.#battlePowerManager,
+          damage: battleEdgeDamage,
         });
       }
     }
@@ -733,22 +723,30 @@ export class GameScene extends Phaser.Scene {
             this.#historyManager.addEnemyDefeated(dead?.name ?? '?', dead?.level ?? 0);
           }
         }
-        if (!enemyKilled) {
-          contamination = this.#battleManager.contaminate(this.#gm.grid);
-          if (contamination) {
+        if (!enemyKilled && this.#battlePowerManager) {
+          contamination = this.#battleManager.contaminate(this.#gm.grid, this.#battlePowerManager);
+          if (contamination?.kind === 'direct') {
             this.#historyManager.addContamination(contamination.tile.value);
           }
         }
       }
     }
 
+    // ── Refresh targeted tile before DOM sync (so fm-state-active is set) ──
+    this.#powerManager?.refreshTargetedTile(this.#gm.grid);
+    this.#battlePowerManager?.refreshTargetedTile(this.#gm.grid);
+
     // ── Sync DOM + visuals after all logic ──
     const windDir =
       this.#powerManager?.windDirection ?? this.#battlePowerManager?.windDirection ?? null;
+    const windTurns = this.#powerManager?.windTurns ?? this.#battlePowerManager?.windTurns ?? 0;
     const preserveIds =
       this.#pendingDestructionTiles.size > 0 ? new Set(this.#pendingDestructionTiles.keys()) : null;
-    this.#gm.syncTileDom(windDir, preserveIds);
-    this.#updatePowerVisuals();
+    this.#gm.syncTileDom(windDir, preserveIds, windTurns);
+    // For edge contamination: skip rendering the badge for the contaminated side
+    // so the badge only appears after the animation flies to it (Fix 3).
+    const contaminatedSides = contamination?.kind === 'edge' ? new Set([contamination.side]) : null;
+    this.#updatePowerVisuals(contaminatedSides);
 
     // Safety: if powers/effects destroyed every tile, start the empty-grid timer
     if (this.#gm.grid.getAllTiles().length === 0) {
@@ -784,6 +782,7 @@ export class GameScene extends Phaser.Scene {
           work.effectResult,
           work.pm,
         );
+        if (work.damage > 0) this.#onGridLifeDamage(work.damage);
       }
     } else {
       // Remove destroyed tiles from DOM immediately (no animation)
@@ -792,6 +791,7 @@ export class GameScene extends Phaser.Scene {
           this.#pendingDestructionTiles.delete(tile.id);
           this.#gm.removeTileById(tile.id);
         }
+        if (work.damage > 0) this.#onGridLifeDamage(work.damage);
       }
     }
 
@@ -815,6 +815,7 @@ export class GameScene extends Phaser.Scene {
           work.effectResult,
           work.pm,
         );
+        if (work.damage > 0) this.#onGridLifeDamage(work.damage);
       }
     } else {
       for (const work of battlePowerWork) {
@@ -822,6 +823,7 @@ export class GameScene extends Phaser.Scene {
           this.#pendingDestructionTiles.delete(tile.id);
           this.#gm.removeTileById(tile.id);
         }
+        if (work.damage > 0) this.#onGridLifeDamage(work.damage);
       }
     }
 
@@ -849,11 +851,19 @@ export class GameScene extends Phaser.Scene {
     }
 
     // ── Contamination animation ──
-    if (contamination) {
+    if (contamination?.kind === 'direct') {
       if (shouldAnimate && moveGen === this.#moveGen) {
         await this.#playContaminationAnimation(contamination.tile);
       }
-      // Data already applied to tile, DOM already synced
+      // Apply state AFTER animation so the tile looks clean during the flight (Fix 5).
+      this.#battlePowerManager?.applyDirectStateToTile(contamination.type, contamination.tile);
+      if (moveGen === this.#moveGen) this.#gm.syncTileDom(windDir, null, windTurns);
+    } else if (contamination?.kind === 'edge') {
+      if (shouldAnimate && moveGen === this.#moveGen) {
+        await this.#playEdgeContaminationAnimation(contamination.side);
+      }
+      // Render the badge that was deliberately skipped before the animation (Fix 3).
+      if (moveGen === this.#moveGen) this.#updatePowerVisuals();
     }
 
     if (moveGen === this.#moveGen) this.#gm.animating = false;
@@ -868,6 +878,25 @@ export class GameScene extends Phaser.Scene {
     if (this.#gridLife?.isDead || !this.#gm.grid.canMove()) {
       this.#onGameOver();
     }
+  }
+
+  /**
+   * Detect a power-induced deadlock: all 4 directions tried with no tile movement.
+   * When detected, forcibly clears all tile power states to unblock the board,
+   * then re-syncs the DOM. The stuck-direction set is reset afterwards.
+   */
+  #checkDeadlock() {
+    if (this.#stuckDirections.size < 4) return;
+    const grid = this.#gm.grid;
+    const hasBlockingState = grid.getAllTiles().some((t) => t.state !== null);
+    if (!hasBlockingState) return;
+    grid.clearAllTileStates();
+    this.#stuckDirections.clear();
+    const windDir =
+      this.#powerManager?.windDirection ?? this.#battlePowerManager?.windDirection ?? null;
+    const windTurns =
+      this.#powerManager?.windTurns ?? this.#battlePowerManager?.windTurns ?? 0;
+    this.#gm.syncTileDom(windDir, null, windTurns);
   }
 
   /**
@@ -927,7 +956,7 @@ export class GameScene extends Phaser.Scene {
         await this.#showAdsModal();
         this.#adsShown = true;
         this.#disableAds();
-        this.#gm.syncTileDom(mgr?.windDirection ?? null);
+        this.#gm.syncTileDom(mgr?.windDirection ?? null, null, mgr?.windTurns ?? 0);
       }
     } else {
       this.#gm.applyDangerOverlay(effectResult.destroyed);
@@ -944,30 +973,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Show the power choice modal and wait for player to pick.
-   * @param {string} powerTypeA
-   * @param {string} powerTypeB
-   * @returns {Promise<string>} The chosen power type
-   */
-  #showPowerChoiceModal(powerTypeA, powerTypeB, tile) {
-    return new Promise((resolve) => {
-      this.#powerChoiceModal = new PowerChoiceModal(this, {
-        powerTypeA,
-        powerTypeB,
-        tileRow: tile.row,
-        tileCol: tile.col,
-        gridEl: this.#gm.gridEl,
-        cellPositionFn: (r, c) => this.#gm.cellPosition(r, c),
-        onChoice: (chosenType) => {
-          this.#powerChoiceModal?.destroy();
-          this.#powerChoiceModal = null;
-          resolve(chosenType);
-        },
-      });
-    });
-  }
-
-  /**
    * Remove ADS from all power sources so it can never be assigned again this game.
    * Called once after the ad has been displayed.
    */
@@ -975,12 +980,7 @@ export class GameScene extends Phaser.Scene {
     this.#powerManager?.removePowerType(POWER_TYPES.ADS);
     this.#battlePowerManager?.removePowerType(POWER_TYPES.ADS);
     if (this.#battleManager?.enemy) {
-      this.#battleManager.enemy.availablePowers = this.#battleManager.enemy.availablePowers.filter(
-        (p) => p !== POWER_TYPES.ADS,
-      );
-    }
-    for (const tile of this.#gm.grid.getAllTiles()) {
-      if (tile.power === POWER_TYPES.ADS) tile.power = null;
+      delete this.#battleManager.enemy.powerStock[POWER_TYPES.ADS];
     }
   }
 
@@ -1253,14 +1253,31 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      // Enemy contaminates one tile per move
-      const contamination = bm.contaminate(this.#gm.grid);
-      if (contamination) {
-        this.#historyManager.addContamination(contamination.tile.value);
-        // Sync DOM IMMEDIATELY — power is applied to tile data regardless of animation
-        this.#gm.syncTileDom(this.#battlePowerManager?.windDirection ?? null);
-        this.#updatePowerVisuals();
-        await this.#playContaminationAnimation(contamination.tile);
+      // Enemy contaminates (direct power or edge charge) once per move
+      if (this.#battlePowerManager) {
+        const contamination = bm.contaminate(this.#gm.grid, this.#battlePowerManager);
+        if (contamination) {
+          if (contamination.kind === 'direct') {
+            this.#historyManager.addContamination(contamination.tile.value);
+          }
+          this.#battlePowerManager.refreshTargetedTile(this.#gm.grid);
+          const classicWindDir = this.#battlePowerManager?.windDirection ?? null;
+          const classicWindTurns = this.#battlePowerManager?.windTurns ?? 0;
+          this.#gm.syncTileDom(classicWindDir, null, classicWindTurns);
+          // Skip the badge for the contaminated side until the animation lands (Fix 3).
+          const classicSkip = contamination.kind === 'edge' ? new Set([contamination.side]) : null;
+          this.#updatePowerVisuals(classicSkip);
+          if (contamination.kind === 'direct') {
+            await this.#playContaminationAnimation(contamination.tile);
+            // Apply state after animation so tile looks clean during flight (Fix 5).
+            this.#battlePowerManager.applyDirectStateToTile(contamination.type, contamination.tile);
+            this.#gm.syncTileDom(classicWindDir, null, classicWindTurns);
+          } else if (contamination.kind === 'edge') {
+            await this.#playEdgeContaminationAnimation(contamination.side);
+            // Reveal the badge now that the animation has landed (Fix 3).
+            this.#updatePowerVisuals();
+          }
+        }
       }
     }
   }
@@ -1271,12 +1288,12 @@ export class GameScene extends Phaser.Scene {
    */
   async #onEnemySpawn(enemy) {
     audioManager.playSfx('enemyIn');
-    // Create power manager for battle contamination effects using ALL powers from this enemy
-    this.#battlePowerManager = new PowerManager(enemy.availablePowers);
-    // If the ad was already shown this game, prevent new enemies from using ADS
+    // Battle power manager hosts the grid edges charged by the enemy.
+    this.#battlePowerManager = new PowerManager([]);
+    // If the ad was already shown this game, prevent new enemies from using ADS.
     if (this.#adsShown) {
       this.#battlePowerManager.removePowerType(POWER_TYPES.ADS);
-      enemy.availablePowers = enemy.availablePowers.filter((p) => p !== POWER_TYPES.ADS);
+      delete enemy.powerStock[POWER_TYPES.ADS];
     }
 
     // Create grid life overlay starting at 0% (will fill via CSS transition below)
@@ -1325,10 +1342,10 @@ export class GameScene extends Phaser.Scene {
    */
   #onEnemySpawnImmediate(enemy) {
     audioManager.playSfx('enemyIn');
-    this.#battlePowerManager = new PowerManager(enemy.availablePowers);
+    this.#battlePowerManager = new PowerManager([]);
     if (this.#adsShown) {
       this.#battlePowerManager.removePowerType(POWER_TYPES.ADS);
-      enemy.availablePowers = enemy.availablePowers.filter((p) => p !== POWER_TYPES.ADS);
+      delete enemy.powerStock[POWER_TYPES.ADS];
     }
     this.#gridLife = new GridLife();
     this.#createLiquidOverlay();
@@ -1447,8 +1464,8 @@ export class GameScene extends Phaser.Scene {
     const dead = bm.defeatEnemy();
     if (!dead) return;
 
-    // Clear all powers from grid tiles
-    bm.clearGridPowers(this.#gm.grid);
+    // Clear all states from grid tiles and edges
+    bm.clearGridPowers(this.#gm.grid, this.#battlePowerManager);
     this.#gm.syncTileDom(null);
 
     // Fade out the grid life liquid (non-blocking — runs while death animation plays)
@@ -1518,7 +1535,7 @@ export class GameScene extends Phaser.Scene {
     // enemy position and spawns the physics body before we clear the DOM below.
     this.#playEnemyDeathAnimation(dead);
 
-    bm.clearGridPowers(this.#gm.grid);
+    bm.clearGridPowers(this.#gm.grid, this.#battlePowerManager);
     this.#gm.syncTileDom(null);
     this.#gridLife = null;
     this.#criticalOverlay?.remove();
@@ -1691,18 +1708,40 @@ export class GameScene extends Phaser.Scene {
    * @param {import('../entities/tile.js').Tile} tile — The freshly contaminated tile
    */
   async #playContaminationAnimation(tile) {
-    if (!this.#enemyAreaEl || !this.#gm.gridEl) return;
-
     const tileEl = this.#gm.tileElements.get(tile.id);
     if (!tileEl) return;
+    await this.#playContaminationTo(tileEl, 'fm-tile-hit-contaminate');
+  }
+
+  /**
+   * Animate a purple particle trail from the enemy tile to the matching edge
+   * badge, then pulse the badge — used when the enemy charges a grid edge.
+   * @param {'top'|'bottom'|'left'|'right'} side
+   */
+  async #playEdgeContaminationAnimation(side) {
+    if (!this.#gm.gridEl) return;
+    const badge = this.#gm.gridEl.querySelector(`.fm-edge-power[data-side="${side}"]`);
+    if (!badge) return;
+    await this.#playContaminationTo(badge, 'fm-edge-hit-contaminate');
+  }
+
+  /**
+   * Shared contamination particle animation: emits from the enemy tile and
+   * converges on the given target element, then applies a transient pulse
+   * class on impact.
+   * @param {HTMLElement} targetEl
+   * @param {string} hitClass — CSS class toggled for the impact pulse.
+   */
+  async #playContaminationTo(targetEl, hitClass) {
+    if (!this.#enemyAreaEl) return;
 
     const enemyRect = this.#enemyAreaEl.getBoundingClientRect();
-    const tileRect = tileEl.getBoundingClientRect();
+    const targetRect = targetEl.getBoundingClientRect();
 
     const sx = enemyRect.left + enemyRect.width / 2;
     const sy = enemyRect.top + enemyRect.height / 2;
-    const ex = tileRect.left + tileRect.width / 2;
-    const ey = tileRect.top + tileRect.height / 2;
+    const ex = targetRect.left + targetRect.width / 2;
+    const ey = targetRect.top + targetRect.height / 2;
 
     const COUNT = 4;
     const DURATION = 550;
@@ -1801,12 +1840,12 @@ export class GameScene extends Phaser.Scene {
 
     cvs.remove();
 
-    // Dark shadow pulse on the newly contaminated tile
-    tileEl.classList.add('fm-tile-hit-contaminate');
-    tileEl.addEventListener(
+    // Dark shadow pulse on the impact target
+    targetEl.classList.add(hitClass);
+    targetEl.addEventListener(
       'animationend',
       () => {
-        tileEl.classList.remove('fm-tile-hit-contaminate');
+        targetEl.classList.remove(hitClass);
       },
       { once: true },
     );
@@ -2214,6 +2253,8 @@ export class GameScene extends Phaser.Scene {
     if (this.#powerManager || this.#battlePowerManager) {
       this.#gm.syncTileDom(
         this.#powerManager?.windDirection ?? this.#battlePowerManager?.windDirection ?? null,
+        null,
+        this.#powerManager?.windTurns ?? this.#battlePowerManager?.windTurns ?? 0,
       );
     }
     this.#updateHUD();
@@ -2245,7 +2286,7 @@ export class GameScene extends Phaser.Scene {
       },
       onAddState: (s) => {
         this.#gm.addTileState(s);
-        this.#gm.syncTileDom(this.#powerManager?.windDirection ?? null);
+        this.#gm.syncTileDom(this.#powerManager?.windDirection ?? null, null, this.#powerManager?.windTurns ?? 0);
         this.#gm.updateFusionIndicators();
       },
       onNewRecord: () => this.#hudManager?.showNewBestNotification(),
@@ -2449,7 +2490,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ─── POWER VISUALS ────────────────────────────────
-  #updatePowerVisuals() {
+
+  /**
+   * @param {Set<string>} [skipSides] — side keys to skip rendering (used when
+   *   a contamination animation is still flying toward that edge badge).
+   */
+  #updatePowerVisuals(skipSides = null) {
     const pm = this.#powerManager || this.#battlePowerManager;
     if (!pm || !this.#gm.gridEl) return;
 
@@ -2458,22 +2504,60 @@ export class GameScene extends Phaser.Scene {
       old.remove();
     }
 
-    // Show color-only indicators on edges based on prediction
-    const directions = /** @type {const} */ (['up', 'down', 'left', 'right']);
-    const dirToSide = { up: 'top', down: 'bottom', left: 'left', right: 'right' };
-
-    for (const dir of directions) {
-      const color = pm.getBadgeColor(dir, this.#gm.grid);
-      if (!color) continue;
-
-      const side = dirToSide[dir];
+    // Render one icon badge per charged edge. Colour reflects the prediction
+    // for a swipe in that direction (destructive powers that would destroy
+    // nothing are downgraded to info).
+    const edges = pm.edges;
+    const sideToDir = { top: 'up', bottom: 'down', left: 'left', right: 'right' };
+    for (const side of ['top', 'bottom', 'left', 'right']) {
+      if (skipSides?.has(side)) continue;
+      const type = edges[side];
+      if (!type) continue;
+      const meta = POWER_META[type];
+      const cat = pm.getBadgeColor(sideToDir[side], this.#gm.grid) ?? getPowerCategory(type);
       const badge = document.createElement('div');
       badge.className = `fm-edge-power ${side}`;
-      badge.innerHTML = `<div class="fm-power-dot tiny ${color}"><span class="fm-edge-warn">!</span></div>`;
+      badge.dataset.side = side;
+      badge.innerHTML = `<div class="fm-power-dot tiny ${cat}"><svg class="fm-edge-power-ico" aria-hidden="true"><use href="#${meta.svgId}"/></svg></div>`;
       this.#gm.gridEl.appendChild(badge);
     }
 
+    // Lightning charge visual on potential victims (top of each non-empty column)
+    this.#updateLightningCharge(pm);
+
     this.#updatePowerInfoPanel();
+  }
+
+  /**
+   * Apply/remove the `fm-tile--lightning-charge` class on tiles that lightning
+   * could hit (top of each non-empty column), while lightning is charged.
+   * @param {import('../managers/power-manager.js').PowerManager} pm
+   */
+  #updateLightningCharge(pm) {
+    const gridEl = this.#gm.gridEl;
+    if (!gridEl) return;
+
+    // Clear old mini-icons from all tile elements
+    for (const el of gridEl.querySelectorAll('.fm-lightning-mini')) {
+      el.remove();
+    }
+
+    const hasLightning = Object.values(pm.edges).includes(POWER_TYPES.LIGHTNING);
+    if (!hasLightning) return;
+
+    // Inject 3 floating mini lightning icons inside each potential victim tile.
+    const delays = ['0s', '0.4s', '0.8s'];
+    for (const tile of pm.lightningPotentialTargets(this.#gm.grid)) {
+      const el = this.#gm.tileElements.get(tile.id);
+      if (!el) continue;
+      for (let i = 0; i < 3; i++) {
+        const icon = document.createElement('span');
+        icon.className = `fm-lightning-mini fm-lightning-mini-${i}`;
+        icon.style.animationDelay = delays[i];
+        icon.innerHTML = `<svg aria-hidden="true"><use href="#s-lightning"/></svg>`;
+        el.appendChild(icon);
+      }
+    }
   }
 
   #updatePowerInfoPanel() {
@@ -2481,7 +2565,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.#powerInfoEl || !pm) return;
 
     if (
-      !pm.hasPoweredTiles(this.#gm.grid) &&
+      !pm.hasEdgePowers() &&
       !pm.hasActiveExpelTiles(this.#gm.grid) &&
       this.#pendingDestructionTiles.size === 0
     ) {
@@ -2490,17 +2574,19 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const directions = /** @type {const} */ (['up', 'down', 'left', 'right']);
-    // Thick SVG arrow per direction
     const dirArrows = {
       up: `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 1 L11 7 H8 V13 H4 V7 H1 Z" fill="currentColor"/></svg>`,
       down: `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 13 L11 7 H8 V1 H4 V7 H1 Z" fill="currentColor"/></svg>`,
       left: `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 6 L7 1 V4 H13 V8 H7 V11 Z" fill="currentColor"/></svg>`,
       right: `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M13 6 L7 1 V4 H1 V8 H7 V11 Z" fill="currentColor"/></svg>`,
     };
+    const dirToSide = { up: 'top', down: 'bottom', left: 'left', right: 'right' };
 
     /**
-     * Build prediction line HTML strings.
+     * Build info-panel line HTML strings. One line per charged edge (using
+     * a post-swipe simulation so the destroyed/affected values are accurate),
+     * plus one line per tile currently in an expel (ghost) state that would
+     * exit the grid on its axis.
      * @param {number} maxTiles - max tiles per pill row (use Infinity for modal)
      * @returns {string[]}
      */
@@ -2511,132 +2597,149 @@ export class GameScene extends Phaser.Scene {
         const shown = isFinite(maxTiles) ? sorted.slice(0, maxTiles) : sorted;
         return `<div class="fm-power-info-tiles">${shown.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('')}</div>`;
       };
+      const buildLine = (dir, type, severity, msgKey, tilesHtml, { noColon = false } = {}) => {
+        const meta = POWER_META[type];
+        const iconHtml = `<svg class="fm-pred-power-ico fm-pred-power-ico--${severity}" aria-hidden="true"><use href="#${meta.svgId}"/></svg>`;
+        const colonHtml = tilesHtml && !noColon ? `<span class="fm-pred-sep">:</span>` : '';
+        return `<div class="fm-power-info-line">
+          <span class="fm-power-info-dir">${dirArrows[dir]}</span>
+          ${iconHtml}
+          <span class="fm-power-info-name">${i18n.t(msgKey)}</span>
+          ${colonHtml}
+          ${tilesHtml}
+        </div>`;
+      };
 
       /** @type {string[]} */
       const result = [];
 
-      for (const dir of directions) {
-        const predictions = pm.predictForDirection(dir, this.#gm.grid);
-        if (predictions.length === 0) continue;
+      for (const dir of ['up', 'down', 'left', 'right']) {
+        const side = dirToSide[dir];
+        const type = pm.edges[side];
+        if (!type) continue;
 
-        for (const pred of predictions) {
-          const cat = pred.exits ? 'danger' : getPowerCategory(pred.powerType);
-          // Danger powers: skip if no tiles would be destroyed (e.g. fire on an empty row)
-          if (
-            !pred.exits &&
-            cat === 'danger' &&
-            pred.powerType !== POWER_TYPES.LIGHTNING &&
-            (!pred.destroyedValues || pred.destroyedValues.length === 0)
-          )
-            continue;
+        const pred = pm.predictForDirection(dir, this.#gm.grid);
+        const severity = pred?.severity ?? getPowerCategory(type);
 
-          const meta = POWER_META[pred.powerType];
+        if (pred?.cancelled) {
+          // Swipe blocked by wind or nothing moves → show icon alone (no pills)
+          result.push(buildLine(dir, type, severity, POWER_META[type].nameKey, ''));
+          continue;
+        }
 
-          // Determine message key and tiles HTML
-          let msgKey;
-          let tilesHtml = '';
-          let noColon = false;
-
-          if (pred.exits) {
-            msgKey =
-              pred.powerType === POWER_TYPES.EXPEL_V ? 'pred.expel_v_off' : 'pred.expel_h_off';
-            tilesHtml = buildPills([pred.tileValue]);
-          } else {
-            switch (pred.powerType) {
-              case POWER_TYPES.FIRE_H:
-              case POWER_TYPES.FIRE_V:
-              case POWER_TYPES.FIRE_X:
-              case POWER_TYPES.BOMB:
-                msgKey = 'pred.destroy';
-                tilesHtml = buildPills(pred.destroyedValues);
-                break;
-              case POWER_TYPES.ICE:
-                msgKey = 'pred.block';
-                tilesHtml = buildPills([pred.tileValue]);
-                break;
-              case POWER_TYPES.TELEPORT:
-                msgKey = 'pred.teleport';
-                tilesHtml = `<div class="fm-power-info-tiles">
-                  <span class="fm-power-info-tile fm-t${pred.tileValue}">${pred.tileValue}</span>
+        switch (type) {
+          case POWER_TYPES.FIRE_H:
+          case POWER_TYPES.FIRE_V:
+          case POWER_TYPES.FIRE_X:
+          case POWER_TYPES.BOMB:
+          case POWER_TYPES.NUCLEAR:
+            result.push(
+              buildLine(
+                dir,
+                type,
+                severity,
+                'pred.destroy',
+                buildPills(pred?.destroyedValues ?? []),
+              ),
+            );
+            break;
+          case POWER_TYPES.TELEPORT: {
+            const v = pred?.targetValue;
+            const tilesHtml = v
+              ? `<div class="fm-power-info-tiles">
+                  <span class="fm-power-info-tile fm-t${v}">${v}</span>
                   <span class="fm-range-sep">↔</span>
                   <span class="fm-power-info-tile fm-t-unk">?</span>
-                </div>`;
-                break;
-              case POWER_TYPES.EXPEL_V:
-                msgKey = 'pred.expel_v_on';
-                tilesHtml = buildPills([pred.tileValue]);
-                break;
-              case POWER_TYPES.EXPEL_H:
-                msgKey = 'pred.expel_h_on';
-                tilesHtml = buildPills([pred.tileValue]);
-                break;
-              case POWER_TYPES.WIND_UP:
-              case POWER_TYPES.WIND_DOWN:
-              case POWER_TYPES.WIND_LEFT:
-              case POWER_TYPES.WIND_RIGHT:
-                msgKey = 'pred.block';
-                tilesHtml = buildPills(pred.allGridValues);
-                break;
-              case POWER_TYPES.LIGHTNING: {
-                msgKey = 'pred.lightning';
-                const rawMin = [...(pred.lightningRange?.min ?? [])].sort((a, b) => b - a);
-                const rawMax = [...(pred.lightningRange?.max ?? [])].sort((a, b) => b - a);
-                const minArr = isFinite(maxTiles) ? rawMin.slice(0, maxTiles) : rawMin;
-                const maxArr = isFinite(maxTiles) ? rawMax.slice(0, maxTiles) : rawMax;
-                const minPills =
-                  rawMin.length > 0
-                    ? minArr
-                        .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
-                        .join('')
-                    : `<span class="fm-range-empty">∅</span>`;
-                const maxPills = maxArr
-                  .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
-                  .join('');
-                tilesHtml = `<div class="fm-power-info-range">
-                  <span class="fm-range-label">(Min</span>
-                  <div class="fm-power-info-tiles">${minPills}</div>
-                  <span class="fm-range-label">)</span>
-                  <span class="fm-range-label">(Max</span>
-                  <div class="fm-power-info-tiles">${maxPills}</div>
-                  <span class="fm-range-label">)</span>
-                </div>`;
-                break;
-              }
-              case POWER_TYPES.NUCLEAR:
-                msgKey = 'pred.nuclear';
-                tilesHtml = buildPills(pred.destroyedValues);
-                break;
-              case POWER_TYPES.BLIND:
-                msgKey = 'pred.blind';
-                tilesHtml = buildPills(pred.allGridValues);
-                break;
-              case POWER_TYPES.ADS: {
-                const adjs = i18n.t('pred.ads_adjectives');
-                const adj =
-                  Array.isArray(adjs) && adjs.length > 0
-                    ? adjs[Math.floor(Math.random() * adjs.length)]
-                    : '';
-                msgKey = 'pred.ads';
-                tilesHtml = `<span class="fm-pred-ads-adj">${adj}</span>`;
-                noColon = true;
-                break;
-              }
-              default:
-                msgKey = meta.nameKey;
-            }
+                </div>`
+              : '';
+            result.push(buildLine(dir, type, severity, 'pred.teleport', tilesHtml));
+            break;
           }
+          case POWER_TYPES.LIGHTNING: {
+            const rawMin = [...(pred?.lightningRange?.min ?? [])].sort((a, b) => b - a);
+            const rawMax = [...(pred?.lightningRange?.max ?? [])].sort((a, b) => b - a);
+            const minArr = isFinite(maxTiles) ? rawMin.slice(0, maxTiles) : rawMin;
+            const maxArr = isFinite(maxTiles) ? rawMax.slice(0, maxTiles) : rawMax;
+            const minPills =
+              rawMin.length > 0
+                ? minArr
+                    .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
+                    .join('')
+                : `<span class="fm-range-empty">∅</span>`;
+            const maxPills = maxArr
+              .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
+              .join('');
+            const tilesHtml = `<div class="fm-power-info-range">
+              <span class="fm-range-label">(Min</span>
+              <div class="fm-power-info-tiles">${minPills}</div>
+              <span class="fm-range-label">)</span>
+              <span class="fm-range-label">(Max</span>
+              <div class="fm-power-info-tiles">${maxPills}</div>
+              <span class="fm-range-label">)</span>
+            </div>`;
+            result.push(buildLine(dir, type, severity, 'pred.lightning', tilesHtml));
+            break;
+          }
+          case POWER_TYPES.WIND_UP:
+          case POWER_TYPES.WIND_DOWN:
+          case POWER_TYPES.WIND_LEFT:
+          case POWER_TYPES.WIND_RIGHT:
+            result.push(
+              buildLine(dir, type, severity, 'pred.block', buildPills(pred?.affectedValues ?? [])),
+            );
+            break;
+          case POWER_TYPES.BLIND:
+            result.push(
+              buildLine(dir, type, severity, 'pred.blind', buildPills(pred?.affectedValues ?? [])),
+            );
+            break;
+          case POWER_TYPES.ADS: {
+            const adjs = i18n.t('pred.ads_adjectives');
+            const adj =
+              Array.isArray(adjs) && adjs.length > 0
+                ? adjs[Math.floor(Math.random() * adjs.length)]
+                : '';
+            result.push(
+              buildLine(
+                dir,
+                type,
+                severity,
+                'pred.ads',
+                `<span class="fm-pred-ads-adj">${adj}</span>`,
+                { noColon: true },
+              ),
+            );
+            break;
+          }
+          default:
+            result.push(buildLine(dir, type, severity, POWER_META[type].nameKey, ''));
+        }
+      }
 
-          const powerIconHtml = `<svg class="fm-pred-power-ico fm-pred-power-ico--${cat}" aria-hidden="true"><use href="#${meta.svgId}"/></svg>`;
-          const colonHtml = tilesHtml && !noColon ? `<span class="fm-pred-sep">:</span>` : '';
-
-          result.push(`
-            <div class="fm-power-info-line">
-              <span class="fm-power-info-dir">${dirArrows[dir]}</span>
-              ${powerIconHtml}
-              <span class="fm-power-info-name">${i18n.t(msgKey)}</span>
-              ${colonHtml}
-              ${tilesHtml}
-            </div>`);
+      // Expel (ghost) tiles currently on the grid — they exit if they get a
+      // clear path, so we keep the info line even though they are not charged
+      // on an edge anymore.
+      for (const tile of this.#gm.grid.getAllTiles()) {
+        if (tile.state === 'ghost-v') {
+          result.push(
+            buildLine(
+              'up',
+              POWER_TYPES.EXPEL_V,
+              'warning',
+              'pred.expel_v_on',
+              buildPills([tile.value]),
+            ),
+          );
+        } else if (tile.state === 'ghost-h') {
+          result.push(
+            buildLine(
+              'left',
+              POWER_TYPES.EXPEL_H,
+              'warning',
+              'pred.expel_h_on',
+              buildPills([tile.value]),
+            ),
+          );
         }
       }
 
@@ -2686,156 +2789,15 @@ export class GameScene extends Phaser.Scene {
 
   /** Open the full prediction modal (called by the "!" HUD button). */
   #openPredModal() {
-    const pm = this.#powerManager || this.#battlePowerManager;
-    if (!this.#powerInfoAllDom || !pm) return;
-
-    const directions = /** @type {const} */ (['up', 'down', 'left', 'right']);
-    const dirArrows = {
-      up: `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 1 L11 7 H8 V13 H4 V7 H1 Z" fill="currentColor"/></svg>`,
-      down: `<svg class="fm-info-arrow" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 13 L11 7 H8 V1 H4 V7 H1 Z" fill="currentColor"/></svg>`,
-      left: `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 6 L7 1 V4 H13 V8 H7 V11 Z" fill="currentColor"/></svg>`,
-      right: `<svg class="fm-info-arrow" viewBox="0 0 14 12" aria-hidden="true"><path d="M13 6 L7 1 V4 H1 V8 H7 V11 Z" fill="currentColor"/></svg>`,
-    };
-
-    const buildPills = (values) => {
-      if (!values || values.length === 0) return '';
-      const sorted = [...values].sort((a, b) => b - a);
-      return `<div class="fm-power-info-tiles">${sorted.map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`).join('')}</div>`;
-    };
-
-    /** @type {string[]} */
-    const linesAll = [];
-    for (const dir of directions) {
-      const predictions = pm.predictForDirection(dir, this.#gm.grid);
-      if (predictions.length === 0) continue;
-      for (const pred of predictions) {
-        const cat = pred.exits ? 'danger' : getPowerCategory(pred.powerType);
-        if (
-          !pred.exits &&
-          cat === 'danger' &&
-          pred.powerType !== POWER_TYPES.LIGHTNING &&
-          (!pred.destroyedValues || pred.destroyedValues.length === 0)
-        )
-          continue;
-        const meta = POWER_META[pred.powerType];
-        let msgKey;
-        let tilesHtml = '';
-        let noColon = false;
-        if (pred.exits) {
-          msgKey = pred.powerType === POWER_TYPES.EXPEL_V ? 'pred.expel_v_off' : 'pred.expel_h_off';
-          tilesHtml = buildPills([pred.tileValue]);
-        } else {
-          switch (pred.powerType) {
-            case POWER_TYPES.FIRE_H:
-            case POWER_TYPES.FIRE_V:
-            case POWER_TYPES.FIRE_X:
-            case POWER_TYPES.BOMB:
-              msgKey = 'pred.destroy';
-              tilesHtml = buildPills(pred.destroyedValues);
-              break;
-            case POWER_TYPES.ICE:
-              msgKey = 'pred.block';
-              tilesHtml = buildPills([pred.tileValue]);
-              break;
-            case POWER_TYPES.TELEPORT:
-              msgKey = 'pred.teleport';
-              tilesHtml = `<div class="fm-power-info-tiles">
-                <span class="fm-power-info-tile fm-t${pred.tileValue}">${pred.tileValue}</span>
-                <span class="fm-range-sep">↔</span>
-                <span class="fm-power-info-tile fm-t-unk">?</span>
-              </div>`;
-              break;
-            case POWER_TYPES.EXPEL_V:
-              msgKey = 'pred.expel_v_on';
-              tilesHtml = buildPills([pred.tileValue]);
-              break;
-            case POWER_TYPES.EXPEL_H:
-              msgKey = 'pred.expel_h_on';
-              tilesHtml = buildPills([pred.tileValue]);
-              break;
-            case POWER_TYPES.WIND_UP:
-            case POWER_TYPES.WIND_DOWN:
-            case POWER_TYPES.WIND_LEFT:
-            case POWER_TYPES.WIND_RIGHT:
-              msgKey = 'pred.block';
-              tilesHtml = buildPills(pred.allGridValues);
-              break;
-            case POWER_TYPES.LIGHTNING: {
-              msgKey = 'pred.lightning';
-              const rawMin = [...(pred.lightningRange?.min ?? [])].sort((a, b) => b - a);
-              const rawMax = [...(pred.lightningRange?.max ?? [])].sort((a, b) => b - a);
-              const minPills =
-                rawMin.length > 0
-                  ? rawMin
-                      .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
-                      .join('')
-                  : `<span class="fm-range-empty">∅</span>`;
-              const maxPills = rawMax
-                .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
-                .join('');
-              tilesHtml = `<div class="fm-power-info-range">
-                <span class="fm-range-label">(Min</span>
-                <div class="fm-power-info-tiles">${minPills}</div>
-                <span class="fm-range-label">)</span>
-                <span class="fm-range-label">(Max</span>
-                <div class="fm-power-info-tiles">${maxPills}</div>
-                <span class="fm-range-label">)</span>
-              </div>`;
-              break;
-            }
-            case POWER_TYPES.NUCLEAR:
-              msgKey = 'pred.nuclear';
-              tilesHtml = buildPills(pred.destroyedValues);
-              break;
-            case POWER_TYPES.BLIND:
-              msgKey = 'pred.blind';
-              tilesHtml = buildPills(pred.allGridValues);
-              break;
-            case POWER_TYPES.ADS: {
-              const adjs = i18n.t('pred.ads_adjectives');
-              const adj =
-                Array.isArray(adjs) && adjs.length > 0
-                  ? adjs[Math.floor(Math.random() * adjs.length)]
-                  : '';
-              msgKey = 'pred.ads';
-              tilesHtml = `<span class="fm-pred-ads-adj">${adj}</span>`;
-              noColon = true;
-              break;
-            }
-            default:
-              msgKey = meta.nameKey;
-          }
-        }
-        const powerIconHtml = `<svg class="fm-pred-power-ico fm-pred-power-ico--${cat}" aria-hidden="true"><use href="#${meta.svgId}"/></svg>`;
-        const colonHtml = tilesHtml && !noColon ? `<span class="fm-pred-sep">:</span>` : '';
-        linesAll.push(`
-          <div class="fm-power-info-line">
-            <span class="fm-power-info-dir">${dirArrows[dir]}</span>
-            ${powerIconHtml}
-            <span class="fm-power-info-name">${i18n.t(msgKey)}</span>
-            ${colonHtml}
-            ${tilesHtml}
-          </div>`);
-      }
-    }
-
-    if (this.#pendingDestructionTiles.size > 0) {
-      const sortedVals = [...this.#pendingDestructionTiles.values()].sort((a, b) => b - a);
-      const pills = sortedVals
-        .map((v) => `<span class="fm-power-info-tile fm-t${v}">${v}</span>`)
-        .join('');
-      linesAll.push(`
-        <div class="fm-power-info-line fm-power-info-destroying">
-          <span class="fm-info-destroy-icon">🗑</span>
-          <div class="fm-power-info-tiles">${pills}</div>
-        </div>`);
-    }
-
+    if (!this.#powerInfoAllDom) return;
+    // The inline panel already shows full info in the new edge-charged model.
+    // Reuse its rendering logic by clearing truncation and showing everything.
+    this.#updatePowerInfoPanel();
     const overlayEl = this.#powerInfoAllDom.node.querySelector('#fm-power-info-all-overlay');
     const titleEl = this.#powerInfoAllDom.node.querySelector('#fm-power-info-all-title');
     const linesEl = this.#powerInfoAllDom.node.querySelector('#fm-power-info-all-lines');
     if (titleEl) titleEl.textContent = i18n.t('power.predictions');
-    if (linesEl) linesEl.innerHTML = linesAll.join('');
+    if (linesEl && this.#powerInfoEl) linesEl.innerHTML = this.#powerInfoEl.innerHTML;
     if (overlayEl) overlayEl.style.display = 'flex';
   }
 
@@ -2969,7 +2931,6 @@ export class GameScene extends Phaser.Scene {
     this.#gameOverModal?.destroy();
     this.#victoryModal?.destroy();
     this.#powerSelectModal?.destroy();
-    this.#powerChoiceModal?.destroy();
     this.#adminModal?.destroy();
     this.#helpModal?.destroy();
     this.#helpModal = null;

@@ -159,6 +159,7 @@ export const en = {
   'save.moves': 'Moves',
   'save.mode_col': 'Mode',
   'battle.powers_label': 'Powers',
+  'battle.available_powers_label': 'Available powers',
   'help.title': 'Help',
   'help.close': 'Close',
   'help.back': 'Back',

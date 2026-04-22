@@ -135,128 +135,6 @@
   justify-content: center;
 }
 
-/* --- Power choice overlay (dimmed, no blur — grid stays visible) --- */
-.fm-power-choice-overlay {
-  --fm-modal-backdrop: rgba(0,0,0,0.35);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-/* --- Power choice popover (anchored to merged tile) --- */
-.fm-power-choice-popover {
-  position: absolute;
-  transform: translateX(-50%);
-  background: linear-gradient(160deg, #2a1050, #1a0a2e);
-  border: 2px solid rgba(200,140,255,.55);
-  border-radius: 18px;
-  padding: 10px 14px 12px;
-  box-shadow: 0 6px 24px rgba(180,100,255,.35), 0 0 0 1px rgba(0,0,0,.3);
-  color: rgba(255,255,255,.9);
-  font-family: 'Merkin', cursive, sans-serif;
-  z-index: 101;
-  white-space: nowrap;
-  max-width: calc(100vw - 24px);
-}
-
-/* --- Caret arrow --- */
-.fm-power-choice-popover--below::before,
-.fm-power-choice-popover--above::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-}
-
-.fm-power-choice-popover--below::before {
-  top: -8px;
-  border-bottom: 8px solid rgba(200,140,255,.55);
-}
-
-.fm-power-choice-popover--above::after {
-  bottom: -8px;
-  border-top: 8px solid rgba(200,140,255,.55);
-}
-
-/* --- Popover scale origin follows placement --- */
-.fm-power-choice-popover--below {
-  transform-origin: top center;
-  transform: translateX(-50%);
-}
-
-.fm-power-choice-popover--above {
-  transform-origin: bottom center;
-  transform: translateX(-50%) translateY(-100%);
-}
-
-.fm-power-choice-title {
-  font-size: 0.85rem;
-  font-weight: 900;
-  text-align: center;
-  margin-bottom: 6px;
-  color: #e8c0ff;
-}
-
-.fm-power-choice-grid {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-}
-
-.fm-power-choice-item {
-  padding: 8px 10px;
-  border-radius: 12px;
-  text-align: center;
-  cursor: pointer;
-}
-
-.fm-power-choice-item .fm-power-dot {
-  transition: transform 0.15s cubic-bezier(.36,1.6,.6,1);
-}
-
-.fm-power-choice-item:hover .fm-power-dot,
-.fm-power-choice-item:focus-visible .fm-power-dot {
-  transform: scale(1.18);
-}
-
-.fm-power-choice-item:active {
-  background: rgba(255,255,255,0.15);
-}
-
-/* --- Tile highlight pulse during choice --- */
-.fm-tile--choice-highlight {
-  z-index: 10;
-  box-shadow: 0 0 0 3px rgba(200,140,255,.8), 0 0 18px 4px rgba(180,100,255,.5);
-  animation: fm-choice-pulse 1s ease-in-out infinite;
-}
-
-/* --- Pop animation per placement (transform-origin differs) --- */
-.fm-power-choice-popover--below {
-  animation: fm-popover-pop-below 0.3s cubic-bezier(.36,1.6,.6,1) both;
-}
-
-.fm-power-choice-popover--above {
-  animation: fm-popover-pop-above 0.3s cubic-bezier(.36,1.6,.6,1) both;
-}
-
-@keyframes fm-popover-pop-below {
-  from { transform: translateX(-50%) scale(0.4); opacity: 0; }
-  to   { transform: translateX(-50%) scale(1); opacity: 1; }
-}
-
-@keyframes fm-popover-pop-above {
-  from { transform: translateX(-50%) translateY(-100%) scale(0.4); opacity: 0; }
-  to   { transform: translateX(-50%) translateY(-100%) scale(1); opacity: 1; }
-}
-
-@keyframes fm-choice-pulse {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(200,140,255,.8), 0 0 18px 4px rgba(180,100,255,.5); }
-  50%      { box-shadow: 0 0 0 5px rgba(200,140,255,1), 0 0 28px 8px rgba(180,100,255,.7); }
-}
-
 /* --- Grid edge power badges --- */
 .fm-grid-powers {
   position: absolute;
@@ -302,6 +180,43 @@
   z-index: 1;
   line-height: 1;
 }
+
+.fm-edge-power-ico {
+  width: 70%;
+  height: 70%;
+  color: var(--fm-dot-ico, #fff);
+  fill: currentColor;
+  position: relative;
+  z-index: 1;
+}
+
+/* --- Lightning charge preview: floating mini icons inside potential victim tiles --- */
+@keyframes fm-lightning-mini-float {
+  0%   { opacity: 0;   transform: translateY(4px) scale(0.7); }
+  30%  { opacity: 0.9; transform: translateY(-4px) scale(1); }
+  70%  { opacity: 0.9; transform: translateY(-8px) scale(1); }
+  100% { opacity: 0;   transform: translateY(-14px) scale(0.8); }
+}
+
+.fm-lightning-mini {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  pointer-events: none;
+  animation: fm-lightning-mini-float 1.4s ease-in-out infinite;
+  z-index: 4;
+}
+
+.fm-lightning-mini svg {
+  width: 100%;
+  height: 100%;
+  fill: #fcd34d;
+  filter: drop-shadow(0 0 3px rgba(253, 224, 71, 0.9));
+}
+
+.fm-lightning-mini-0 { left: 20%; top: -10%; }
+.fm-lightning-mini-1 { left: 50%; top: -8%; }
+.fm-lightning-mini-2 { left: 72%; top: -15%; }
 
 /* --- Tile states: active (targeted) --- */
 @keyframes fm-float-y {
@@ -438,6 +353,28 @@
 
 .fm-state-ice::after { display: none; }
 
+@keyframes fm-ice-freeze-enter {
+  0%   { box-shadow: 0 0 0 0 rgba(80,220,255,0), inset 0 0 0 0 rgba(160,240,255,0); filter: brightness(1.8) saturate(0.4); }
+  40%  { box-shadow: 0 0 0 6px rgba(80,220,255,0.9), inset 0 0 18px rgba(160,240,255,0.5); filter: brightness(1.4) saturate(0.6); }
+  100% { box-shadow: 0 0 0 2px rgba(10,200,255,0.95), 0 0 14px 5px rgba(80,220,255,0.45), inset 0 0 10px rgba(160,240,255,0.18); filter: brightness(1) saturate(1); }
+}
+
+/* Declared after .fm-state-ice so !important wins the cascade */
+.fm-state-ice-enter {
+  animation: fm-ice-freeze-enter 0.45s ease-out forwards !important;
+}
+
+@keyframes fm-ice-melt-exit {
+  0%   { box-shadow: 0 0 0 2px rgba(10,200,255,0.95), 0 0 14px 5px rgba(80,220,255,0.45), inset 0 0 10px rgba(160,240,255,0.18); filter: brightness(1) saturate(1); }
+  30%  { box-shadow: 0 0 0 8px rgba(80,220,255,0.7), inset 0 0 22px rgba(160,240,255,0.6); filter: brightness(1.5) saturate(0.5); }
+  100% { box-shadow: 0 0 0 0 rgba(80,220,255,0), inset 0 0 0 rgba(160,240,255,0); filter: brightness(1) saturate(1); }
+}
+
+.fm-state-ice-exit {
+  animation: fm-ice-melt-exit 0.40s ease-in forwards !important;
+  pointer-events: none;
+}
+
 .fm-snowflake {
   position: absolute;
   pointer-events: none;
@@ -498,31 +435,147 @@
   box-shadow: none !important;
 }
 
-/* --- Tile state: wind --- */
-.fm-state-wind { overflow: visible; }
+@keyframes fm-blind-float {
+  0%, 100% { transform: translateY(0) scale(1);    opacity: 0.55; }
+  50%       { transform: translateY(-5px) scale(1.15); opacity: 0.9;  }
+}
 
-.fm-wind-line {
+.fm-blind-mark {
   position: absolute;
   pointer-events: none;
-  z-index: 6;
-  border-radius: 6px;
+  font-style: italic;
+  font-weight: 900;
+  color: rgba(20, 20, 20, 0.70);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  z-index: 5;
+  line-height: 1;
+  animation: fm-blind-float var(--fm-bd, 2.8s) var(--fm-bdl, 0s) ease-in-out infinite;
+}
+
+/* --- Tile state: expel marks --- */
+@keyframes fm-expel-float {
+  0%, 100% { transform: translateY(0) scale(1);     opacity: 0.60; }
+  50%       { transform: translateY(-5px) scale(1.2); opacity: 0.95; }
+}
+
+.fm-expel-mark {
+  position: absolute;
+  pointer-events: none;
+  font-weight: 900;
+  color: rgba(80, 0, 160, 0.80);
+  text-shadow: 0 1px 4px rgba(120, 0, 220, 0.45);
+  z-index: 5;
+  line-height: 1;
+  animation: fm-expel-float var(--fm-ed, 2.6s) var(--fm-edl, 0s) ease-in-out infinite;
+}
+
+/* --- Wind overlay: single full-grid overlay (replaces per-tile animated lines) --- */
+.fm-wind-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+  border-radius: inherit;
+}
+
+.fm-wind-streak {
+  position: absolute;
+  border-radius: 999px;
   opacity: 0;
-  will-change: opacity, width, height;
+  will-change: opacity, transform;
 }
 
-/* --- Wind right (blocks left movement) --- */
-@keyframes fm-wind-right {
-  0%   { left: -20%; width: 0; opacity: 0; }
-  20%  { width: 30%; opacity: 0.85; }
-  100% { left: 110%; width: 0; opacity: 0; }
+/* Directional tint on the entry edge — intensity-aware */
+.fm-wind-overlay--right { background: linear-gradient(to right, rgba(255,255,255,0.07) 0%, transparent 50%); }
+.fm-wind-overlay--left  { background: linear-gradient(to left,  rgba(255,255,255,0.07) 0%, transparent 50%); }
+.fm-wind-overlay--up    { background: linear-gradient(to top,   rgba(255,255,255,0.07) 0%, transparent 50%); }
+.fm-wind-overlay--down  { background: linear-gradient(to bottom,rgba(255,255,255,0.07) 0%, transparent 50%); }
+
+.fm-wind-overlay--strong.fm-wind-overlay--right { background: linear-gradient(to right, rgba(255,255,255,0.20) 0%, transparent 55%); }
+.fm-wind-overlay--strong.fm-wind-overlay--left  { background: linear-gradient(to left,  rgba(255,255,255,0.20) 0%, transparent 55%); }
+.fm-wind-overlay--strong.fm-wind-overlay--up    { background: linear-gradient(to top,   rgba(255,255,255,0.20) 0%, transparent 55%); }
+.fm-wind-overlay--strong.fm-wind-overlay--down  { background: linear-gradient(to bottom,rgba(255,255,255,0.20) 0%, transparent 55%); }
+
+.fm-wind-overlay--weak.fm-wind-overlay--right   { background: linear-gradient(to right, rgba(255,255,255,0.09) 0%, transparent 48%); }
+.fm-wind-overlay--weak.fm-wind-overlay--left    { background: linear-gradient(to left,  rgba(255,255,255,0.09) 0%, transparent 48%); }
+.fm-wind-overlay--weak.fm-wind-overlay--up      { background: linear-gradient(to top,   rgba(255,255,255,0.09) 0%, transparent 48%); }
+.fm-wind-overlay--weak.fm-wind-overlay--down    { background: linear-gradient(to bottom,rgba(255,255,255,0.09) 0%, transparent 48%); }
+
+/* Overall intensity opacity — streaks inherit this */
+.fm-wind-overlay--strong { opacity: 1.0; }
+.fm-wind-overlay--medium { opacity: 0.92; }
+.fm-wind-overlay--weak   { opacity: 0.74; }
+
+/* --- Streaks: right --- */
+@keyframes fm-wstreak-right {
+  0%   { transform: translateX(-110%); opacity: 0; }
+  15%  { opacity: 0.88; }
+  80%  { opacity: 0.72; }
+  100% { transform: translateX(110%); opacity: 0; }
 }
 
-.fm-state-wind-right .fm-wind-line {
-  height: 1.5px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.75), transparent);
-  animation: fm-wind-right var(--fm-wd, 1.5s) var(--fm-wdl, 0s) ease-in-out infinite;
+.fm-wind-overlay--right .fm-wind-streak {
+  height: var(--fm-wthick, 2px);
+  width: var(--fm-wlen, 50%);
+  left: 0;
+  top: var(--fm-wpos);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
+  animation: fm-wstreak-right var(--fm-wdur) var(--fm-wdl) ease-in-out infinite;
 }
 
+/* --- Streaks: left --- */
+@keyframes fm-wstreak-left {
+  0%   { transform: translateX(110%); opacity: 0; }
+  15%  { opacity: 0.88; }
+  80%  { opacity: 0.72; }
+  100% { transform: translateX(-110%); opacity: 0; }
+}
+
+.fm-wind-overlay--left .fm-wind-streak {
+  height: var(--fm-wthick, 2px);
+  width: var(--fm-wlen, 50%);
+  right: 0;
+  top: var(--fm-wpos);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
+  animation: fm-wstreak-left var(--fm-wdur) var(--fm-wdl) ease-in-out infinite;
+}
+
+/* --- Streaks: up --- */
+@keyframes fm-wstreak-up {
+  0%   { transform: translateY(110%); opacity: 0; }
+  15%  { opacity: 0.88; }
+  80%  { opacity: 0.72; }
+  100% { transform: translateY(-110%); opacity: 0; }
+}
+
+.fm-wind-overlay--up .fm-wind-streak {
+  width: var(--fm-wthick, 2px);
+  height: var(--fm-wlen, 50%);
+  bottom: 0;
+  left: var(--fm-wpos);
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,0.9), transparent);
+  animation: fm-wstreak-up var(--fm-wdur) var(--fm-wdl) ease-in-out infinite;
+}
+
+/* --- Streaks: down --- */
+@keyframes fm-wstreak-down {
+  0%   { transform: translateY(-110%); opacity: 0; }
+  15%  { opacity: 0.88; }
+  80%  { opacity: 0.72; }
+  100% { transform: translateY(110%); opacity: 0; }
+}
+
+.fm-wind-overlay--down .fm-wind-streak {
+  width: var(--fm-wthick, 2px);
+  height: var(--fm-wlen, 50%);
+  top: 0;
+  left: var(--fm-wpos);
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,0.9), transparent);
+  animation: fm-wstreak-down var(--fm-wdur) var(--fm-wdl) ease-in-out infinite;
+}
+
+/* --- Tile border hints: entry-edge colour cue --- */
 .fm-state-wind-right { border-left-color: #999 !important; }
 
 .fm-state-wind-right::before {
@@ -534,19 +587,6 @@
   pointer-events: none;
   z-index: 2;
   border-radius: 13px 0 0 13px;
-}
-
-/* --- Wind left (blocks right movement) --- */
-@keyframes fm-wind-left {
-  0%   { right: -20%; width: 0; opacity: 0; }
-  20%  { width: 30%; opacity: 0.85; }
-  100% { right: 110%; width: 0; opacity: 0; }
-}
-
-.fm-state-wind-left .fm-wind-line {
-  height: 1.5px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.75), transparent);
-  animation: fm-wind-left var(--fm-wd, 1.5s) var(--fm-wdl, 0s) ease-in-out infinite;
 }
 
 .fm-state-wind-left { border-right-color: #999 !important; }
@@ -562,19 +602,6 @@
   border-radius: 0 13px 13px 0;
 }
 
-/* --- Wind up (blocks down movement) --- */
-@keyframes fm-wind-up {
-  0%   { bottom: -20%; height: 0; opacity: 0; }
-  20%  { height: 30%; opacity: 0.85; }
-  100% { bottom: 110%; height: 0; opacity: 0; }
-}
-
-.fm-state-wind-up .fm-wind-line {
-  width: 1.5px;
-  background: linear-gradient(180deg, transparent, rgba(255,255,255,0.75), transparent);
-  animation: fm-wind-up var(--fm-wd, 1.5s) var(--fm-wdl, 0s) ease-in-out infinite;
-}
-
 .fm-state-wind-up { border-bottom-color: #999 !important; }
 
 .fm-state-wind-up::before {
@@ -588,19 +615,6 @@
   border-radius: 0 0 13px 13px;
 }
 
-/* --- Wind down (blocks up movement) --- */
-@keyframes fm-wind-down {
-  0%   { top: -20%; height: 0; opacity: 0; }
-  20%  { height: 30%; opacity: 0.85; }
-  100% { top: 110%; height: 0; opacity: 0; }
-}
-
-.fm-state-wind-down .fm-wind-line {
-  width: 1.5px;
-  background: linear-gradient(180deg, transparent, rgba(255,255,255,0.75), transparent);
-  animation: fm-wind-down var(--fm-wd, 1.5s) var(--fm-wdl, 0s) ease-in-out infinite;
-}
-
 .fm-state-wind-down { border-top-color: #999 !important; }
 
 .fm-state-wind-down::before {
@@ -612,79 +626,6 @@
   pointer-events: none;
   z-index: 2;
   border-radius: 13px 13px 0 0;
-}
-
-/* --- Powered tile: heartbeat toggle + sparkle particles --- */
-/* Le tile garde son apparence normale ; .fm-pw-face est un overlay absolu */
-
-.fm-tile-powered {
-  overflow: hidden; /* clip sparkles to tile bounds */
-}
-
-.fm-tile-powered .fm-val {
-  position: relative;
-  z-index: 4; /* above sparkles and face */
-  animation: fm-hb-val 3s ease-in-out infinite;
-  transform-origin: center;
-}
-
-.fm-pw-face {
-  position: absolute;
-  inset: 0;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  z-index: 3; /* above sparkles, below val */
-  animation: fm-hb-ico 3s ease-in-out infinite;
-}
-
-.fm-pw-face svg {
-  width: 42px;
-  height: 42px;
-  color: currentColor;
-}
-
-/* --- Power sparkle particles (replace dashed ring) --- */
-/* Small copies of the power icon that appear/disappear on the tile, upright, with a glow. */
-.fm-pw-sparkle {
-  position: absolute;
-  pointer-events: none;
-  opacity: 0;
-  z-index: 1; /* behind val and face */
-  filter: drop-shadow(0 0 4px currentColor);
-  will-change: transform, opacity;
-  animation: fm-sparkle-float var(--fm-sp-dur, 2.5s) var(--fm-sp-dl, 0s) ease-in-out infinite;
-}
-
-@keyframes fm-sparkle-float {
-  0%, 100% { opacity: 0;    transform: scale(0); }
-  30%, 70%  { opacity: 0.82; transform: scale(1); }
-}
-
-@keyframes fm-hb-val {
-   0%   { opacity: 1; transform: scale(1); }
-   8%   { transform: scale(1.2); }
-  16%   { transform: scale(0.95); }
-  24%   { transform: scale(1.14); }
-  36%   { opacity: 1; transform: scale(1); }
-  44%   { opacity: 0; transform: scale(0.6) rotate(-12deg); }
-  94%   { opacity: 0; transform: scale(0.6) rotate(12deg); }
- 100%   { opacity: 1; transform: scale(1); }
-}
-
-@keyframes fm-hb-ico {
-   0%   { opacity: 0; transform: scale(0.6); }
-  44%   { opacity: 0; transform: scale(0.6) rotate(12deg); }
-  50%   { opacity: 1; transform: scale(1); }
-  58%   { transform: scale(1.12); }
-  66%   { transform: scale(0.96); }
-  74%   { transform: scale(1.08); }
-  86%   { opacity: 1; transform: scale(1); }
-  94%   { opacity: 0; transform: scale(0.6) rotate(-12deg); }
- 100%   { opacity: 0; transform: scale(0.6); }
 }
 
 /* --- Power info panel below grid --- */

@@ -4,14 +4,7 @@
  * Each tile state (normal, frozen, ghost, blind, active/targeted, wind, danger)
  * gets a clean, self-contained CSS class set. When the state changes the element
  * is rebuilt from a deterministic template — no leftover classes.
- *
- * Powered tiles use a heartbeat-toggle animation: the tile value and the power
- * icon alternate on a 3-second cycle via CSS cross-fade (fm-hb-val / fm-hb-ico).
- * Small sparkle copies of the power icon float around the tile background as an
- * ambient indicator, coloured by category (danger / warning / info).
  */
-
-import { Power } from '../entities/power.js';
 
 /** All state-related CSS classes that may appear on a tile element. */
 const STATE_CLASSES = [
@@ -34,28 +27,6 @@ const STATE_CLASSES = [
  * e.g. windDirection='down' (blocks downward) → wind blows upward → class fm-state-wind-up
  */
 const WIND_CSS_DIR = { up: 'down', down: 'up', left: 'right', right: 'left' };
-
-/**
- * Deterministic positions for wind-line elements (percentage along the cross-axis).
- * Horizontal wind (right/left): position = top%. Vertical wind (up/down): position = left%.
- * 3 lines strike a balance between visual clarity and animated-element count.
- */
-const WIND_LINE_LAYOUT = [
-  { pos: 18, dur: 0.9, dl: 0.0 },
-  { pos: 48, dur: 1.15, dl: -0.55 },
-  { pos: 78, dur: 0.8, dl: -1.1 },
-];
-
-/**
- * Deterministic spread of sparkle positions across the tile.
- * Values are percentages (kept 12–80 to stay inside the rounded tile).
- * 6 particles gives good coverage without clutter.
- */
-const SPARKLE_LAYOUT = [
-  { left: 12, top: 10, size: 9, dur: 2.1, dl: 0 },
-  { left: 60, top: 55, size: 13, dur: 3.9, dl: -2.0 },
-  { left: 18, top: 40, size: 12, dur: 4.2, dl: -3.0 },
-];
 
 export class TileRenderer {
   /**
@@ -99,44 +70,88 @@ export class TileRenderer {
   /**
    * Apply the correct state to a tile DOM element. Strips all old state classes
    * first, then applies only what the tile data says.
-   * Also handles the power flip-card structure.
    *
    * @param {HTMLElement} el
    * @param {import('../entities/tile.js').Tile} tile
    * @param {{ windDirection?: string | null }} [opts]
    */
   static applyState(el, tile, opts = {}) {
-    // 1. Strip every state class in one pass
+    // Detect ice → non-ice or non-ice → ice transition before stripping classes
+    const wasIce = el.classList.contains('fm-state-ice');
+    const isIce  = tile.state === 'ice';
+    const isBlind = tile.state === 'blind';
+    const isGhostH = tile.state === 'ghost-h';
+    const isGhostV = tile.state === 'ghost-v';
+    const isExpel = isGhostH || isGhostV;
+
+    // 1. Delta-update state classes — never strip-then-re-add; avoids 1-frame flash
+    //    on fm-state-blind (which uses animation:none) or other animated states.
+    const desiredClasses = new Set(TileRenderer.stateClasses(tile, opts));
     for (const cls of STATE_CLASSES) {
-      el.classList.remove(cls);
+      if (desiredClasses.has(cls)) {
+        if (!el.classList.contains(cls)) el.classList.add(cls);
+      } else {
+        el.classList.remove(cls);
+      }
     }
 
-    // 2. Remove children from previous states (snowflakes, wind lines)
-    for (const child of el.querySelectorAll('.fm-snowflake, .fm-wind-line')) {
-      child.remove();
+    // 2. Manage snowflakes — only rebuild if count changed to avoid animation restarts
+    const neededCount = isIce ? Math.max(1, Math.min(tile.stateTurns, 6)) : 0;
+    const currentCount = Number(el.dataset.snowCount ?? -1);
+    if (neededCount !== currentCount) {
+      for (const child of el.querySelectorAll('.fm-snowflake')) {
+        child.remove();
+      }
+      el.dataset.snowCount = String(neededCount);
     }
 
-    // 3. Apply current state classes
-    for (const cls of TileRenderer.stateClasses(tile, opts)) {
-      el.classList.add(cls);
+    // 2b. Manage blind marks — only rebuild if count changed
+    const neededBlind = isBlind ? Math.max(1, Math.min(tile.stateTurns, 3)) : 0;
+    const currentBlind = Number(el.dataset.blindCount ?? -1);
+    if (neededBlind !== currentBlind) {
+      for (const child of el.querySelectorAll('.fm-blind-mark')) {
+        child.remove();
+      }
+      el.dataset.blindCount = String(neededBlind);
     }
 
-    // 4. Inject state-specific children
-    if (tile.state === 'ice') {
-      TileRenderer.#injectSnowflakes(el);
-    }
-    if (opts.windDirection) {
-      const cssDir = WIND_CSS_DIR[opts.windDirection] ?? opts.windDirection;
-      TileRenderer.#injectWindLines(el, cssDir);
+    // 2c. Manage expel marks — only rebuild if count changed
+    const neededExpel = isExpel ? Math.max(1, Math.min(tile.stateTurns, 3)) : 0;
+    const currentExpel = Number(el.dataset.expelCount ?? -1);
+    if (neededExpel !== currentExpel) {
+      for (const child of el.querySelectorAll('.fm-expel-mark')) {
+        child.remove();
+      }
+      el.dataset.expelCount = String(neededExpel);
     }
 
-    // 5. Ensure the value class (fm-tN) matches the tile value (must be before #syncPowerFlip)
+    // 3. Inject state-specific children (only if count was reset above)
+    if (isIce && neededCount !== currentCount) {
+      TileRenderer.#injectSnowflakes(el, tile.stateTurns);
+    }
+    if (isBlind && neededBlind !== currentBlind) {
+      TileRenderer.#injectBlindMarks(el, tile.stateTurns);
+    }
+    if (isExpel && neededExpel !== currentExpel) {
+      TileRenderer.#injectExpelMarks(el, tile.state, tile.stateTurns);
+    }
+
+    // 4a. Play freeze-enter animation when transitioning into ice
+    if (isIce && !wasIce) {
+      el.classList.add('fm-state-ice-enter');
+      el.addEventListener('animationend', () => el.classList.remove('fm-state-ice-enter'), { once: true });
+    }
+
+    // 4b. Play melt-exit animation when transitioning out of ice
+    if (!isIce && wasIce) {
+      el.classList.add('fm-state-ice-exit');
+      el.addEventListener('animationend', () => el.classList.remove('fm-state-ice-exit'), { once: true });
+    }
+
+    // 4. Ensure the value class (fm-tN) matches the tile value
     TileRenderer.syncValueClass(el, tile.value);
 
-    // 6. Handle power heartbeat-toggle
-    TileRenderer.#syncPowerAnim(el, tile);
-
-    // 7. Ensure the displayed value is correct
+    // 5. Ensure the displayed value is correct
     const valEl = el.querySelector('.fm-val');
     if (valEl) {
       valEl.textContent = tile.state === 'blind' ? '?' : String(tile.value);
@@ -167,117 +182,50 @@ export class TileRenderer {
     for (const cls of STATE_CLASSES) {
       el.classList.remove(cls);
     }
-    for (const child of el.querySelectorAll('.fm-snowflake')) {
+    for (const child of el.querySelectorAll('.fm-snowflake, .fm-blind-mark, .fm-expel-mark')) {
       child.remove();
     }
+    delete el.dataset.snowCount;
+    delete el.dataset.blindCount;
+    delete el.dataset.expelCount;
     el.classList.add('fm-state-danger');
   }
 
   /**
-   * Sync the heartbeat-toggle structure for a powered tile.
-   * If the tile has a power, build/update the structure.
-   * If no power, strip it and restore the simple layout.
+   * Strip all state classes and injected children from a tile element
+   * without applying the danger overlay. Use before animation-based destruction
+   * (fire, bomb, nuclear) to remove `animation: none !important` from ice/blind.
    * @param {HTMLElement} el
-   * @param {import('../entities/tile.js').Tile} tile
    */
-  static #syncPowerAnim(el, tile) {
-    const hasPower = el.classList.contains('fm-tile-powered');
-    // Also detect stale .fm-pw-face left behind when processMerges resets el.className
-    const hasStaleFace = !hasPower && !!el.querySelector('.fm-pw-face');
-
-    if (!tile.power) {
-      if (hasPower || hasStaleFace) TileRenderer.#removePowerStructure(el, tile);
-      return;
+  static clearStateOnly(el) {
+    for (const cls of STATE_CLASSES) {
+      el.classList.remove(cls);
     }
-
-    const svgId = Power.svgId(tile.power);
-    if (!svgId) return;
-
-    const category = Power.category(tile.power);
-
-    if (hasPower) {
-      TileRenderer.#updatePowerStructure(el, tile, svgId, category);
-    } else {
-      TileRenderer.#buildPowerStructure(el, tile, svgId, category);
+    for (const child of el.querySelectorAll('.fm-snowflake, .fm-blind-mark, .fm-expel-mark')) {
+      child.remove();
     }
-  }
-
-  /**
-   * Build the heartbeat-toggle DOM structure inside the tile element.
-   * Injects sparkle particles (small power icons) as ambient category indicator.
-   * @param {HTMLElement} el
-   * @param {import('../entities/tile.js').Tile} tile
-   * @param {string} svgId
-   * @param {'danger' | 'warning' | 'info'} category
-   */
-  static #buildPowerStructure(el, tile, svgId, category) {
-    el.classList.add('fm-tile-powered');
-    const valText = tile.state === 'blind' ? '?' : String(tile.value);
-    el.innerHTML = `
-      ${TileRenderer.#sparklesHtml(svgId)}
-      <span class="fm-val">${valText}</span>
-      <div class="fm-pw-face fm-pw-${category}">
-        <svg><use href="#${svgId}"/></svg>
-      </div>`;
-  }
-
-  /**
-   * Update an existing power structure (e.g. when value changes after merge).
-   * Re-colours sparkles if the category has changed.
-   * @param {HTMLElement} el
-   * @param {import('../entities/tile.js').Tile} tile
-   * @param {string} svgId
-   * @param {'danger' | 'warning' | 'info'} category
-   */
-  static #updatePowerStructure(el, tile, svgId, category) {
-    const valEl = el.querySelector('.fm-val');
-    if (valEl) valEl.textContent = tile.state === 'blind' ? '?' : String(tile.value);
-
-    const face = el.querySelector('.fm-pw-face');
-    if (face) {
-      face.classList.remove('fm-pw-danger', 'fm-pw-warning', 'fm-pw-info');
-      face.classList.add(`fm-pw-${category}`);
-    }
-  }
-
-  /**
-   * Remove the power structure and restore the simple tile layout.
-   * @param {HTMLElement} el
-   * @param {import('../entities/tile.js').Tile} tile
-   */
-  static #removePowerStructure(el, tile) {
-    el.classList.remove('fm-tile-powered');
-    el.innerHTML = `<span class="fm-val">${tile.state === 'blind' ? '?' : String(tile.value)}</span>`;
-  }
-
-  /**
-   * Build HTML for the sparkle particles (small power icons, one per layout slot).
-   * Uses deterministic positions so layout is stable across re-renders.
-   * Colour is inherited via currentColor from the tile (same as fm-val).
-   * @param {string} svgId
-   * @returns {string}
-   */
-  static #sparklesHtml(svgId) {
-    return SPARKLE_LAYOUT.map(
-      ({ left, top, size, dur, dl }) =>
-        `<svg class="fm-pw-sparkle" style="left:${left}%;top:${top}%;width:${size}px;height:${size}px;--fm-sp-dur:${dur}s;--fm-sp-dl:${dl}s"><use href="#${svgId}"/></svg>`,
-    ).join('');
+    delete el.dataset.snowCount;
+    delete el.dataset.blindCount;
+    delete el.dataset.expelCount;
   }
 
   /**
    * Inject animated snowflake children for the ice tile state.
+   * The number of snowflakes matches the remaining state turns (max 6).
    * @param {HTMLElement} el
+   * @param {number} [turns]
    */
-  static #injectSnowflakes(el) {
+  static #injectSnowflakes(el, turns = 6) {
     const flakes = [
-      { top: '8%', left: '12%', sz: '0.75rem', sd: '3.2s', sdl: '0s' },
+      { top: '8%',  left: '12%', sz: '0.75rem', sd: '3.2s', sdl: '0s' },
       { top: '14%', left: '60%', sz: '0.55rem', sd: '2.8s', sdl: '-1s' },
       { top: '35%', left: '80%', sz: '0.85rem', sd: '3.6s', sdl: '-2s' },
       { top: '52%', left: '25%', sz: '0.65rem', sd: '2.5s', sdl: '-0.6s' },
       { top: '70%', left: '55%', sz: '0.70rem', sd: '3.0s', sdl: '-1.4s' },
       { top: '20%', left: '42%', sz: '0.50rem', sd: '4.0s', sdl: '-2.5s' },
     ];
-    for (const f of flakes) {
+    const count = Math.max(1, Math.min(turns, flakes.length));
+    for (const f of flakes.slice(0, count)) {
       const span = document.createElement('span');
       span.className = 'fm-snowflake';
       span.textContent = '❄';
@@ -287,18 +235,50 @@ export class TileRenderer {
   }
 
   /**
-   * Inject animated wind-line children for the wind tile state.
+   * Inject animated expel-mark children for the ghost-h / ghost-v tile state.
+   * The number of marks matches the remaining state turns (max 3).
+   * ↔ for horizontal expel, ↕ for vertical expel.
    * @param {HTMLElement} el
-   * @param {'up' | 'down' | 'left' | 'right'} cssDir — wind-blow direction (CSS class direction)
+   * @param {'ghost-h'|'ghost-v'} state
+   * @param {number} [turns]
    */
-  static #injectWindLines(el, cssDir) {
-    const isHorizontal = cssDir === 'right' || cssDir === 'left';
-    const posProp = isHorizontal ? 'top' : 'left';
-    for (const { pos, dur, dl } of WIND_LINE_LAYOUT) {
-      const line = document.createElement('div');
-      line.className = 'fm-wind-line';
-      line.style.cssText = `${posProp}:${pos}%;--fm-wd:${dur}s;--fm-wdl:${dl}s;`;
-      el.appendChild(line);
+  static #injectExpelMarks(el, state, turns = 3) {
+    const icon = state === 'ghost-h' ? '↔' : '↕';
+    const marks = [
+      { top: '10%', left: '55%', sz: '0.80rem', ed: '2.5s', edl: '0s' },
+      { top: '42%', left: '14%', sz: '0.70rem', ed: '2.9s', edl: '-1.0s' },
+      { top: '68%', left: '62%', sz: '0.75rem', ed: '2.7s', edl: '-1.8s' },
+    ];
+    const count = Math.max(1, Math.min(turns, marks.length));
+    for (const m of marks.slice(0, count)) {
+      const span = document.createElement('span');
+      span.className = 'fm-expel-mark';
+      span.textContent = icon;
+      span.style.cssText = `top:${m.top};left:${m.left};font-size:${m.sz};--fm-ed:${m.ed};--fm-edl:${m.edl}`;
+      el.appendChild(span);
     }
   }
+
+  /**
+   * Inject animated blind-mark children for the blind tile state.
+   * The number of marks matches the remaining state turns (max 3).
+   * @param {HTMLElement} el
+   * @param {number} [turns]
+   */
+  static #injectBlindMarks(el, turns = 3) {
+    const marks = [
+      { top: '10%', left: '14%', sz: '0.80rem', bd: '2.6s', bdl: '0s' },
+      { top: '38%', left: '58%', sz: '0.70rem', bd: '3.0s', bdl: '-1.0s' },
+      { top: '65%', left: '28%', sz: '0.75rem', bd: '2.8s', bdl: '-1.8s' },
+    ];
+    const count = Math.max(1, Math.min(turns, marks.length));
+    for (const m of marks.slice(0, count)) {
+      const span = document.createElement('span');
+      span.className = 'fm-blind-mark';
+      span.textContent = '?';
+      span.style.cssText = `top:${m.top};left:${m.left};font-size:${m.sz};--fm-bd:${m.bd};--fm-bdl:${m.bdl}`;
+      el.appendChild(span);
+    }
+  }
+
 }

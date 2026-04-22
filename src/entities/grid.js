@@ -59,7 +59,7 @@ export class Grid {
   }
 
   /**
-   * Serialize full state including tile powers, states, and targeted flags.
+   * Serialize full state including tile states and targeted flags.
    * @returns {{ cells: (object | null)[][], score: number, moves: number }}
    */
   serializeFull() {
@@ -68,11 +68,12 @@ export class Grid {
         row.map((tile) => {
           if (!tile) return null;
           const t = { v: tile.value };
-          if (tile.power) t.p = tile.power;
           if (tile.state) {
             t.s = tile.state;
             t.st = tile.stateTurns;
           }
+          if (tile.iceCooldown > 0) t.icd = tile.iceCooldown;
+          if (tile.blindCooldown > 0) t.bcd = tile.blindCooldown;
           if (tile.targeted) t.tg = true;
           return t;
         }),
@@ -83,7 +84,7 @@ export class Grid {
   }
 
   /**
-   * Restore grid from full serialized data (with powers, states).
+   * Restore grid from full serialized data (with states).
    * @param {{ cells: (object | null)[][], score: number, moves: number }} state
    */
   restoreFull(state) {
@@ -93,11 +94,12 @@ export class Grid {
       row.map((data, c) => {
         if (!data) return null;
         const tile = new Tile(data.v, r, c);
-        if (data.p) tile.power = data.p;
         if (data.s) {
           tile.state = data.s;
           tile.stateTurns = data.st ?? 0;
         }
+        if (data.icd) tile.iceCooldown = data.icd;
+        if (data.bcd) tile.blindCooldown = data.bcd;
         if (data.tg) tile.targeted = true;
         return tile;
       }),
@@ -138,7 +140,7 @@ export class Grid {
    * @param {'up' | 'down' | 'left' | 'right'} direction
    * @returns {{
    *   moved: boolean,
-   *   merges: { tile: Tile, fromRow: number, fromCol: number, consumedId: string, consumedPower: string | null }[],
+   *   merges: { tile: Tile, fromRow: number, fromCol: number, consumedId: string }[],
    *   movements: { tile: Tile, fromRow: number, fromCol: number }[],
    *   expelled: Tile[]
    * }}
@@ -178,7 +180,6 @@ export class Grid {
           const fromRow = tile.row;
           const fromCol = tile.col;
           const consumedId = tile.id;
-          const consumedPower = tile.power ?? null;
           this.cells[tile.row][tile.col] = null;
           this.cells[mergeTile.row][mergeTile.col] = null;
 
@@ -190,7 +191,7 @@ export class Grid {
           this.cells[mergeTile.row][mergeTile.col] = mergeTile;
           this.score += mergeTile.value;
 
-          merges.push({ tile: mergeTile, fromRow, fromCol, consumedId, consumedPower });
+          merges.push({ tile: mergeTile, fromRow, fromCol, consumedId });
           moved = true;
         } else if (targetRow !== tile.row || targetCol !== tile.col) {
           // Slide
@@ -293,6 +294,21 @@ export class Grid {
   }
 
   /**
+   * Forcibly clear all power states from every tile on the grid.
+   * Also resets cooldowns. Used as a deadlock-escape mechanism when
+   * the player has tried all 4 directions without any tile moving.
+   */
+  clearAllTileStates() {
+    for (const tile of this.getAllTiles()) {
+      if (tile.state !== null) {
+        tile.clearState();
+        tile.iceCooldown = 0;
+        tile.blindCooldown = 0;
+      }
+    }
+  }
+
+  /**
    * Determine traversal order based on direction.
    * @param {'up' | 'down' | 'left' | 'right'} direction
    * @returns {{ rows: number[], cols: number[] }}
@@ -344,8 +360,13 @@ export class Grid {
 
       const target = this.cells[nextRow][nextCol];
       if (target) {
-        // Can merge if same value and not yet merged (iced tiles CAN be merged into).
-        if (target.value === tile.value && !target.merged) {
+        // Can merge if same value, not yet merged, and neither tile is frozen (ice).
+        if (
+          target.value === tile.value &&
+          !target.merged &&
+          target.state !== 'ice' &&
+          tile.state !== 'ice'
+        ) {
           return { targetRow: nextRow, targetCol: nextCol, mergeTile: target, exits: false };
         }
         // Blocked by a different tile (or already-merged tile) — expel stops here too
@@ -416,8 +437,13 @@ export class Grid {
         while (nextR >= 0 && nextR < GRID_SIZE && nextC >= 0 && nextC < GRID_SIZE) {
           const target = sim[nextR][nextC];
           if (target) {
-            if (target.value === tile.value && !target.merged) {
-              // Iced tiles CAN be merged into; the merge clears the ice state in the real move.
+            // Iced tiles cannot merge: skip merge if either tile is frozen.
+            if (
+              target.value === tile.value &&
+              !target.merged &&
+              !iceIds.has(target.id) &&
+              !iceIds.has(tile.id)
+            ) {
               mergeTile = target;
             }
             break;

@@ -18,15 +18,20 @@ When an enemy spawns:
 
 1. **Grid HP bar** appears (same liquid overlay as Free mode).
 2. **Enemy tile** appears between the HUD and grid with name label, HP bar, and level border colour.
-3. **Each player move**: the enemy **contaminates** one random unpowered tile with a power from its repertoire.
+3. **Each player move**: the enemy **contaminates** the grid by picking a power from its remaining stock:
+   - direct powers (ice, expel-h, expel-v) apply directly on a random tile;
+   - all other powers are charged on a random free grid edge.
+   The matching stock counter is then decremented; when it hits 0, that
+   power type is removed from the enemy's pool.
 4. **When tiles merge**: damage is dealt to the enemy using the same formula as `GridLife.takeDamage`.
-5. **Powers from contaminated tiles** trigger on merge (same mechanics as Free mode).
+5. **Edge powers fire** when the player swipes in that direction (same as Free mode).
 
 ### Enemy Defeated
 
 When the enemy's HP reaches 0:
 
-- All powers are cleared from grid tiles (reset to normal state).
+- Tile states are cleared (ice, ghost, blind, wind).
+- All edge charges held by the battle PowerManager are cleared.
 - Grid HP bar is removed.
 - Enemy plays a **death animation** (grayscale, falls to bottom of screen, piles up in graveyard).
 - Returns to classic phase for 10 more moves.
@@ -51,35 +56,49 @@ Once an enemy is defeated, it never returns in the same game.
 
 ### Enemy Properties
 
-| Property   | Description                                                                       |
-|------------|-----------------------------------------------------------------------------------|
-| **Name**   | Random funny math name from a list of 100 (e.g., Pythagorus, Numerator, Algebrox) |
-| **Level**  | 2, 4, 8, …, 2048 — determines HP, powers, and tile border colour                  |
-| **HP**     | `ceil(log2(level)) × HP_PER_LEVEL` (currently `HP_PER_LEVEL = 10`)                |
-| **Powers** | Subset of Free mode powers based on level                                         |
+| Property        | Description                                                                      |
+|-----------------|----------------------------------------------------------------------------------|
+| **Name**        | Random funny math name from a predefined list (e.g., Pythax, Numerix, Algebrox)  |
+| **Level**       | 2, 4, 8, …, 2048 — determines HP, power stock, and tile border colour            |
+| **HP**          | `ceil(log2(level)) × HP_PER_LEVEL` (currently `HP_PER_LEVEL = 10`)               |
+| **powerStock**  | Map of `powerType → remaining casts` (initialised from `BATTLE.ENEMY_POWER_STOCK[level]`) |
 
-### Powers by Level
+### Power Stock per Level
 
-| Level       | Available Powers                     |
-|-------------|--------------------------------------|
-| 2           | Ice                                  |
-| 4           | Wind (up, down, left, right)         |
-| 8           | Expel (vertical, horizontal)         |
-| 16          | Blind                                |
-| 32          | Fire (H, V) + Ads                    |
-| 64          | Fire cross + Ads                     |
-| 128         | Bomb + Ads                           |
-| 256         | All except Nuclear, Bomb, Fire cross |
-| 512         | All except Nuclear, Bomb             |
-| 1024        | All except Nuclear                   |
-| 2048 (Boss) | All powers                           |
+Each enemy level ships with a predefined stock of charges, tuneable in
+`BATTLE.ENEMY_POWER_STOCK`. Examples (as of writing):
+
+| Level       | Stock (type × count)                                                  |
+|-------------|-----------------------------------------------------------------------|
+| 2           | ice × 3                                                               |
+| 4           | wind-up × 1, wind-down × 1, wind-left × 1, wind-right × 1             |
+| 8           | expel-h × 2, expel-v × 2                                              |
+| 16          | blind × 3                                                             |
+| 32          | fire-h × 2, fire-v × 2, ads × 1                                       |
+| 64          | fire-x × 2, ads × 2                                                   |
+| 128         | bomb × 3, ads × 2                                                     |
+| 256–1024    | Mix of statuses, passives and destructive powers                      |
+| 2048 (Boss) | All power types, including nuclear × 1                                |
+
+Whenever the enemy casts a power, the matching counter in `powerStock` is
+decremented; when a counter hits 0 the key is removed and that power type
+is no longer pickable.
 
 ### Contamination
 
-Each player move during battle phase, the enemy contaminates one tile:
-- Target: random tile without a power and without an active state.
-- Assigns a random power from the enemy's available powers.
-- Visual: particle animation flies from enemy to the target tile.
+Each player move during the battle phase, the enemy picks a power from its
+remaining stock (`enemy.pickRandomPower()`) and delegates its placement to
+the battle PowerManager:
+
+- **Direct** (ice, expel-h, expel-v): `PowerManager.applyDirectPower` is
+  called, which places the corresponding state on a random eligible tile.
+- **Edge-charged** (everything else): `PowerManager.chargeRandomFreeEdge`
+  places the power on a random empty grid edge. If all 4 edges are charged,
+  contamination is skipped for that turn.
+
+Each successful cast decrements the matching stock counter via
+`enemy.consumePower(type)`. Particle animations fly from the enemy only for
+direct powers (edge charges just update the edge badge).
 
 ### Damage Formula
 

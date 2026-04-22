@@ -1,5 +1,6 @@
 import { BATTLE } from '../configs/constants.js';
 import { Enemy } from '../entities/enemy.js';
+import { Power } from '../entities/power.js';
 
 /**
  * Manages Battle Mode logic: enemy spawning, contamination, damage, progression.
@@ -151,24 +152,32 @@ export class BattleManager {
   }
 
   /**
-   * Enemy contaminates a random unpowered tile on the grid.
-   * Called once per player move while an enemy is active.
+   * Enemy casts a power from its stock. Direct powers (ice, expel) are applied
+   * immediately to a random tile; other powers are charged on a random free
+   * grid edge via the PowerManager. Called once per player move while an
+   * enemy is active.
    *
    * @param {import('../entities/grid.js').Grid} grid
-   * @returns {{ tile: import('../entities/tile.js').Tile, power: string } | null}
+   * @param {import('./power-manager.js').PowerManager} powerManager
+   * @returns {{ type: string, kind: 'direct', tile: import('../entities/tile.js').Tile } | { type: string, kind: 'edge', side: string } | null}
    */
-  contaminate(grid) {
-    if (!this.#enemy) return null;
+  contaminate(grid, powerManager) {
+    if (!this.#enemy || !powerManager) return null;
 
-    const power = this.#enemy.pickRandomPower();
-    if (!power) return null;
+    const type = this.#enemy.pickRandomPower();
+    if (!type) return null;
 
-    const candidates = grid.getAllTiles().filter((t) => !t.power && !t.state);
-    if (candidates.length === 0) return null;
+    if (Power.isDirect(type)) {
+      const tile = powerManager.pickDirectTarget(type, grid);
+      if (!tile) return null;
+      this.#enemy.consumePower(type);
+      return { type, kind: 'direct', tile };
+    }
 
-    const tile = candidates[Math.floor(Math.random() * candidates.length)];
-    tile.power = power;
-    return { tile, power };
+    const side = powerManager.chargeRandomFreeEdge(type);
+    if (!side) return null;
+    this.#enemy.consumePower(type);
+    return { type, kind: 'edge', side };
   }
 
   /**
@@ -206,14 +215,19 @@ export class BattleManager {
   }
 
   /**
-   * Clear all powers from grid tiles (called when enemy is defeated).
+   * Clear enemy-induced state from grid tiles and edges (called on enemy
+   * defeat). Tile states (ice, ghost, blind, wind) are wiped, and the
+   * PowerManager edges are cleared so the player starts fresh next battle.
+   *
    * @param {import('../entities/grid.js').Grid} grid
+   * @param {import('./power-manager.js').PowerManager} [powerManager]
    */
-  clearGridPowers(grid) {
+  clearGridPowers(grid, powerManager) {
     for (const tile of grid.getAllTiles()) {
-      tile.power = null;
       tile.clearState();
+      tile.targeted = false;
     }
+    if (powerManager) powerManager.clearEdges();
   }
 
   /**

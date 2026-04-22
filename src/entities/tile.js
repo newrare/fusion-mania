@@ -30,11 +30,14 @@ export class Tile {
   /** @type {number} Remaining moves for the active state (0 = no state) */
   stateTurns;
 
+  /** @type {number} Cooldown moves after ice expires (prevents immediate re-freeze) */
+  iceCooldown;
+
+  /** @type {number} Cooldown moves after blind expires (prevents immediate re-blind) */
+  blindCooldown;
+
   /** @type {boolean} Whether this tile is the current power target */
   targeted;
-
-  /** @type {string | null} Power type charged on this tile (from POWER_TYPES) */
-  power;
 
   /**
    * @param {number} value
@@ -49,8 +52,9 @@ export class Tile {
     this.merged = false;
     this.state = null;
     this.stateTurns = 0;
+    this.iceCooldown = 0;
+    this.blindCooldown = 0;
     this.targeted = false;
-    this.power = null;
   }
 
   /**
@@ -73,13 +77,24 @@ export class Tile {
 
   /**
    * Decrement the state turn counter. Clears the state if it reaches 0.
+   * Also decrements iceCooldown when applicable.
    */
   tickState() {
+    let justExpiredIce   = false;
+    let justExpiredBlind = false;
     if (this.stateTurns > 0) {
       this.stateTurns--;
       if (this.stateTurns <= 0) {
+        justExpiredIce   = this.state === 'ice';
+        justExpiredBlind = this.state === 'blind';
         this.clearState();
       }
     }
+    // Decrement cooldowns — but not in the same tick they were just set.
+    if (!justExpiredIce   && this.iceCooldown   > 0) this.iceCooldown--;
+    if (!justExpiredBlind && this.blindCooldown > 0) this.blindCooldown--;
+    // Apply cooldowns AFTER decrement so they last at least 1 full move.
+    if (justExpiredIce)   this.iceCooldown   = 1;
+    if (justExpiredBlind) this.blindCooldown = 1;
   }
 }

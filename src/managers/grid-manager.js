@@ -29,6 +29,15 @@ export class GridManager {
   /** @type {boolean} True while an animation sequence is running */
   #animating = false;
 
+  /** @type {HTMLElement | null} Global wind overlay element on the grid */
+  #windOverlayEl = null;
+
+  /** @type {string | null} Current wind direction for dedup */
+  #currentWindDir = null;
+
+  /** @type {number} Current wind turns for dedup */
+  #currentWindTurns = -1;
+
   constructor() {
     this.#grid = new Grid();
   }
@@ -324,6 +333,10 @@ export class GridManager {
    * @param {import('../entities/tile.js').Tile[]} destroyedTiles
    */
   playFireAnimation(powerType, targetTile, destroyedTiles) {
+    for (const tile of destroyedTiles) {
+      const el = this.#tileElements.get(tile.id);
+      if (el) TileRenderer.clearStateOnly(el);
+    }
     this.#animator?.playFireAnimation(
       powerType,
       targetTile,
@@ -353,6 +366,10 @@ export class GridManager {
    * @param {import('../entities/tile.js').Tile[]} destroyedTiles  All tiles being destroyed
    */
   playBombAnimation(targetTile, destroyedTiles) {
+    for (const tile of destroyedTiles) {
+      const el = this.#tileElements.get(tile.id);
+      if (el) TileRenderer.clearStateOnly(el);
+    }
     this.#animator?.playBombAnimation(
       targetTile,
       destroyedTiles,
@@ -366,6 +383,10 @@ export class GridManager {
    * @param {import('../entities/tile.js').Tile[]} destroyedTiles
    */
   playNuclearAnimation(destroyedTiles) {
+    for (const tile of destroyedTiles) {
+      const el = this.#tileElements.get(tile.id);
+      if (el) TileRenderer.clearStateOnly(el);
+    }
     this.#animator?.playNuclearAnimation(destroyedTiles);
   }
 
@@ -421,8 +442,11 @@ export class GridManager {
    * Sync tile DOM elements with grid truth.
    * Removes orphaned elements and applies visual state.
    * @param {string | null} [windDirection]
+   * @param {Set<string> | null} [preserveIds]
+   * @param {number} [windTurns]
    */
-  syncTileDom(windDirection = null, preserveIds = null) {
+  syncTileDom(windDirection = null, preserveIds = null, windTurns = 0) {
+    this.#updateWindOverlay(windDirection, windTurns);
     const gridTileIds = new Set(this.#grid.getAllTiles().map((t) => t.id));
 
     for (const [id, el] of this.#tileElements) {
@@ -437,6 +461,78 @@ export class GridManager {
       if (!el) continue;
       TileRenderer.applyState(el, tile, { windDirection });
     }
+  }
+
+  // ─── Wind overlay ────────────────────────────────
+
+  /** Maps blocked direction → blow direction (visual CSS class suffix) */
+  static #WIND_CSS_DIR = { up: 'down', down: 'up', left: 'right', right: 'left' };
+
+  /** Streak layouts per intensity level. Counts: strong=12, medium=9, weak=6. */
+  static #WIND_STREAKS = {
+    strong: [
+      { pos: '4%',  dur: '0.78s', dl: '0s',     thick: '2px',   len: '54%' },
+      { pos: '12%', dur: '0.68s', dl: '-0.28s',  thick: '1.5px', len: '44%' },
+      { pos: '20%', dur: '0.85s', dl: '-0.55s',  thick: '3.5px', len: '64%' },
+      { pos: '29%', dur: '0.70s', dl: '-0.12s',  thick: '1.5px', len: '42%' },
+      { pos: '37%', dur: '0.82s', dl: '-0.78s',  thick: '2.5px', len: '56%' },
+      { pos: '46%', dur: '0.72s', dl: '-0.42s',  thick: '2px',   len: '50%' },
+      { pos: '54%', dur: '0.80s', dl: '-0.90s',  thick: '1.5px', len: '46%' },
+      { pos: '62%', dur: '0.66s', dl: '-0.20s',  thick: '3px',   len: '60%' },
+      { pos: '71%', dur: '0.76s', dl: '-0.62s',  thick: '2px',   len: '50%' },
+      { pos: '80%', dur: '0.63s', dl: '-1.00s',  thick: '1.5px', len: '44%' },
+      { pos: '88%', dur: '0.83s', dl: '-0.35s',  thick: '2.5px', len: '54%' },
+      { pos: '95%', dur: '0.71s', dl: '-0.75s',  thick: '1.5px', len: '40%' },
+    ],
+    medium: [
+      { pos: '5%',  dur: '0.95s', dl: '0s',     thick: '2px',   len: '50%' },
+      { pos: '17%', dur: '0.85s', dl: '-0.45s',  thick: '2.5px', len: '58%' },
+      { pos: '28%', dur: '1.05s', dl: '-0.22s',  thick: '2px',   len: '48%' },
+      { pos: '40%', dur: '0.90s', dl: '-0.75s',  thick: '3px',   len: '54%' },
+      { pos: '52%', dur: '1.00s', dl: '-1.10s',  thick: '2px',   len: '52%' },
+      { pos: '63%', dur: '0.88s', dl: '-0.32s',  thick: '2.5px', len: '46%' },
+      { pos: '74%', dur: '0.95s', dl: '-0.60s',  thick: '2px',   len: '56%' },
+      { pos: '84%', dur: '0.82s', dl: '-0.88s',  thick: '1.5px', len: '44%' },
+      { pos: '93%', dur: '1.02s', dl: '-0.18s',  thick: '2px',   len: '50%' },
+    ],
+    weak: [
+      { pos: '10%', dur: '1.30s', dl: '0s',     thick: '2px',   len: '46%' },
+      { pos: '26%', dur: '1.50s', dl: '-0.55s',  thick: '2.5px', len: '54%' },
+      { pos: '44%', dur: '1.35s', dl: '-1.10s',  thick: '2px',   len: '48%' },
+      { pos: '60%', dur: '1.45s', dl: '-0.30s',  thick: '2.5px', len: '52%' },
+      { pos: '75%', dur: '1.25s', dl: '-0.80s',  thick: '2px',   len: '44%' },
+      { pos: '90%', dur: '1.40s', dl: '-1.30s',  thick: '2px',   len: '50%' },
+    ],
+  };
+
+  /**
+   * Create or remove the wind overlay on the grid element.
+   * No-ops if wind direction and turns have not changed.
+   * @param {string | null} windDir — blocked direction (up/down/left/right) or null
+   * @param {number} windTurns — remaining wind turns
+   */
+  #updateWindOverlay(windDir, windTurns) {
+    if (windDir === this.#currentWindDir && windTurns === this.#currentWindTurns) return;
+    this.#currentWindDir = windDir;
+    this.#currentWindTurns = windTurns;
+    if (this.#windOverlayEl) {
+      this.#windOverlayEl.remove();
+      this.#windOverlayEl = null;
+    }
+    if (!windDir || !this.#gridEl) return;
+    const cssDir = GridManager.#WIND_CSS_DIR[windDir] ?? windDir;
+    const intensity = windTurns >= 3 ? 'strong' : windTurns === 2 ? 'medium' : 'weak';
+    const overlay = document.createElement('div');
+    overlay.className = `fm-wind-overlay fm-wind-overlay--${cssDir} fm-wind-overlay--${intensity}`;
+    for (const s of GridManager.#WIND_STREAKS[intensity]) {
+      const streak = document.createElement('span');
+      streak.className = 'fm-wind-streak';
+      streak.style.cssText =
+        `--fm-wpos:${s.pos};--fm-wdur:${s.dur};--fm-wdl:${s.dl};--fm-wthick:${s.thick};--fm-wlen:${s.len}`;
+      overlay.appendChild(streak);
+    }
+    this.#gridEl.appendChild(overlay);
+    this.#windOverlayEl = overlay;
   }
 
   // ─── Fusion indicators ───────────────────────────

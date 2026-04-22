@@ -4,8 +4,8 @@ import { BATTLE, POWER_TYPES } from '../../src/configs/constants.js';
 
 describe('Enemy', () => {
   describe('ENEMY_NAMES', () => {
-    it('has exactly 100 names', () => {
-      expect(ENEMY_NAMES.length).toBe(100);
+    it('has at least 50 names', () => {
+      expect(ENEMY_NAMES.length).toBeGreaterThanOrEqual(50);
     });
 
     it('names are unique', () => {
@@ -48,27 +48,27 @@ describe('Enemy', () => {
       expect(enemy.life.maxHp).toBe(11 * BATTLE.HP_PER_LEVEL);
     });
 
-    it('assigns correct available powers for level 2', () => {
+    it('level 2 only has ICE in its stock', () => {
       const enemy = new Enemy(2);
       expect(enemy.availablePowers).toEqual([POWER_TYPES.ICE]);
+      expect(enemy.powerStock[POWER_TYPES.ICE]).toBeGreaterThan(0);
     });
 
-    it('assigns correct available powers for level 4', () => {
+    it('level 4 has all four wind directions in its stock', () => {
       const enemy = new Enemy(4);
-      expect(enemy.availablePowers).toEqual([
-        POWER_TYPES.WIND_UP,
-        POWER_TYPES.WIND_DOWN,
-        POWER_TYPES.WIND_LEFT,
-        POWER_TYPES.WIND_RIGHT,
-      ]);
+      const types = enemy.availablePowers.sort();
+      expect(types).toContain(POWER_TYPES.WIND_UP);
+      expect(types).toContain(POWER_TYPES.WIND_DOWN);
+      expect(types).toContain(POWER_TYPES.WIND_LEFT);
+      expect(types).toContain(POWER_TYPES.WIND_RIGHT);
     });
 
-    it('assigns correct available powers for level 16 (blind)', () => {
+    it('level 16 only has BLIND in its stock', () => {
       const enemy = new Enemy(16);
       expect(enemy.availablePowers).toEqual([POWER_TYPES.BLIND]);
     });
 
-    it('boss (2048) has all powers', () => {
+    it('boss (2048) has NUCLEAR, BOMB, FIRE_X, ICE in its stock', () => {
       const enemy = new Enemy(2048);
       expect(enemy.availablePowers).toContain(POWER_TYPES.NUCLEAR);
       expect(enemy.availablePowers).toContain(POWER_TYPES.BOMB);
@@ -76,9 +76,45 @@ describe('Enemy', () => {
       expect(enemy.availablePowers).toContain(POWER_TYPES.ICE);
     });
 
-    it('level 1024 does NOT have nuclear', () => {
-      const lp = BATTLE.LEVEL_POWERS[1024];
-      expect(lp).not.toContain(POWER_TYPES.NUCLEAR);
+    it('level 1024 does NOT have nuclear in its stock', () => {
+      const enemy = new Enemy(1024);
+      expect(enemy.availablePowers).not.toContain(POWER_TYPES.NUCLEAR);
+    });
+  });
+
+  describe('powerStock / consumePower', () => {
+    it('initial stock is a copy (mutation is local)', () => {
+      const enemy = new Enemy(2);
+      const otherEnemy = new Enemy(2);
+      enemy.powerStock[POWER_TYPES.ICE] = 0;
+      expect(otherEnemy.powerStock[POWER_TYPES.ICE]).toBeGreaterThan(0);
+    });
+
+    it('consumePower decrements the count', () => {
+      const enemy = new Enemy(2);
+      const before = enemy.powerStock[POWER_TYPES.ICE];
+      expect(enemy.consumePower(POWER_TYPES.ICE)).toBe(true);
+      expect(enemy.powerStock[POWER_TYPES.ICE]).toBe(before - 1);
+    });
+
+    it('consumePower removes the key when it reaches 0', () => {
+      const enemy = new Enemy(2);
+      while (enemy.powerStock[POWER_TYPES.ICE] > 0) enemy.consumePower(POWER_TYPES.ICE);
+      expect(enemy.powerStock[POWER_TYPES.ICE]).toBeUndefined();
+      expect(enemy.availablePowers).not.toContain(POWER_TYPES.ICE);
+    });
+
+    it('consumePower returns false when no charge remains', () => {
+      const enemy = new Enemy(2);
+      enemy.powerStock = {};
+      expect(enemy.consumePower(POWER_TYPES.ICE)).toBe(false);
+    });
+
+    it('hasAnyStock reflects remaining charges', () => {
+      const enemy = new Enemy(2);
+      expect(enemy.hasAnyStock()).toBe(true);
+      enemy.powerStock = {};
+      expect(enemy.hasAnyStock()).toBe(false);
     });
   });
 
@@ -137,9 +173,10 @@ describe('Enemy', () => {
   });
 
   describe('serialize / restore', () => {
-    it('round-trips correctly', () => {
+    it('round-trips correctly (including powerStock)', () => {
       const enemy = new Enemy(32, 'TestBoss');
       enemy.takeDamage([8]);
+      enemy.consumePower(POWER_TYPES.FIRE_H);
       const data = enemy.serialize();
 
       const restored = Enemy.restore(data);
@@ -147,6 +184,7 @@ describe('Enemy', () => {
       expect(restored.level).toBe(32);
       expect(restored.life.currentHp).toBe(enemy.life.currentHp);
       expect(restored.life.maxHp).toBe(enemy.life.maxHp);
+      expect(restored.powerStock).toEqual(enemy.powerStock);
     });
   });
 

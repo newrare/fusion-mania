@@ -132,16 +132,63 @@ describe('Power', () => {
   });
 
   describe('Power.isGridWide()', () => {
-    it('true for nuclear, blind, ads, lightning', () => {
-      expect(Power.isGridWide(POWER_TYPES.NUCLEAR)).toBe(true);
+    it('true for blind, ads, lightning, nuclear', () => {
       expect(Power.isGridWide(POWER_TYPES.BLIND)).toBe(true);
       expect(Power.isGridWide(POWER_TYPES.ADS)).toBe(true);
       expect(Power.isGridWide(POWER_TYPES.LIGHTNING)).toBe(true);
+      expect(Power.isGridWide(POWER_TYPES.NUCLEAR)).toBe(true);
     });
 
-    it('false for targeted powers', () => {
+    it('false for target-based powers (fire, bomb, teleport)', () => {
       expect(Power.isGridWide(POWER_TYPES.FIRE_H)).toBe(false);
+      expect(Power.isGridWide(POWER_TYPES.BOMB)).toBe(false);
+      expect(Power.isGridWide(POWER_TYPES.TELEPORT)).toBe(false);
+    });
+
+    it('false for direct powers (ice, expel)', () => {
       expect(Power.isGridWide(POWER_TYPES.ICE)).toBe(false);
+      expect(Power.isGridWide(POWER_TYPES.EXPEL_H)).toBe(false);
+    });
+  });
+
+  describe('Power.needsTarget()', () => {
+    it('true for fire, bomb, teleport (nuclear is now global)', () => {
+      expect(Power.needsTarget(POWER_TYPES.FIRE_H)).toBe(true);
+      expect(Power.needsTarget(POWER_TYPES.FIRE_V)).toBe(true);
+      expect(Power.needsTarget(POWER_TYPES.FIRE_X)).toBe(true);
+      expect(Power.needsTarget(POWER_TYPES.BOMB)).toBe(true);
+      expect(Power.needsTarget(POWER_TYPES.TELEPORT)).toBe(true);
+      expect(Power.needsTarget(POWER_TYPES.NUCLEAR)).toBe(false);
+    });
+
+    it('false for grid-wide, direct and special powers', () => {
+      expect(Power.needsTarget(POWER_TYPES.WIND_UP)).toBe(false);
+      expect(Power.needsTarget(POWER_TYPES.BLIND)).toBe(false);
+      expect(Power.needsTarget(POWER_TYPES.ADS)).toBe(false);
+      expect(Power.needsTarget(POWER_TYPES.LIGHTNING)).toBe(false);
+      expect(Power.needsTarget(POWER_TYPES.ICE)).toBe(false);
+    });
+  });
+
+  describe('Power.isDirect()', () => {
+    it('true for ice and expel variants', () => {
+      expect(Power.isDirect(POWER_TYPES.ICE)).toBe(true);
+      expect(Power.isDirect(POWER_TYPES.EXPEL_H)).toBe(true);
+      expect(Power.isDirect(POWER_TYPES.EXPEL_V)).toBe(true);
+    });
+
+    it('false for edge-charged powers', () => {
+      expect(Power.isDirect(POWER_TYPES.BOMB)).toBe(false);
+      expect(Power.isDirect(POWER_TYPES.WIND_UP)).toBe(false);
+      expect(Power.isDirect(POWER_TYPES.LIGHTNING)).toBe(false);
+    });
+  });
+
+  describe('Power.isEdgeCharged()', () => {
+    it('is the inverse of isDirect', () => {
+      for (const t of Object.values(POWER_TYPES)) {
+        expect(Power.isEdgeCharged(t)).toBe(!Power.isDirect(t));
+      }
     });
   });
 
