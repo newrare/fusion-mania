@@ -12,7 +12,7 @@ describe('BattleManager', () => {
   let grid;
 
   beforeEach(() => {
-    bm = new BattleManager();
+    bm = new BattleManager(0); // BL0: shover / lv8
     grid = new Grid();
   });
 
@@ -51,64 +51,61 @@ describe('BattleManager', () => {
     });
 
     it('spawns enemy after CLASSIC_MOVES if max tile requirement is met', () => {
-      grid.cells[0][0] = new Tile(2, 0, 0);
+      grid.cells[0][0] = new Tile(8, 0, 0);
       let enemy = null;
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
         enemy = bm.tickClassicPhase(grid);
       }
       expect(enemy).not.toBeNull();
-      expect(enemy.level).toBe(2);
+      expect(enemy.level).toBe(8);
     });
 
     it('does not spawn enemy if max tile is too low', () => {
-      // First enemy requires tile value 2, which is present
-      // But for level 4 enemy, need tile 4
-      grid.cells[0][0] = new Tile(2, 0, 0);
-      // Defeat level 2 first
+      // BL1: frost/lv4 → mirage/lv16. Defeat lv4 with tile 4,
+      // then lv16 must not spawn because max tile (4) < 16.
+      const bmMulti = new BattleManager(1);
+      grid.cells[0][0] = new Tile(4, 0, 0);
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
-        bm.tickClassicPhase(grid);
+        bmMulti.tickClassicPhase(grid);
       }
-      // Now in battle phase with level 2 enemy
-      bm.applyMergeDamage([{ tile: { value: 2048 } }]);
-      bm.defeatEnemy();
+      bmMulti.applyMergeDamage([{ tile: { value: 2048 } }]);
+      bmMulti.defeatEnemy();
 
-      // Try to spawn level 4 - but max tile is only 2
+      // Try to spawn lv16 — should not appear since max tile is 4
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
-        const result = bm.tickClassicPhase(grid);
-        if (result) {
-          // Should not happen since max tile < 4
-          expect(false).toBe(true);
-        }
+        const result = bmMulti.tickClassicPhase(grid);
+        expect(result).toBeNull();
       }
     });
 
-    it('spawns level 4 enemy after level 2 is defeated and tile 4 exists', () => {
-      grid.cells[0][0] = new Tile(4, 0, 0);
+    it('spawns second enemy after first is defeated and tile requirement is met', () => {
+      // BL1: frost/lv4 → mirage/lv16
+      const bmMulti = new BattleManager(1);
+      grid.cells[0][0] = new Tile(16, 0, 0);
 
-      // Spawn and defeat level 2
+      // Spawn and defeat frost/lv4
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
-        bm.tickClassicPhase(grid);
+        bmMulti.tickClassicPhase(grid);
       }
-      expect(bm.enemy.level).toBe(2);
+      expect(bmMulti.enemy.level).toBe(4);
 
-      // Kill enemy
-      bm.applyMergeDamage([
+      bmMulti.applyMergeDamage([
         { tile: { value: 2048 } },
         { tile: { value: 2048 } },
         { tile: { value: 2048 } },
       ]);
-      bm.defeatEnemy();
+      bmMulti.defeatEnemy();
 
-      // Now tick for level 4
+      // Now tick for mirage/lv16
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
-        bm.tickClassicPhase(grid);
+        bmMulti.tickClassicPhase(grid);
       }
-      expect(bm.enemy).not.toBeNull();
-      expect(bm.enemy.level).toBe(4);
+      expect(bmMulti.enemy).not.toBeNull();
+      expect(bmMulti.enemy.level).toBe(16);
     });
 
     it('returns null during battle phase', () => {
-      grid.cells[0][0] = new Tile(2, 0, 0);
+      grid.cells[0][0] = new Tile(8, 0, 0);
       // Spawn enemy
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
         bm.tickClassicPhase(grid);
@@ -133,10 +130,11 @@ describe('BattleManager', () => {
     });
 
     it('direct powers (ice) pick a tile without applying state (deferred to after animation)', () => {
-      grid.cells[0][0] = new Tile(2, 0, 0);
-      grid.cells[1][1] = new Tile(4, 1, 1);
+      grid.cells[0][0] = new Tile(8, 0, 0);
+      grid.cells[1][1] = new Tile(8, 1, 1);
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) bm.tickClassicPhase(grid);
-      // Level 2 enemy only has ICE in its stock
+      // Force only ICE so contaminate always produces a direct result
+      bm.enemy.powerStock = { [POWER_TYPES.ICE]: 3 };
       const result = bm.contaminate(grid, pm);
       expect(result).not.toBeNull();
       expect(result.kind).toBe('direct');
@@ -146,7 +144,7 @@ describe('BattleManager', () => {
     });
 
     it('edge-charged powers (e.g. bomb) are placed on a grid edge', () => {
-      grid.cells[0][0] = new Tile(2, 0, 0);
+      grid.cells[0][0] = new Tile(8, 0, 0);
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) bm.tickClassicPhase(grid);
       // Force the enemy to only have BOMB (edge-charged)
       bm.enemy.powerStock = { [POWER_TYPES.BOMB]: 1 };
@@ -159,7 +157,7 @@ describe('BattleManager', () => {
     });
 
     it('decrements the enemy stock after each cast', () => {
-      grid.cells[0][0] = new Tile(2, 0, 0);
+      grid.cells[0][0] = new Tile(8, 0, 0);
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) bm.tickClassicPhase(grid);
       bm.enemy.powerStock = { [POWER_TYPES.ICE]: 2 };
       bm.contaminate(grid, pm);
@@ -167,7 +165,7 @@ describe('BattleManager', () => {
     });
 
     it('returns null when the enemy stock is empty', () => {
-      grid.cells[0][0] = new Tile(2, 0, 0);
+      grid.cells[0][0] = new Tile(8, 0, 0);
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) bm.tickClassicPhase(grid);
       bm.enemy.powerStock = {};
       expect(bm.contaminate(grid, pm)).toBeNull();
@@ -176,7 +174,7 @@ describe('BattleManager', () => {
 
   describe('applyMergeDamage', () => {
     beforeEach(() => {
-      grid.cells[0][0] = new Tile(2, 0, 0);
+      grid.cells[0][0] = new Tile(8, 0, 0);
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
         bm.tickClassicPhase(grid);
       }
@@ -217,7 +215,7 @@ describe('BattleManager', () => {
 
   describe('defeatEnemy', () => {
     beforeEach(() => {
-      grid.cells[0][0] = new Tile(2, 0, 0);
+      grid.cells[0][0] = new Tile(8, 0, 0);
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
         bm.tickClassicPhase(grid);
       }
@@ -225,7 +223,7 @@ describe('BattleManager', () => {
 
     it('marks the enemy level as defeated', () => {
       bm.defeatEnemy();
-      expect(bm.defeatedLevels.has(2)).toBe(true);
+      expect(bm.defeatedLevels.has(8)).toBe(true);
     });
 
     it('returns to classic phase', () => {
@@ -246,13 +244,13 @@ describe('BattleManager', () => {
     it('tracks maxEnemyLevel as highest defeated level', () => {
       expect(bm.maxEnemyLevel).toBe(0); // none defeated yet
       bm.defeatEnemy();
-      expect(bm.maxEnemyLevel).toBe(2);
+      expect(bm.maxEnemyLevel).toBe(8);
     });
 
     it('returns the dead enemy', () => {
       const dead = bm.defeatEnemy();
       expect(dead).not.toBeNull();
-      expect(dead.level).toBe(2);
+      expect(dead.level).toBe(8);
     });
   });
 
@@ -283,29 +281,22 @@ describe('BattleManager', () => {
   });
 
   describe('level progression', () => {
-    it('enemies appear in order: 2, 4, 8, ..., 2048', () => {
-      const defeated = [];
-      for (const level of BATTLE.LEVELS) {
-        grid.cells[0][0] = new Tile(level, 0, 0);
-        for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
-          bm.tickClassicPhase(grid);
-        }
-        expect(bm.enemy).not.toBeNull();
-        expect(bm.enemy.level).toBe(level);
-        defeated.push(level);
-
-        // Kill enemy
-        bm.applyMergeDamage([
-          { tile: { value: 2048 } },
-          { tile: { value: 2048 } },
-          { tile: { value: 2048 } },
-          { tile: { value: 2048 } },
-          { tile: { value: 2048 } },
-        ]);
-        bm.defeatEnemy();
+    it('enemies appear in order from the battle level sequence', () => {
+      // Use battle level 0: a single shover/lv8 enemy
+      const bmLv = new BattleManager(0);
+      grid.cells[0][0] = new Tile(8, 0, 0);
+      for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
+        bmLv.tickClassicPhase(grid);
       }
-      expect(defeated).toEqual(BATTLE.LEVELS);
-      expect(bm.allDefeated()).toBe(true);
+      expect(bmLv.enemy).not.toBeNull();
+      expect(bmLv.enemy.level).toBe(8);
+      bmLv.applyMergeDamage([
+        { tile: { value: 2048 } },
+        { tile: { value: 2048 } },
+        { tile: { value: 2048 } },
+      ]);
+      bmLv.defeatEnemy();
+      expect(bmLv.allDefeated()).toBe(true);
     });
   });
 
@@ -319,33 +310,33 @@ describe('BattleManager', () => {
     });
 
     it('round-trips active enemy state', () => {
-      grid.cells[0][0] = new Tile(2, 0, 0);
+      grid.cells[0][0] = new Tile(8, 0, 0);
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
         bm.tickClassicPhase(grid);
       }
       bm.applyMergeDamage([{ tile: { value: 4 } }]);
 
       const data = bm.serialize();
-      const bm2 = new BattleManager();
+      const bm2 = new BattleManager(0);
       bm2.restore(data);
 
       expect(bm2.isBattlePhase).toBe(true);
-      expect(bm2.enemy.level).toBe(2);
+      expect(bm2.enemy.level).toBe(8);
       expect(bm2.enemy.life.currentHp).toBe(bm.enemy.life.currentHp);
     });
 
     it('round-trips defeated levels', () => {
-      grid.cells[0][0] = new Tile(2, 0, 0);
+      grid.cells[0][0] = new Tile(8, 0, 0);
       for (let i = 0; i < BATTLE.CLASSIC_MOVES; i++) {
         bm.tickClassicPhase(grid);
       }
       bm.defeatEnemy();
 
       const data = bm.serialize();
-      const bm2 = new BattleManager();
+      const bm2 = new BattleManager(0);
       bm2.restore(data);
 
-      expect(bm2.defeatedLevels.has(2)).toBe(true);
+      expect(bm2.defeatedLevels.has(8)).toBe(true);
       expect(bm2.enemiesDefeated).toBe(1);
     });
   });

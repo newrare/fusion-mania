@@ -27,9 +27,14 @@ export class LevelSelectModal {
     this.#scene = scene;
 
     const tiers = [
-      { key: 'easy',   colorKey: 'info',    label: i18n.t('battle.tier_easy'),   ...BATTLE.TIER_EASY },
-      { key: 'normal', colorKey: 'warning', label: i18n.t('battle.tier_normal'), ...BATTLE.TIER_NORMAL },
-      { key: 'hard',   colorKey: 'danger',  label: i18n.t('battle.tier_hard'),   ...BATTLE.TIER_HARD },
+      { key: 'easy', colorKey: 'info', label: i18n.t('battle.tier_easy'), ...BATTLE.TIER_EASY },
+      {
+        key: 'normal',
+        colorKey: 'warning',
+        label: i18n.t('battle.tier_normal'),
+        ...BATTLE.TIER_NORMAL,
+      },
+      { key: 'hard', colorKey: 'danger', label: i18n.t('battle.tier_hard'), ...BATTLE.TIER_HARD },
     ];
 
     /**
@@ -40,11 +45,13 @@ export class LevelSelectModal {
     const levelState = (idx) => {
       const rankings = saveManager.getRankings(`battle_L${idx}`);
       if (rankings.length === 0) return 'fresh';
-      if (rankings.some(r => r.won)) return 'won';
+      if (rankings.some((r) => r.won)) return 'won';
       return 'attempted';
     };
 
-    const totalWon = Array.from({ length: 30 }, (_, i) => levelState(i) === 'won').filter(Boolean).length;
+    const totalWon = Array.from({ length: 30 }, (_, i) => levelState(i) === 'won').filter(
+      Boolean,
+    ).length;
 
     let sectionsHtml = '';
     for (const tier of tiers) {

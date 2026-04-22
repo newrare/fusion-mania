@@ -501,7 +501,9 @@ export class GameScene extends Phaser.Scene {
 
     // Battle mode initialisation
     if (this.#mode === 'battle') {
-      this.#battleManager = new BattleManager(this.#battleLevel >= 0 ? this.#battleLevel : undefined);
+      this.#battleManager = new BattleManager(
+        this.#battleLevel >= 0 ? this.#battleLevel : undefined,
+      );
       this.#createEnemyFrise();
     }
 
@@ -548,7 +550,9 @@ export class GameScene extends Phaser.Scene {
     // SFX when another power SFX will take over (lightning is the one exception —
     // it plays its own SFX per-strike and coexists with the fusion cue).
     const edgePm = this.#powerManager || this.#battlePowerManager;
-    const firedType = edgePm ? edgePm.edges[{ up: 'top', down: 'bottom', left: 'left', right: 'right' }[direction]] : null;
+    const firedType = edgePm
+      ? edgePm.edges[{ up: 'top', down: 'bottom', left: 'left', right: 'right' }[direction]]
+      : null;
     const moveResult = await this.#gm.executeMove(
       direction,
       waitFn,
@@ -639,7 +643,13 @@ export class GameScene extends Phaser.Scene {
             freeDamage = this.#gridLife.takeDamage(effectResult.destroyed.map((t) => t.value));
           }
         }
-        powerWork.push({ chosenPower: fired.type, target, effectResult, pm: this.#powerManager, damage: freeDamage });
+        powerWork.push({
+          chosenPower: fired.type,
+          target,
+          effectResult,
+          pm: this.#powerManager,
+          damage: freeDamage,
+        });
       }
       // Assign next power (edge charge or direct apply)
       this.#powerManager.onMove(this.#gm.grid);
@@ -682,7 +692,9 @@ export class GameScene extends Phaser.Scene {
         if (effectResult.destroyed.length > 0) {
           this.#historyManager.addTilesLost(effectResult.destroyed.map((t) => t.value));
           if (this.#gridLife) {
-            battleEdgeDamage = this.#gridLife.takeDamage(effectResult.destroyed.map((t) => t.value));
+            battleEdgeDamage = this.#gridLife.takeDamage(
+              effectResult.destroyed.map((t) => t.value),
+            );
           }
         }
         battlePowerWork.push({
@@ -894,8 +906,7 @@ export class GameScene extends Phaser.Scene {
     this.#stuckDirections.clear();
     const windDir =
       this.#powerManager?.windDirection ?? this.#battlePowerManager?.windDirection ?? null;
-    const windTurns =
-      this.#powerManager?.windTurns ?? this.#battlePowerManager?.windTurns ?? 0;
+    const windTurns = this.#powerManager?.windTurns ?? this.#battlePowerManager?.windTurns ?? 0;
     this.#gm.syncTileDom(windDir, null, windTurns);
   }
 
@@ -1128,7 +1139,7 @@ export class GameScene extends Phaser.Scene {
 
     let track = '';
     for (let i = 0; i < seq.length; i++) {
-      const level = seq[i];
+      const { level } = seq[i];
       const isBoss = i === seq.length - 1;
       const nodeClasses = `fm-tl-node fm-frise-item${isBoss ? ' fm-frise-boss' : ''}`;
 
@@ -2024,7 +2035,10 @@ export class GameScene extends Phaser.Scene {
       },
       onReplay: () => {
         this.#destroyMenuModal();
-        this.scene.restart({ mode: this.#mode, battleLevel: this.#battleLevel >= 0 ? this.#battleLevel : undefined });
+        this.scene.restart({
+          mode: this.#mode,
+          battleLevel: this.#battleLevel >= 0 ? this.#battleLevel : undefined,
+        });
       },
       onClose: () => this.#destroyMenuModal(),
       onQuit: () => {
@@ -2216,7 +2230,9 @@ export class GameScene extends Phaser.Scene {
     if (this.#mode === 'battle') {
       const savedBL = data.battleManager?.battleLevel;
       this.#battleLevel = savedBL != null && savedBL >= 0 ? savedBL : this.#battleLevel;
-      this.#battleManager = new BattleManager(this.#battleLevel >= 0 ? this.#battleLevel : undefined);
+      this.#battleManager = new BattleManager(
+        this.#battleLevel >= 0 ? this.#battleLevel : undefined,
+      );
       if (data.battleManager) this.#battleManager.restore(data.battleManager);
       if (data.battlePowerManager) {
         this.#battlePowerManager = new PowerManager([]);
@@ -2286,7 +2302,11 @@ export class GameScene extends Phaser.Scene {
       },
       onAddState: (s) => {
         this.#gm.addTileState(s);
-        this.#gm.syncTileDom(this.#powerManager?.windDirection ?? null, null, this.#powerManager?.windTurns ?? 0);
+        this.#gm.syncTileDom(
+          this.#powerManager?.windDirection ?? null,
+          null,
+          this.#powerManager?.windTurns ?? 0,
+        );
         this.#gm.updateFusionIndicators();
       },
       onNewRecord: () => this.#hudManager?.showNewBestNotification(),
@@ -2337,14 +2357,16 @@ export class GameScene extends Phaser.Scene {
         // Level difficulty bonus (always applied)
         let levelPct = BATTLE.LEVEL_BONUS_EASY;
         if (this.#battleLevel >= BATTLE.TIER_HARD.start) levelPct = BATTLE.LEVEL_BONUS_HARD;
-        else if (this.#battleLevel >= BATTLE.TIER_NORMAL.start) levelPct = BATTLE.LEVEL_BONUS_NORMAL;
+        else if (this.#battleLevel >= BATTLE.TIER_NORMAL.start)
+          levelPct = BATTLE.LEVEL_BONUS_NORMAL;
         const levelBonus = Math.round(this.#gm.grid.score * levelPct);
         this.#gm.grid.score += levelBonus;
         extra.levelBonus = levelBonus;
         // Additional victory bonus
         let victoryPct = BATTLE.VICTORY_BONUS_EASY;
         if (this.#battleLevel >= BATTLE.TIER_HARD.start) victoryPct = BATTLE.VICTORY_BONUS_HARD;
-        else if (this.#battleLevel >= BATTLE.TIER_NORMAL.start) victoryPct = BATTLE.VICTORY_BONUS_NORMAL;
+        else if (this.#battleLevel >= BATTLE.TIER_NORMAL.start)
+          victoryPct = BATTLE.VICTORY_BONUS_NORMAL;
         const victoryBonus = Math.round(this.#gm.grid.score * victoryPct);
         this.#gm.grid.score += victoryBonus;
         extra.victoryBonus = victoryBonus;
@@ -2423,7 +2445,10 @@ export class GameScene extends Phaser.Scene {
       this.#gm.grid.score += levelBonus;
       extra.levelBonus = levelBonus;
     }
-    const rankingMode = (this.#mode === 'battle' && this.#battleLevel >= 0) ? `battle_L${this.#battleLevel}` : this.#mode;
+    const rankingMode =
+      this.#mode === 'battle' && this.#battleLevel >= 0
+        ? `battle_L${this.#battleLevel}`
+        : this.#mode;
     saveManager.addRanking(rankingMode, this.#gm.grid.score, extra);
     saveManager.clearGame();
     saveManager.clearAutoSave();
@@ -2437,7 +2462,10 @@ export class GameScene extends Phaser.Scene {
       onNewGame: () => {
         this.#gameOverModal?.destroy();
         this.#gameOverModal = null;
-        this.scene.restart({ mode: this.#mode, battleLevel: this.#battleLevel >= 0 ? this.#battleLevel : undefined });
+        this.scene.restart({
+          mode: this.#mode,
+          battleLevel: this.#battleLevel >= 0 ? this.#battleLevel : undefined,
+        });
       },
       onMenu: () => {
         this.#gameOverModal?.destroy();

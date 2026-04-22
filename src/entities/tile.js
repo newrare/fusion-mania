@@ -80,21 +80,21 @@ export class Tile {
    * Also decrements iceCooldown when applicable.
    */
   tickState() {
-    let justExpiredIce   = false;
+    let justExpiredIce = false;
     let justExpiredBlind = false;
     if (this.stateTurns > 0) {
       this.stateTurns--;
       if (this.stateTurns <= 0) {
-        justExpiredIce   = this.state === 'ice';
+        justExpiredIce = this.state === 'ice';
         justExpiredBlind = this.state === 'blind';
         this.clearState();
       }
     }
     // Decrement cooldowns — but not in the same tick they were just set.
-    if (!justExpiredIce   && this.iceCooldown   > 0) this.iceCooldown--;
+    if (!justExpiredIce && this.iceCooldown > 0) this.iceCooldown--;
     if (!justExpiredBlind && this.blindCooldown > 0) this.blindCooldown--;
     // Apply cooldowns AFTER decrement so they last at least 1 full move.
-    if (justExpiredIce)   this.iceCooldown   = 1;
+    if (justExpiredIce) this.iceCooldown = 1;
     if (justExpiredBlind) this.blindCooldown = 1;
   }
 }

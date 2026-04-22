@@ -22,96 +22,107 @@ describe('Enemy', () => {
 
   describe('constructor', () => {
     it('creates an enemy with given level', () => {
-      const enemy = new Enemy(2);
+      const enemy = new Enemy(2, 'frost');
       expect(enemy.level).toBe(2);
     });
 
+    it('stores the profile key', () => {
+      const enemy = new Enemy(4, 'gust');
+      expect(enemy.profile).toBe('gust');
+    });
+
     it('assigns a random name from ENEMY_NAMES if none given', () => {
-      const enemy = new Enemy(4);
+      const enemy = new Enemy(4, 'gust');
       expect(ENEMY_NAMES).toContain(enemy.name);
     });
 
     it('accepts a custom name override', () => {
-      const enemy = new Enemy(8, 'CustomBoss');
+      const enemy = new Enemy(8, 'shover', 'CustomBoss');
       expect(enemy.name).toBe('CustomBoss');
     });
 
     it('sets HP proportional to log2(level)', () => {
-      const enemy = new Enemy(2);
+      const enemy = new Enemy(2, 'frost');
       // log2(2) = 1, HP = 1 * HP_PER_LEVEL = 10
       expect(enemy.life.maxHp).toBe(1 * BATTLE.HP_PER_LEVEL);
     });
 
     it('boss (2048) has highest HP', () => {
-      const enemy = new Enemy(2048);
+      const enemy = new Enemy(2048, 'overlord');
       // log2(2048) = 11, HP = 11 * HP_PER_LEVEL
       expect(enemy.life.maxHp).toBe(11 * BATTLE.HP_PER_LEVEL);
     });
 
-    it('level 2 only has ICE in its stock', () => {
-      const enemy = new Enemy(2);
-      expect(enemy.availablePowers).toEqual([POWER_TYPES.ICE]);
+    it('frost profile has ICE in its stock', () => {
+      const enemy = new Enemy(2, 'frost');
+      expect(enemy.availablePowers).toContain(POWER_TYPES.ICE);
       expect(enemy.powerStock[POWER_TYPES.ICE]).toBeGreaterThan(0);
     });
 
-    it('level 4 has all four wind directions in its stock', () => {
-      const enemy = new Enemy(4);
-      const types = enemy.availablePowers.sort();
+    it('gust profile has all four wind directions in its stock', () => {
+      const enemy = new Enemy(4, 'gust');
+      const types = enemy.availablePowers;
       expect(types).toContain(POWER_TYPES.WIND_UP);
       expect(types).toContain(POWER_TYPES.WIND_DOWN);
       expect(types).toContain(POWER_TYPES.WIND_LEFT);
       expect(types).toContain(POWER_TYPES.WIND_RIGHT);
     });
 
-    it('level 16 only has BLIND in its stock', () => {
-      const enemy = new Enemy(16);
-      expect(enemy.availablePowers).toEqual([POWER_TYPES.BLIND]);
+    it('mirage profile has BLIND and TELEPORT in its stock', () => {
+      const enemy = new Enemy(16, 'mirage');
+      expect(enemy.availablePowers).toContain(POWER_TYPES.BLIND);
+      expect(enemy.availablePowers).toContain(POWER_TYPES.TELEPORT);
     });
 
-    it('boss (2048) has NUCLEAR, BOMB, FIRE_X, ICE in its stock', () => {
-      const enemy = new Enemy(2048);
+    it('overlord profile has NUCLEAR, BOMB, FIRE_X, ICE in its stock', () => {
+      const enemy = new Enemy(2048, 'overlord');
       expect(enemy.availablePowers).toContain(POWER_TYPES.NUCLEAR);
       expect(enemy.availablePowers).toContain(POWER_TYPES.BOMB);
       expect(enemy.availablePowers).toContain(POWER_TYPES.FIRE_X);
       expect(enemy.availablePowers).toContain(POWER_TYPES.ICE);
     });
 
-    it('level 1024 does NOT have nuclear in its stock', () => {
-      const enemy = new Enemy(1024);
+    it('tyrant profile does NOT have nuclear in its stock', () => {
+      const enemy = new Enemy(1024, 'tyrant');
       expect(enemy.availablePowers).not.toContain(POWER_TYPES.NUCLEAR);
+    });
+
+    it('falls back to empty stock for unknown profile', () => {
+      const enemy = new Enemy(4, 'nonexistent');
+      expect(enemy.availablePowers).toHaveLength(0);
     });
   });
 
   describe('powerStock / consumePower', () => {
     it('initial stock is a copy (mutation is local)', () => {
-      const enemy = new Enemy(2);
-      const otherEnemy = new Enemy(2);
+      const enemy = new Enemy(2, 'frost');
+      const otherEnemy = new Enemy(2, 'frost');
       enemy.powerStock[POWER_TYPES.ICE] = 0;
       expect(otherEnemy.powerStock[POWER_TYPES.ICE]).toBeGreaterThan(0);
     });
 
     it('consumePower decrements the count', () => {
-      const enemy = new Enemy(2);
+      const enemy = new Enemy(2, 'frost');
       const before = enemy.powerStock[POWER_TYPES.ICE];
       expect(enemy.consumePower(POWER_TYPES.ICE)).toBe(true);
       expect(enemy.powerStock[POWER_TYPES.ICE]).toBe(before - 1);
     });
 
     it('consumePower removes the key when it reaches 0', () => {
-      const enemy = new Enemy(2);
+      const enemy = new Enemy(2, 'frost');
       while (enemy.powerStock[POWER_TYPES.ICE] > 0) enemy.consumePower(POWER_TYPES.ICE);
       expect(enemy.powerStock[POWER_TYPES.ICE]).toBeUndefined();
       expect(enemy.availablePowers).not.toContain(POWER_TYPES.ICE);
     });
 
     it('consumePower returns false when no charge remains', () => {
-      const enemy = new Enemy(2);
+      const enemy = new Enemy(2, 'frost');
       enemy.powerStock = {};
       expect(enemy.consumePower(POWER_TYPES.ICE)).toBe(false);
     });
 
     it('hasAnyStock reflects remaining charges', () => {
-      const enemy = new Enemy(2);
+      const enemy = new Enemy(2, 'frost');
       expect(enemy.hasAnyStock()).toBe(true);
       enemy.powerStock = {};
       expect(enemy.hasAnyStock()).toBe(false);
@@ -120,12 +131,12 @@ describe('Enemy', () => {
 
   describe('isDead', () => {
     it('returns false when alive', () => {
-      const enemy = new Enemy(2);
+      const enemy = new Enemy(2, 'frost');
       expect(enemy.isDead).toBe(false);
     });
 
     it('returns true when HP reaches 0', () => {
-      const enemy = new Enemy(2);
+      const enemy = new Enemy(2, 'frost');
       // Deal massive damage
       enemy.takeDamage([2048, 2048, 2048, 2048, 2048]);
       expect(enemy.isDead).toBe(true);
@@ -134,26 +145,26 @@ describe('Enemy', () => {
 
   describe('isBoss', () => {
     it('returns true for level 2048', () => {
-      const enemy = new Enemy(2048);
+      const enemy = new Enemy(2048, 'overlord');
       expect(enemy.isBoss).toBe(true);
     });
 
     it('returns false for other levels', () => {
-      expect(new Enemy(2).isBoss).toBe(false);
-      expect(new Enemy(1024).isBoss).toBe(false);
+      expect(new Enemy(2, 'frost').isBoss).toBe(false);
+      expect(new Enemy(1024, 'tyrant').isBoss).toBe(false);
     });
   });
 
   describe('takeDamage', () => {
     it('reduces enemy HP', () => {
-      const enemy = new Enemy(8);
+      const enemy = new Enemy(8, 'shover');
       const initialHp = enemy.life.currentHp;
       enemy.takeDamage([4]);
       expect(enemy.life.currentHp).toBeLessThan(initialHp);
     });
 
     it('returns damage dealt', () => {
-      const enemy = new Enemy(4);
+      const enemy = new Enemy(4, 'gust');
       const damage = enemy.takeDamage([4]);
       expect(damage).toBeGreaterThan(0);
     });
@@ -161,20 +172,20 @@ describe('Enemy', () => {
 
   describe('pickRandomPower', () => {
     it('returns a power from availablePowers', () => {
-      const enemy = new Enemy(4);
+      const enemy = new Enemy(4, 'gust');
       const power = enemy.pickRandomPower();
       expect(enemy.availablePowers).toContain(power);
     });
 
     it('returns null if no powers available', () => {
-      const enemy = new Enemy(99999); // Invalid level, no powers
+      const enemy = new Enemy(4, 'nonexistent'); // unknown profile → empty stock
       expect(enemy.pickRandomPower()).toBeNull();
     });
   });
 
   describe('serialize / restore', () => {
-    it('round-trips correctly (including powerStock)', () => {
-      const enemy = new Enemy(32, 'TestBoss');
+    it('round-trips correctly (including profile and powerStock)', () => {
+      const enemy = new Enemy(32, 'ember', 'TestBoss');
       enemy.takeDamage([8]);
       enemy.consumePower(POWER_TYPES.FIRE_H);
       const data = enemy.serialize();
@@ -182,27 +193,29 @@ describe('Enemy', () => {
       const restored = Enemy.restore(data);
       expect(restored.name).toBe('TestBoss');
       expect(restored.level).toBe(32);
+      expect(restored.profile).toBe('ember');
       expect(restored.life.currentHp).toBe(enemy.life.currentHp);
       expect(restored.life.maxHp).toBe(enemy.life.maxHp);
       expect(restored.powerStock).toEqual(enemy.powerStock);
     });
   });
 
-  describe('HP formula for all levels', () => {
-    for (const level of BATTLE.LEVELS) {
-      it(`level ${level} has HP = log2(${level}) * ${BATTLE.HP_PER_LEVEL}`, () => {
-        const enemy = new Enemy(level);
+  describe('HP formula for standard tile values', () => {
+    for (const level of [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]) {
+      it(`level ${level} has HP = ceil(log2(${level})) * ${BATTLE.HP_PER_LEVEL}`, () => {
+        const enemy = new Enemy(level, 'frost');
         const expectedHp = Math.ceil(Math.log2(level)) * BATTLE.HP_PER_LEVEL;
         expect(enemy.life.maxHp).toBe(expectedHp);
       });
     }
   });
 
-  describe('available powers per level', () => {
-    for (const level of BATTLE.LEVELS) {
-      it(`level ${level} has powers defined`, () => {
-        const enemy = new Enemy(level);
+  describe('available powers per profile', () => {
+    for (const [name, stock] of Object.entries(BATTLE.ENEMY_PROFILES)) {
+      it(`${name} profile has powers defined`, () => {
+        const enemy = new Enemy(8, name);
         expect(enemy.availablePowers.length).toBeGreaterThan(0);
+        expect(enemy.availablePowers).toEqual(Object.keys(stock));
       });
     }
   });

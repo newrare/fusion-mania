@@ -78,7 +78,7 @@ export class TileRenderer {
   static applyState(el, tile, opts = {}) {
     // Detect ice → non-ice or non-ice → ice transition before stripping classes
     const wasIce = el.classList.contains('fm-state-ice');
-    const isIce  = tile.state === 'ice';
+    const isIce = tile.state === 'ice';
     const isBlind = tile.state === 'blind';
     const isGhostH = tile.state === 'ghost-h';
     const isGhostV = tile.state === 'ghost-v';
@@ -139,13 +139,17 @@ export class TileRenderer {
     // 4a. Play freeze-enter animation when transitioning into ice
     if (isIce && !wasIce) {
       el.classList.add('fm-state-ice-enter');
-      el.addEventListener('animationend', () => el.classList.remove('fm-state-ice-enter'), { once: true });
+      el.addEventListener('animationend', () => el.classList.remove('fm-state-ice-enter'), {
+        once: true,
+      });
     }
 
     // 4b. Play melt-exit animation when transitioning out of ice
     if (!isIce && wasIce) {
       el.classList.add('fm-state-ice-exit');
-      el.addEventListener('animationend', () => el.classList.remove('fm-state-ice-exit'), { once: true });
+      el.addEventListener('animationend', () => el.classList.remove('fm-state-ice-exit'), {
+        once: true,
+      });
     }
 
     // 4. Ensure the value class (fm-tN) matches the tile value
@@ -217,7 +221,7 @@ export class TileRenderer {
    */
   static #injectSnowflakes(el, turns = 6) {
     const flakes = [
-      { top: '8%',  left: '12%', sz: '0.75rem', sd: '3.2s', sdl: '0s' },
+      { top: '8%', left: '12%', sz: '0.75rem', sd: '3.2s', sdl: '0s' },
       { top: '14%', left: '60%', sz: '0.55rem', sd: '2.8s', sdl: '-1s' },
       { top: '35%', left: '80%', sz: '0.85rem', sd: '3.6s', sdl: '-2s' },
       { top: '52%', left: '25%', sz: '0.65rem', sd: '2.5s', sdl: '-0.6s' },
@@ -280,5 +284,4 @@ export class TileRenderer {
       el.appendChild(span);
     }
   }
-
 }

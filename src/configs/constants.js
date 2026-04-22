@@ -257,10 +257,10 @@ export function getPowerCategory(type) {
 
 /** Default duration (in moves) for timed power effects */
 export const POWER_DURATIONS = {
-  ICE: 200,
-  BLIND: 2,
+  ICE: 6,
+  BLIND: 3,
   EXPEL: 5,
-  WIND: 2,
+  WIND: 4,
 };
 
 /**
@@ -287,46 +287,286 @@ export const BATTLE = {
   CLASSIC_MOVES: 10,
   /** HP multiplier for enemy: HP = log2(level) × HP_PER_LEVEL */
   HP_PER_LEVEL: 10,
-  /** Enemy levels in progression order (legacy — used as fallback when no battleLevel is set) */
-  LEVELS: [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048],
+  /**
+   * Named enemy profiles — each defines a power stock (power type → cast count).
+   * Profiles are independent of enemy level; assign them freely in BATTLE_LEVELS.
+   * Add new profiles here to create new enemy archetypes.
+   */
+  ENEMY_PROFILES: {
+    // ── Ice ──
+    frost: {
+      [POWER_TYPES.ICE]: 4,
+      [POWER_TYPES.WIND_UP]: 1,
+      [POWER_TYPES.WIND_DOWN]: 1,
+    },
+    blizzard: {
+      [POWER_TYPES.ICE]: 6,
+      [POWER_TYPES.WIND_UP]: 2,
+      [POWER_TYPES.WIND_DOWN]: 2,
+      [POWER_TYPES.WIND_LEFT]: 2,
+      [POWER_TYPES.WIND_RIGHT]: 2,
+    },
+    // ── Wind ──
+    gust: {
+      [POWER_TYPES.WIND_UP]: 2,
+      [POWER_TYPES.WIND_DOWN]: 2,
+      [POWER_TYPES.WIND_LEFT]: 2,
+      [POWER_TYPES.WIND_RIGHT]: 2,
+    },
+    // ── Expel ──
+    shover: {
+      [POWER_TYPES.EXPEL_H]: 3,
+      [POWER_TYPES.EXPEL_V]: 3,
+    },
+    // ── Blind / Teleport ──
+    mirage: {
+      [POWER_TYPES.BLIND]: 4,
+      [POWER_TYPES.TELEPORT]: 2,
+    },
+    // ── Fire ──
+    ember: {
+      [POWER_TYPES.FIRE_H]: 2,
+      [POWER_TYPES.FIRE_V]: 2,
+    },
+    inferno: {
+      [POWER_TYPES.FIRE_H]: 3,
+      [POWER_TYPES.FIRE_V]: 3,
+      [POWER_TYPES.FIRE_X]: 2,
+    },
+    // ── Bomb ──
+    bomber: {
+      [POWER_TYPES.BOMB]: 4,
+      [POWER_TYPES.FIRE_X]: 1,
+    },
+    // ── Storm ──
+    storm: {
+      [POWER_TYPES.LIGHTNING]: 3,
+      [POWER_TYPES.FIRE_H]: 1,
+      [POWER_TYPES.FIRE_V]: 1,
+    },
+    // ── Mixed ──
+    chaos: {
+      [POWER_TYPES.BLIND]: 2,
+      [POWER_TYPES.TELEPORT]: 2,
+      [POWER_TYPES.EXPEL_H]: 1,
+      [POWER_TYPES.EXPEL_V]: 1,
+    },
+    scourge: {
+      [POWER_TYPES.ICE]: 2,
+      [POWER_TYPES.FIRE_H]: 2,
+      [POWER_TYPES.BLIND]: 2,
+      [POWER_TYPES.EXPEL_H]: 1,
+      [POWER_TYPES.LIGHTNING]: 1,
+    },
+    // ── Heavy ──
+    tyrant: {
+      [POWER_TYPES.FIRE_H]: 2,
+      [POWER_TYPES.FIRE_V]: 2,
+      [POWER_TYPES.BOMB]: 2,
+      [POWER_TYPES.LIGHTNING]: 2,
+      [POWER_TYPES.BLIND]: 2,
+      [POWER_TYPES.ADS]: 1,
+    },
+    // ── Boss ──
+    overlord: {
+      [POWER_TYPES.ICE]: 3,
+      [POWER_TYPES.FIRE_H]: 3,
+      [POWER_TYPES.FIRE_V]: 3,
+      [POWER_TYPES.FIRE_X]: 2,
+      [POWER_TYPES.BOMB]: 2,
+      [POWER_TYPES.LIGHTNING]: 3,
+      [POWER_TYPES.BLIND]: 3,
+      [POWER_TYPES.TELEPORT]: 2,
+      [POWER_TYPES.EXPEL_H]: 2,
+      [POWER_TYPES.EXPEL_V]: 2,
+      [POWER_TYPES.NUCLEAR]: 1,
+      [POWER_TYPES.ADS]: 2,
+    },
+  },
   /**
    * 30 battle levels grouped into 3 tiers of 10.
-   * Each entry is an array of enemy values; the last one is the Boss.
+   * Each entry is an array of { profile, level } pairs; the last one is the Boss.
+   * Level drives HP (ceil(log2(level)) × HP_PER_LEVEL); profile drives power stock.
    */
   BATTLE_LEVELS: [
     // ── Easy (1–10) ──
-    [2, 4, 8],
-    [2, 8, 16],
-    [2, 16, 32],
-    [4, 16, 32],
-    [4, 16, 64],
-    [4, 32, 64],
-    [8, 32, 128],
-    [8, 64, 128],
-    [16, 64, 256],
-    [16, 128, 256],
+    [{ profile: 'shover', level: 8 }],
+    [
+      { profile: 'frost', level: 4 },
+      { profile: 'mirage', level: 16 },
+    ],
+    [
+      { profile: 'frost', level: 4 },
+      { profile: 'mirage', level: 16 },
+      { profile: 'ember', level: 32 },
+    ],
+    [
+      { profile: 'gust', level: 4 },
+      { profile: 'mirage', level: 16 },
+      { profile: 'ember', level: 32 },
+    ],
+    [
+      { profile: 'gust', level: 4 },
+      { profile: 'mirage', level: 16 },
+      { profile: 'inferno', level: 64 },
+    ],
+    [
+      { profile: 'frost', level: 4 },
+      { profile: 'ember', level: 32 },
+      { profile: 'storm', level: 64 },
+    ],
+    [
+      { profile: 'shover', level: 8 },
+      { profile: 'ember', level: 32 },
+      { profile: 'bomber', level: 128 },
+    ],
+    [
+      { profile: 'shover', level: 8 },
+      { profile: 'inferno', level: 64 },
+      { profile: 'bomber', level: 128 },
+    ],
+    [
+      { profile: 'mirage', level: 16 },
+      { profile: 'storm', level: 64 },
+      { profile: 'chaos', level: 256 },
+    ],
+    [
+      { profile: 'mirage', level: 16 },
+      { profile: 'bomber', level: 128 },
+      { profile: 'chaos', level: 256 },
+    ],
     // ── Normal (11–20) ──
-    [4, 16, 64, 256],
-    [4, 32, 128, 256],
-    [8, 32, 128, 512],
-    [8, 64, 256, 512],
-    [8, 64, 256, 512],
-    [16, 64, 256, 512],
-    [16, 128, 256, 1024],
-    [16, 128, 512, 1024],
-    [32, 128, 512, 1024],
-    [32, 256, 512, 1024],
+    [
+      { profile: 'gust', level: 4 },
+      { profile: 'mirage', level: 16 },
+      { profile: 'inferno', level: 64 },
+      { profile: 'chaos', level: 256 },
+    ],
+    [
+      { profile: 'frost', level: 4 },
+      { profile: 'ember', level: 32 },
+      { profile: 'bomber', level: 128 },
+      { profile: 'chaos', level: 256 },
+    ],
+    [
+      { profile: 'shover', level: 8 },
+      { profile: 'ember', level: 32 },
+      { profile: 'bomber', level: 128 },
+      { profile: 'scourge', level: 512 },
+    ],
+    [
+      { profile: 'shover', level: 8 },
+      { profile: 'storm', level: 64 },
+      { profile: 'chaos', level: 256 },
+      { profile: 'scourge', level: 512 },
+    ],
+    [
+      { profile: 'mirage', level: 8 },
+      { profile: 'inferno', level: 64 },
+      { profile: 'scourge', level: 256 },
+      { profile: 'tyrant', level: 512 },
+    ],
+    [
+      { profile: 'blizzard', level: 16 },
+      { profile: 'inferno', level: 64 },
+      { profile: 'chaos', level: 256 },
+      { profile: 'tyrant', level: 512 },
+    ],
+    [
+      { profile: 'blizzard', level: 16 },
+      { profile: 'storm', level: 128 },
+      { profile: 'scourge', level: 256 },
+      { profile: 'tyrant', level: 1024 },
+    ],
+    [
+      { profile: 'frost', level: 16 },
+      { profile: 'bomber', level: 128 },
+      { profile: 'tyrant', level: 512 },
+      { profile: 'scourge', level: 1024 },
+    ],
+    [
+      { profile: 'ember', level: 32 },
+      { profile: 'bomber', level: 128 },
+      { profile: 'tyrant', level: 512 },
+      { profile: 'scourge', level: 1024 },
+    ],
+    [
+      { profile: 'inferno', level: 32 },
+      { profile: 'chaos', level: 256 },
+      { profile: 'tyrant', level: 512 },
+      { profile: 'scourge', level: 1024 },
+    ],
     // ── Hard (21–30) ──
-    [8, 32, 64, 256, 1024],
-    [8, 32, 128, 256, 1024],
-    [16, 32, 128, 512, 1024],
-    [16, 64, 128, 512, 1024],
-    [16, 64, 256, 512, 2048],
-    [32, 64, 256, 1024, 2048],
-    [32, 128, 256, 1024, 2048],
-    [32, 128, 512, 1024, 2048],
-    [64, 128, 512, 1024, 2048],
-    [64, 256, 512, 1024, 2048],
+    [
+      { profile: 'shover', level: 8 },
+      { profile: 'ember', level: 32 },
+      { profile: 'storm', level: 64 },
+      { profile: 'chaos', level: 256 },
+      { profile: 'tyrant', level: 1024 },
+    ],
+    [
+      { profile: 'gust', level: 8 },
+      { profile: 'inferno', level: 32 },
+      { profile: 'bomber', level: 128 },
+      { profile: 'chaos', level: 256 },
+      { profile: 'tyrant', level: 1024 },
+    ],
+    [
+      { profile: 'blizzard', level: 16 },
+      { profile: 'ember', level: 32 },
+      { profile: 'storm', level: 128 },
+      { profile: 'tyrant', level: 512 },
+      { profile: 'scourge', level: 1024 },
+    ],
+    [
+      { profile: 'mirage', level: 16 },
+      { profile: 'inferno', level: 64 },
+      { profile: 'chaos', level: 128 },
+      { profile: 'tyrant', level: 512 },
+      { profile: 'scourge', level: 1024 },
+    ],
+    [
+      { profile: 'blizzard', level: 16 },
+      { profile: 'bomber', level: 64 },
+      { profile: 'scourge', level: 256 },
+      { profile: 'tyrant', level: 512 },
+      { profile: 'overlord', level: 2048 },
+    ],
+    [
+      { profile: 'chaos', level: 32 },
+      { profile: 'storm', level: 64 },
+      { profile: 'scourge', level: 256 },
+      { profile: 'tyrant', level: 1024 },
+      { profile: 'overlord', level: 2048 },
+    ],
+    [
+      { profile: 'inferno', level: 32 },
+      { profile: 'tyrant', level: 128 },
+      { profile: 'scourge', level: 256 },
+      { profile: 'tyrant', level: 1024 },
+      { profile: 'overlord', level: 2048 },
+    ],
+    [
+      { profile: 'ember', level: 32 },
+      { profile: 'chaos', level: 128 },
+      { profile: 'tyrant', level: 512 },
+      { profile: 'scourge', level: 1024 },
+      { profile: 'overlord', level: 2048 },
+    ],
+    [
+      { profile: 'storm', level: 64 },
+      { profile: 'tyrant', level: 128 },
+      { profile: 'tyrant', level: 512 },
+      { profile: 'scourge', level: 1024 },
+      { profile: 'overlord', level: 2048 },
+    ],
+    [
+      { profile: 'inferno', level: 64 },
+      { profile: 'scourge', level: 256 },
+      { profile: 'tyrant', level: 512 },
+      { profile: 'scourge', level: 1024 },
+      { profile: 'overlord', level: 2048 },
+    ],
   ],
   /** Tier boundaries for BATTLE_LEVELS (0-indexed) */
   TIER_EASY: { start: 0, end: 10 },
@@ -334,189 +574,12 @@ export const BATTLE = {
   TIER_HARD: { start: 20, end: 30 },
   /** Level difficulty bonus multiplier applied to the final score (always, win or lose) */
   LEVEL_BONUS_EASY: 0.05,
-  LEVEL_BONUS_NORMAL: 0.10,
-  LEVEL_BONUS_HARD: 0.20,
+  LEVEL_BONUS_NORMAL: 0.1,
+  LEVEL_BONUS_HARD: 0.2,
   /** Additional victory score bonus multiplier applied on top of level bonus upon winning */
-  VICTORY_BONUS_EASY: 0.10,
+  VICTORY_BONUS_EASY: 0.1,
   VICTORY_BONUS_NORMAL: 0.25,
-  VICTORY_BONUS_HARD: 0.50,
-  /** Available powers for each enemy level */
-  LEVEL_POWERS: {
-    2: [POWER_TYPES.ICE],
-    4: [POWER_TYPES.WIND_UP, POWER_TYPES.WIND_DOWN, POWER_TYPES.WIND_LEFT, POWER_TYPES.WIND_RIGHT],
-    8: [POWER_TYPES.EXPEL_V, POWER_TYPES.EXPEL_H],
-    16: [POWER_TYPES.BLIND],
-    32: [POWER_TYPES.FIRE_H, POWER_TYPES.FIRE_V, POWER_TYPES.ADS],
-    64: [POWER_TYPES.FIRE_X, POWER_TYPES.ADS],
-    128: [POWER_TYPES.BOMB, POWER_TYPES.ADS],
-    256: [
-      POWER_TYPES.ICE,
-      POWER_TYPES.WIND_UP,
-      POWER_TYPES.WIND_DOWN,
-      POWER_TYPES.WIND_LEFT,
-      POWER_TYPES.WIND_RIGHT,
-      POWER_TYPES.EXPEL_V,
-      POWER_TYPES.EXPEL_H,
-      POWER_TYPES.BLIND,
-      POWER_TYPES.FIRE_H,
-      POWER_TYPES.FIRE_V,
-      POWER_TYPES.TELEPORT,
-      POWER_TYPES.LIGHTNING,
-      POWER_TYPES.ADS,
-    ],
-    512: [
-      POWER_TYPES.ICE,
-      POWER_TYPES.WIND_UP,
-      POWER_TYPES.WIND_DOWN,
-      POWER_TYPES.WIND_LEFT,
-      POWER_TYPES.WIND_RIGHT,
-      POWER_TYPES.EXPEL_V,
-      POWER_TYPES.EXPEL_H,
-      POWER_TYPES.BLIND,
-      POWER_TYPES.FIRE_H,
-      POWER_TYPES.FIRE_V,
-      POWER_TYPES.FIRE_X,
-      POWER_TYPES.TELEPORT,
-      POWER_TYPES.LIGHTNING,
-      POWER_TYPES.ADS,
-    ],
-    1024: [
-      POWER_TYPES.ICE,
-      POWER_TYPES.WIND_UP,
-      POWER_TYPES.WIND_DOWN,
-      POWER_TYPES.WIND_LEFT,
-      POWER_TYPES.WIND_RIGHT,
-      POWER_TYPES.EXPEL_V,
-      POWER_TYPES.EXPEL_H,
-      POWER_TYPES.BLIND,
-      POWER_TYPES.FIRE_H,
-      POWER_TYPES.FIRE_V,
-      POWER_TYPES.FIRE_X,
-      POWER_TYPES.BOMB,
-      POWER_TYPES.TELEPORT,
-      POWER_TYPES.LIGHTNING,
-      POWER_TYPES.ADS,
-    ],
-    2048: [
-      POWER_TYPES.ICE,
-      POWER_TYPES.WIND_UP,
-      POWER_TYPES.WIND_DOWN,
-      POWER_TYPES.WIND_LEFT,
-      POWER_TYPES.WIND_RIGHT,
-      POWER_TYPES.EXPEL_V,
-      POWER_TYPES.EXPEL_H,
-      POWER_TYPES.BLIND,
-      POWER_TYPES.FIRE_H,
-      POWER_TYPES.FIRE_V,
-      POWER_TYPES.FIRE_X,
-      POWER_TYPES.BOMB,
-      POWER_TYPES.NUCLEAR,
-      POWER_TYPES.TELEPORT,
-      POWER_TYPES.LIGHTNING,
-      POWER_TYPES.ADS,
-    ],
-  },
-  /**
-   * Initial power stock per enemy level.
-   * Each entry maps a power type to the number of times the enemy can cast it
-   * during the fight. When the counter reaches 0, the power is removed.
-   * Tune these values to balance the difficulty of each enemy.
-   */
-  ENEMY_POWER_STOCK: {
-    2: {
-      [POWER_TYPES.ICE]: 3,
-    },
-    4: {
-      [POWER_TYPES.WIND_UP]: 1,
-      [POWER_TYPES.WIND_DOWN]: 1,
-      [POWER_TYPES.WIND_LEFT]: 1,
-      [POWER_TYPES.WIND_RIGHT]: 1,
-    },
-    8: {
-      [POWER_TYPES.EXPEL_H]: 2,
-      [POWER_TYPES.EXPEL_V]: 2,
-    },
-    16: {
-      [POWER_TYPES.BLIND]: 3,
-    },
-    32: {
-      [POWER_TYPES.FIRE_H]: 2,
-      [POWER_TYPES.FIRE_V]: 2,
-      [POWER_TYPES.ADS]: 1,
-    },
-    64: {
-      [POWER_TYPES.FIRE_X]: 2,
-      [POWER_TYPES.ADS]: 2,
-    },
-    128: {
-      [POWER_TYPES.BOMB]: 3,
-      [POWER_TYPES.ADS]: 2,
-    },
-    256: {
-      [POWER_TYPES.ICE]: 2,
-      [POWER_TYPES.WIND_UP]: 1,
-      [POWER_TYPES.WIND_DOWN]: 1,
-      [POWER_TYPES.EXPEL_H]: 1,
-      [POWER_TYPES.EXPEL_V]: 1,
-      [POWER_TYPES.BLIND]: 2,
-      [POWER_TYPES.FIRE_H]: 1,
-      [POWER_TYPES.FIRE_V]: 1,
-      [POWER_TYPES.TELEPORT]: 2,
-      [POWER_TYPES.LIGHTNING]: 2,
-      [POWER_TYPES.ADS]: 1,
-    },
-    512: {
-      [POWER_TYPES.ICE]: 3,
-      [POWER_TYPES.WIND_UP]: 1,
-      [POWER_TYPES.WIND_DOWN]: 1,
-      [POWER_TYPES.WIND_LEFT]: 1,
-      [POWER_TYPES.WIND_RIGHT]: 1,
-      [POWER_TYPES.EXPEL_H]: 2,
-      [POWER_TYPES.EXPEL_V]: 2,
-      [POWER_TYPES.BLIND]: 2,
-      [POWER_TYPES.FIRE_H]: 2,
-      [POWER_TYPES.FIRE_V]: 2,
-      [POWER_TYPES.FIRE_X]: 1,
-      [POWER_TYPES.TELEPORT]: 2,
-      [POWER_TYPES.LIGHTNING]: 2,
-      [POWER_TYPES.ADS]: 2,
-    },
-    1024: {
-      [POWER_TYPES.ICE]: 3,
-      [POWER_TYPES.WIND_UP]: 2,
-      [POWER_TYPES.WIND_DOWN]: 2,
-      [POWER_TYPES.WIND_LEFT]: 2,
-      [POWER_TYPES.WIND_RIGHT]: 2,
-      [POWER_TYPES.EXPEL_H]: 2,
-      [POWER_TYPES.EXPEL_V]: 2,
-      [POWER_TYPES.BLIND]: 3,
-      [POWER_TYPES.FIRE_H]: 2,
-      [POWER_TYPES.FIRE_V]: 2,
-      [POWER_TYPES.FIRE_X]: 2,
-      [POWER_TYPES.BOMB]: 2,
-      [POWER_TYPES.TELEPORT]: 2,
-      [POWER_TYPES.LIGHTNING]: 3,
-      [POWER_TYPES.ADS]: 2,
-    },
-    2048: {
-      [POWER_TYPES.ICE]: 4,
-      [POWER_TYPES.WIND_UP]: 2,
-      [POWER_TYPES.WIND_DOWN]: 2,
-      [POWER_TYPES.WIND_LEFT]: 2,
-      [POWER_TYPES.WIND_RIGHT]: 2,
-      [POWER_TYPES.EXPEL_H]: 3,
-      [POWER_TYPES.EXPEL_V]: 3,
-      [POWER_TYPES.BLIND]: 3,
-      [POWER_TYPES.FIRE_H]: 3,
-      [POWER_TYPES.FIRE_V]: 3,
-      [POWER_TYPES.FIRE_X]: 2,
-      [POWER_TYPES.BOMB]: 2,
-      [POWER_TYPES.NUCLEAR]: 1,
-      [POWER_TYPES.TELEPORT]: 2,
-      [POWER_TYPES.LIGHTNING]: 3,
-      [POWER_TYPES.ADS]: 2,
-    },
-  },
+  VICTORY_BONUS_HARD: 0.5,
   /** Duration of contamination animation (ms) */
   CONTAMINATE_DURATION: 400,
   /** Duration of enemy death animation (ms) */

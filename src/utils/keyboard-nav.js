@@ -10,8 +10,7 @@
  * @returns {{ destroy: () => void }}
  */
 export function enableKeyboardNav(container, keyboard, options = {}) {
-  const SELECTOR =
-    'button:not([disabled]), [data-action], .fm-power-item, .fm-ranking-tab';
+  const SELECTOR = 'button:not([disabled]), [data-action], .fm-power-item, .fm-ranking-tab';
   const { gridColumns } = options;
 
   /** Whether the last input was the mouse (suppresses auto-focus). */

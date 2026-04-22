@@ -99,17 +99,22 @@ export class Enemy {
    */
   powerStock;
 
+  /** @type {string} Enemy profile key (from BATTLE.ENEMY_PROFILES) */
+  profile;
+
   /** @type {boolean} Whether this enemy is the boss of its level sequence */
   boss = false;
 
   /**
-   * @param {number} level — Enemy level (2, 4, 8, …, 2048)
+   * @param {number} level — Enemy level (2, 4, 8, …, 2048); determines HP
+   * @param {string} profile — Profile key from BATTLE.ENEMY_PROFILES; determines power stock
    * @param {string} [name] — Override name (random if omitted)
    */
-  constructor(level, name) {
+  constructor(level, profile, name) {
     this.level = level;
+    this.profile = profile ?? 'overlord';
     this.name = name ?? ENEMY_NAMES[Math.floor(Math.random() * ENEMY_NAMES.length)];
-    this.powerStock = { ...(BATTLE.ENEMY_POWER_STOCK[level] ?? {}) };
+    this.powerStock = { ...(BATTLE.ENEMY_PROFILES[this.profile] ?? {}) };
 
     const maxHp = Math.ceil(Math.log2(level)) * BATTLE.HP_PER_LEVEL;
     this.life = new GridLife(maxHp);
@@ -172,6 +177,7 @@ export class Enemy {
     return {
       name: this.name,
       level: this.level,
+      profile: this.profile,
       life: this.life.serialize(),
       powerStock: { ...this.powerStock },
       boss: this.boss,
@@ -184,7 +190,7 @@ export class Enemy {
    * @returns {Enemy}
    */
   static restore(data) {
-    const enemy = new Enemy(data.level, data.name);
+    const enemy = new Enemy(data.level, data.profile ?? 'overlord', data.name);
     enemy.life.restore(data.life);
     if (data.powerStock) enemy.powerStock = { ...data.powerStock };
     enemy.boss = data.boss ?? false;

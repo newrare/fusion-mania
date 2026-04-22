@@ -6,10 +6,8 @@ import { Power } from '../entities/power.js';
  * Manages Battle Mode logic: enemy spawning, contamination, damage, progression.
  * Pure game logic — no Phaser or DOM dependency.
  *
- * Supports two modes:
- * - **Level mode** (new): pass a `battleLevel` index (0–29) to the constructor.
- *   The enemy sequence is read from `BATTLE.BATTLE_LEVELS[battleLevel]`.
- * - **Legacy mode**: no argument → uses the global `BATTLE.LEVELS` list (all 11 enemies).
+ * Pass a `battleLevel` index (0–29) to the constructor.
+ * The enemy sequence is read from `BATTLE.BATTLE_LEVELS[battleLevel]`.
  */
 export class BattleManager {
   /** @type {Enemy | null} Current active enemy */
@@ -33,21 +31,15 @@ export class BattleManager {
   /** @type {number[]} The ordered enemy level sequence for this run */
   #levelSequence;
 
-  /** @type {number} Battle level index (0–29), or -1 for legacy mode */
+  /** @type {number} Battle level index (0–29) */
   #battleLevel;
 
   /**
-   * @param {number} [battleLevel] — Index into BATTLE.BATTLE_LEVELS (0–29).
-   *   Omit for legacy behaviour (full BATTLE.LEVELS list).
+   * @param {number} battleLevel — Index into BATTLE.BATTLE_LEVELS (0–29).
    */
   constructor(battleLevel) {
-    if (battleLevel != null && BATTLE.BATTLE_LEVELS[battleLevel]) {
-      this.#battleLevel = battleLevel;
-      this.#levelSequence = [...BATTLE.BATTLE_LEVELS[battleLevel]];
-    } else {
-      this.#battleLevel = -1;
-      this.#levelSequence = [...BATTLE.LEVELS];
-    }
+    this.#battleLevel = battleLevel ?? 0;
+    this.#levelSequence = [...BATTLE.BATTLE_LEVELS[this.#battleLevel]];
   }
 
   /** @returns {Enemy | null} */
@@ -135,14 +127,14 @@ export class BattleManager {
 
     if (this.#classicMoves < BATTLE.CLASSIC_MOVES) return null;
 
-    // Find the next enemy level to spawn
-    const nextLevel = this.#getNextLevel();
-    if (nextLevel === null) return null;
+    // Find the next enemy entry to spawn
+    const entry = this.#getNextEntry();
+    if (entry === null) return null;
 
     // Check if player has achieved the required tile value
-    if (this.#maxTileSeen < nextLevel) return null;
+    if (this.#maxTileSeen < entry.level) return null;
 
-    this.#enemy = new Enemy(nextLevel);
+    this.#enemy = new Enemy(entry.level, entry.profile);
     // Mark the last enemy in the sequence as the boss
     if (this.#nextLevelIndex === this.#levelSequence.length - 1) {
       this.#enemy.boss = true;
@@ -231,15 +223,11 @@ export class BattleManager {
   }
 
   /**
-   * @returns {number | null} Next enemy level to spawn, or null if all defeated
+   * @returns {{ profile: string, level: number } | null} Next enemy entry to spawn, or null if all defeated
    */
-  #getNextLevel() {
-    while (this.#nextLevelIndex < this.#levelSequence.length) {
-      const level = this.#levelSequence[this.#nextLevelIndex];
-      if (!this.#defeatedLevels.has(level)) return level;
-      this.#nextLevelIndex++;
-    }
-    return null;
+  #getNextEntry() {
+    if (this.#nextLevelIndex >= this.#levelSequence.length) return null;
+    return this.#levelSequence[this.#nextLevelIndex] ?? null;
   }
 
   /**
@@ -272,9 +260,7 @@ export class BattleManager {
     this.#maxTileSeen = data.maxTileSeen ?? 0;
     this.#nextLevelIndex = data.nextLevelIndex ?? 0;
     // Restore level sequence from saved battleLevel
-    if (data.battleLevel != null && data.battleLevel >= 0 && BATTLE.BATTLE_LEVELS[data.battleLevel]) {
-      this.#battleLevel = data.battleLevel;
-      this.#levelSequence = [...BATTLE.BATTLE_LEVELS[data.battleLevel]];
-    }
+    this.#battleLevel = data.battleLevel ?? 0;
+    this.#levelSequence = [...BATTLE.BATTLE_LEVELS[this.#battleLevel]];
   }
 }

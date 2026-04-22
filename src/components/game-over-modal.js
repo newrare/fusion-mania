@@ -119,17 +119,19 @@ export class GameOverModal {
     let html = '';
     if (isBattle && s.battleLevel != null) {
       const num = s.battleLevel + 1;
-      html += `<div class="fm-gameover-stat-row fm-battle-level-row">`
-        + `<span class="fm-gameover-stat-label">${i18n.t('battle.level')}</span>`
-        + `<span class="fm-gameover-stat-value">`
-        + `<span class="fm-battle-level-num">${num}</span>`
-        + `<span class="fm-battle-level-status fm-battle-level-status--fail">✗</span>`
-        + `</span></div>`;
+      html +=
+        `<div class="fm-gameover-stat-row fm-battle-level-row">` +
+        `<span class="fm-gameover-stat-label">${i18n.t('battle.level')}</span>` +
+        `<span class="fm-gameover-stat-value">` +
+        `<span class="fm-battle-level-num">${num}</span>` +
+        `<span class="fm-battle-level-status fm-battle-level-status--fail">✗</span>` +
+        `</span></div>`;
       if (s.levelBonus > 0) {
-        html += `<div class="fm-gameover-stat-row">`
-          + `<span class="fm-gameover-stat-label">${i18n.t('battle.level_bonus')}</span>`
-          + `<span class="fm-gameover-stat-value fm-battle-level-bonus">+${s.levelBonus.toLocaleString()}</span>`
-          + `</div>`;
+        html +=
+          `<div class="fm-gameover-stat-row">` +
+          `<span class="fm-gameover-stat-label">${i18n.t('battle.level_bonus')}</span>` +
+          `<span class="fm-gameover-stat-value fm-battle-level-bonus">+${s.levelBonus.toLocaleString()}</span>` +
+          `</div>`;
       }
     }
     html += row(i18n.t('ranking.moves'), s.moves ?? '-');

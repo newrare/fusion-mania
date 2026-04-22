@@ -1,5 +1,5 @@
 import { i18n } from '../managers/i18n-manager.js';
-import { POWER_CATEGORIES, BATTLE } from '../configs/constants.js';
+import { POWER_CATEGORIES } from '../configs/constants.js';
 import { Power } from '../entities/power.js';
 import { enableKeyboardNav } from '../utils/keyboard-nav.js';
 
@@ -289,8 +289,7 @@ export class HelpModal {
   }
 
   #renderEnemies() {
-    const levels = BATTLE.LEVELS;
-    const levelBadges = levels
+    const levelBadges = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
       .map((lvl) => `<div class="fm-help-enemy-badge fm-tile fm-t${lvl}">${lvl}</div>`)
       .join('');
 
