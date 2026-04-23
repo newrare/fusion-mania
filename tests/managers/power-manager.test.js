@@ -315,7 +315,7 @@ describe('PowerManager', () => {
       expect(grid.cells[3][3].value).toBe(2);
     });
 
-    it('BLIND puts every tile in blind state', () => {
+    it('BLIND puts every visible tile in blind state', () => {
       fillGrid(grid, [
         [2, 4, null, null],
         [null, 8, null, null],
@@ -324,6 +324,49 @@ describe('PowerManager', () => {
       ]);
       pm.executeEffect(POWER_TYPES.BLIND, grid, null);
       for (const t of grid.getAllTiles()) expect(t.state).toBe('blind');
+    });
+
+    it('BLIND skips tiles that are already blind', () => {
+      fillGrid(grid, [
+        [2, 4, null, null],
+        [null, null, null, null],
+        [null, null, null, null],
+        [null, null, null, null],
+      ]);
+      const [t1, t2] = grid.getAllTiles();
+      t1.applyState('blind', 3);
+      pm.executeEffect(POWER_TYPES.BLIND, grid, null);
+      // Already-blind tile keeps its original stateTurns (not overwritten)
+      expect(t1.stateTurns).toBe(3);
+      // Other tile gets blinded normally
+      expect(t2.state).toBe('blind');
+    });
+
+    it('BLIND skips the newTile passed as 4th argument', () => {
+      fillGrid(grid, [
+        [2, 4, null, null],
+        [null, null, null, null],
+        [null, null, null, null],
+        [null, null, null, null],
+      ]);
+      const tiles = grid.getAllTiles();
+      const newTile = tiles[0];
+      pm.executeEffect(POWER_TYPES.BLIND, grid, null, newTile);
+      expect(newTile.state).toBeNull();
+      expect(tiles[1].state).toBe('blind');
+    });
+
+    it('BLIND skips tiles with blindCooldown > 0', () => {
+      fillGrid(grid, [
+        [2, null, null, null],
+        [null, null, null, null],
+        [null, null, null, null],
+        [null, null, null, null],
+      ]);
+      const [t] = grid.getAllTiles();
+      t.blindCooldown = 1;
+      pm.executeEffect(POWER_TYPES.BLIND, grid, null);
+      expect(t.state).toBeNull();
     });
 
     it('WIND_UP blocks downward movement for WIND duration', () => {

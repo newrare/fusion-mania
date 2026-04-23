@@ -509,4 +509,51 @@ describe('Grid', () => {
       expect(pos).toEqual({ row: 0, col: 2 });
     });
   });
+
+  describe('blind interaction on merge', () => {
+    it('sets blindCooldown=2 on survivor when the survivor was blind', () => {
+      const blindTile = new Tile(2, 0, 0);
+      blindTile.applyState('blind', 3);
+      const visible = new Tile(2, 0, 1);
+      grid.cells[0][0] = blindTile;
+      grid.cells[0][1] = visible;
+      grid.move('left');
+      const survivor = grid.cells[0][0];
+      expect(survivor.state).toBeNull();
+      expect(survivor.blindCooldown).toBe(2);
+    });
+
+    it('sets blindCooldown=2 on survivor when the consumed tile was blind', () => {
+      const visible = new Tile(2, 0, 0);
+      const blindMover = new Tile(2, 0, 1);
+      blindMover.applyState('blind', 2);
+      grid.cells[0][0] = visible;
+      grid.cells[0][1] = blindMover;
+      grid.move('left');
+      const survivor = grid.cells[0][0];
+      expect(survivor.state).toBeNull();
+      expect(survivor.blindCooldown).toBe(2);
+    });
+
+    it('sets blindCooldown=2 when both tiles are blind', () => {
+      const b1 = new Tile(2, 0, 0);
+      b1.applyState('blind', 2);
+      const b2 = new Tile(2, 0, 1);
+      b2.applyState('blind', 1);
+      grid.cells[0][0] = b1;
+      grid.cells[0][1] = b2;
+      grid.move('left');
+      const survivor = grid.cells[0][0];
+      expect(survivor.state).toBeNull();
+      expect(survivor.blindCooldown).toBe(2);
+    });
+
+    it('does not set blindCooldown when neither tile was blind', () => {
+      grid.cells[0][0] = new Tile(2, 0, 0);
+      grid.cells[0][1] = new Tile(2, 0, 1);
+      grid.move('left');
+      const survivor = grid.cells[0][0];
+      expect(survivor.blindCooldown).toBe(0);
+    });
+  });
 });

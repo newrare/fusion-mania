@@ -218,6 +218,23 @@ export class PowerManager {
     return grid.getAllTiles().find((t) => t.id === this.#targetedTileId) ?? null;
   }
 
+  /**
+   * If the currently targeted tile was the consumed (moving) tile in a merge,
+   * redirect the target to the surviving merged tile so fire/bomb/nuclear
+   * powers can still fire normally after the move.
+   *
+   * Call this BEFORE `getTargetedTile` whenever a grid move has been executed.
+   *
+   * @param {Array<{tile: import('../entities/tile.js').Tile, consumedId: string}>} merges
+   */
+  resolveTargetAfterMerge(merges) {
+    if (!this.#targetedTileId || merges.length === 0) return;
+    const merge = merges.find((m) => m.consumedId === this.#targetedTileId);
+    if (merge) {
+      this.#targetedTileId = merge.tile.id;
+    }
+  }
+
   // ─── Direct powers (ice, expel) ──────────────────
 
   /**
@@ -282,7 +299,7 @@ export class PowerManager {
    * @param {import('../entities/tile.js').Tile | null} target
    * @returns {{ destroyed: import('../entities/tile.js').Tile[], stateApplied: string | null, teleported?: object, lightningStrikes?: object[] }}
    */
-  executeEffect(powerType, grid, target) {
+  executeEffect(powerType, grid, target, newTile = null) {
     switch (powerType) {
       case POWER_TYPES.FIRE_H:
         return this.#executeFire(grid, target, 'horizontal');
@@ -307,7 +324,7 @@ export class PowerManager {
       case POWER_TYPES.WIND_RIGHT:
         return this.#executeWind('left');
       case POWER_TYPES.BLIND:
-        return this.#executeBlind(grid);
+        return this.#executeBlind(grid, newTile);
       case POWER_TYPES.ADS:
         return { destroyed: [], stateApplied: 'ads' };
       // Direct powers are normally applied via applyDirectPower, but we keep
@@ -758,12 +775,17 @@ export class PowerManager {
     return { destroyed: [], stateApplied: `wind-${blockedDirection}` };
   }
 
-  #executeBlind(grid) {
+  #executeBlind(grid, newTile = null) {
+    const immuneTiles = [];
     for (const tile of grid.getAllTiles()) {
-      if (tile.blindCooldown > 0) continue;
+      if (tile.blindCooldown > 0 || tile.state === 'blind') {
+        immuneTiles.push(tile);
+        continue;
+      }
+      if (newTile && tile.id === newTile.id) continue;
       tile.applyState('blind', POWER_DURATIONS.BLIND);
     }
-    return { destroyed: [], stateApplied: 'blind' };
+    return { destroyed: [], stateApplied: 'blind', immuneTiles };
   }
 
   // ─── Private helpers ─────────────────────────────

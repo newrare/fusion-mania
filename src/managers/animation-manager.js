@@ -1175,4 +1175,23 @@ export class AnimationManager {
     }
     this.#mergeParticles.length = 0;
   }
+
+  /**
+   * Flash the border of immune tiles (blind-immune) for BLIND_IMMUNITY_FLASH_DURATION.
+   * The CSS animation handles removal automatically via `forwards` fill mode.
+   * @param {import('../entities/tile.js').Tile[]} immuneTiles
+   */
+  playBlindImmunityFlash(immuneTiles) {
+    for (const tile of immuneTiles) {
+      const el = this.#tileElements.get(tile.id);
+      if (!el) continue;
+      el.classList.remove('fm-tile--blind-immune');
+      void el.offsetWidth; /* force reflow so re-adding re-triggers the animation */
+      el.classList.add('fm-tile--blind-immune');
+      setTimeout(
+        () => el.classList.remove('fm-tile--blind-immune'),
+        ANIM.BLIND_IMMUNITY_FLASH_DURATION,
+      );
+    }
+  }
 }

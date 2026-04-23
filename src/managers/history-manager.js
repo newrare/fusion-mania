@@ -166,6 +166,16 @@ export class HistoryManager {
     return this.#turns;
   }
 
+  /**
+   * Append an anim_skip entry to the most recently finalized turn.
+   * Called after finalizeTurn() when power animations were cut by a fast swipe.
+   * @param {string[]} powers — power types whose animation was skipped
+   */
+  amendLastTurnSkip(powers) {
+    if (this.#turns.length === 0 || powers.length === 0) return;
+    this.#turns[0].entries.push({ type: 'anim_skip', powers: [...powers] });
+  }
+
   /** @returns {number} Total number of recorded turns */
   get length() {
     return this.#turns.length;

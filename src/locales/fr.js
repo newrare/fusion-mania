@@ -95,6 +95,7 @@ export const fr = {
   'pred.expel_v_off': 'Expulsion verticale',
   'pred.expel_h_off': 'Expulsion horizontale',
   'pred.ads': 'Publicité',
+  'pred.anim_skip': 'Animation ignorée',
   'pred.ads_adjectives': [
     'intempestive',
     'intrusive',
@@ -264,6 +265,7 @@ export const fr = {
   'history.combo_bonus': 'Bonus combo',
   'history.tiles_lost': 'Tuiles perdues',
   'history.grid_damage': 'Grille -{damage} PV',
+  'history.anim_skip': 'Skip',
   'history.dir_up': '↑',
   'history.dir_down': '↓',
   'history.dir_left': '←',

@@ -166,6 +166,18 @@ export class HistoryModal {
         const tiles = entry.values.map((v) => this.#pill(v)).join('');
         return `<div class="fm-history-sub fm-history-sub--danger">${i18n.t('history.tiles_lost')}: ${tiles}</div>`;
       }
+      case 'anim_skip': {
+        const icons = entry.powers
+          .map((p) => {
+            const svgId = POWER_META[p]?.svgId ?? '';
+            const cat = getPowerCategory(p);
+            return svgId
+              ? `<svg class="fm-history-power-icon fm-pw-${cat}"><use href="#${svgId}"/></svg>`
+              : p;
+          })
+          .join(' ');
+        return `<div class="fm-history-sub fm-history-sub--skip">${i18n.t('history.anim_skip')}: ${icons}</div>`;
+      }
       default:
         return '';
     }

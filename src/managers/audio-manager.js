@@ -101,13 +101,13 @@ class AudioManager {
     for (const [key, path] of Object.entries(AUDIO.SFX)) {
       const audio = new Audio(path);
       audio.preload = 'auto';
-      audio.volume = AUDIO.SFX_VOLUME * (AUDIO.SFX_VOLUMES[key] ?? 1.0);
+      audio.volume = Math.min(1, AUDIO.SFX_VOLUME * (AUDIO.SFX_VOLUMES[key] ?? 1.0));
       this.#sfxPool.set(key, audio);
     }
     for (const [key, path] of Object.entries(AUDIO.POWER_SFX)) {
       const audio = new Audio(path);
       audio.preload = 'auto';
-      audio.volume = AUDIO.SFX_VOLUME * (AUDIO.POWER_SFX_VOLUMES[key] ?? 1.0);
+      audio.volume = Math.min(1, AUDIO.SFX_VOLUME * (AUDIO.POWER_SFX_VOLUMES[key] ?? 1.0));
       this.#sfxPool.set(`power:${key}`, audio);
     }
   }
@@ -137,25 +137,6 @@ class AudioManager {
       },
       true,
     );
-
-    // Global hover SFX — fires once per new interactive element entered
-    let lastHovered = null;
-    document.addEventListener('pointerover', (e) => {
-      const btn = /** @type {HTMLElement} */ (e.target).closest(INTERACTIVE);
-      if (btn && btn !== lastHovered) {
-        lastHovered = btn;
-        this.playSfx('hover');
-      }
-    });
-    document.addEventListener('pointerout', (e) => {
-      if (/** @type {HTMLElement} */ (e.target).closest(INTERACTIVE) !== lastHovered) return;
-      // Only reset if the pointer is leaving the interactive element entirely,
-      // not just moving to a child element within it.
-      const dest = e.relatedTarget
-        ? /** @type {HTMLElement} */ (e.relatedTarget).closest(INTERACTIVE)
-        : null;
-      if (dest !== lastHovered) lastHovered = null;
-    });
   }
 
   // ─── Music ─────────────────────────────────────────
@@ -205,11 +186,7 @@ class AudioManager {
    */
   playPowerSfx(powerType) {
     let key;
-    if (powerType === 'expel-h') {
-      key = 'power:expel-h-in';
-    } else if (powerType === 'expel-v') {
-      key = 'power:expel-v-in';
-    } else if (powerType.startsWith('wind-')) {
+    if (powerType.startsWith('wind-')) {
       key = 'power:wind';
     } else {
       key = `power:${powerType}`;

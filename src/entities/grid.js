@@ -183,11 +183,17 @@ export class Grid {
           this.cells[tile.row][tile.col] = null;
           this.cells[mergeTile.row][mergeTile.col] = null;
 
+          // Track blind participation before clearing state
+          const mergeInvolvedBlind = tile.state === 'blind' || mergeTile.state === 'blind';
           mergeTile.value *= 2;
           mergeTile.merged = true;
           // Reset to normal state after fusion — no stacking of special states
           mergeTile.clearState();
           mergeTile.targeted = false;
+          // If either participant was blind the survivor is now visible; give it
+          // a cooldown of 2 so that a blind power firing on the same turn (after
+          // tickMove decrements it once) still sees cooldown > 0 and skips it.
+          if (mergeInvolvedBlind) mergeTile.blindCooldown = 2;
           this.cells[mergeTile.row][mergeTile.col] = mergeTile;
           this.score += mergeTile.value;
 

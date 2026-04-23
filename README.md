@@ -7,7 +7,7 @@ A unique twist on the classic 2048 puzzle game with magical powers! Each tile ha
 ```bash
 npm install        # Install dependencies
 npm run dev        # Start dev server (http://localhost:3000)
-npm test           # Run tests (617+ unit tests)
+npm test           # Run tests (700+ unit tests)
 npm run build      # Production build → dist/
 npm run format     # Format code with Prettier
 npm run build && npx cap sync && cd android && ./gradlew assembleDebug && cd .. # Construct APK for Android version (Dev)

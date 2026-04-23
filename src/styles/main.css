@@ -2820,6 +2820,7 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
 .fm-history-sub--success { color: #81c784; }
 .fm-history-sub--bonus { color: #ffd54f; }
 .fm-history-sub--danger { color: #e57373; }
+.fm-history-sub--skip { color: #90a4ae; opacity: 0.8; }
 
 .fm-history-power-icon {
   width: 1em;

@@ -156,6 +156,19 @@ export class BattleManager {
   contaminate(grid, powerManager) {
     if (!this.#enemy || !powerManager) return null;
 
+    // HP-budget gate: spread power usage proportionally to HP lost.
+    // The enemy starts with a small head start (POWER_PACE_RATIO × total),
+    // then unlocks the remaining charges linearly as it takes damage.
+    // This prevents the enemy from burning through its entire stock
+    // at the beginning of the fight.
+    const total = this.#enemy.totalInitialCharges;
+    if (total > 0) {
+      const hpLostRatio = 1 - this.#enemy.life.percent;
+      const lead = Math.max(1, Math.ceil(BATTLE.POWER_PACE_RATIO * total));
+      const allowedUsed = Math.min(total, lead + Math.floor((total - lead) * hpLostRatio));
+      if (this.#enemy.usedCharges >= allowedUsed) return null;
+    }
+
     const type = this.#enemy.pickRandomPower();
     if (!type) return null;
 

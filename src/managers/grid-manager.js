@@ -391,6 +391,14 @@ export class GridManager {
   }
 
   /**
+   * Flash a brief black-border shield on tiles that resisted the blind effect.
+   * @param {import('../entities/tile.js').Tile[]} immuneTiles
+   */
+  playBlindImmunityFlash(immuneTiles) {
+    this.#animator?.playBlindImmunityFlash(immuneTiles);
+  }
+
+  /**
    * Animate a cross-arc swap for the Teleport power.
    * DOM elements must still be at their pre-swap CSS positions when called.
    *

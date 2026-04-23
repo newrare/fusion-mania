@@ -49,6 +49,8 @@ export const ANIM = {
   ADS_CLOSE_DURATION: 300,
   /** Duration of the directional bump animation when no tile can move (ms) */
   BUMP_DURATION: 180,
+  /** Duration of the blind-immunity shield flash on immune tiles (ms) */
+  BLIND_IMMUNITY_FLASH_DURATION: 500,
 };
 
 /** Background pan settings */
@@ -89,20 +91,19 @@ export const AUDIO = {
   MUSIC: 'sounds/music.wav',
   MUSIC_VOLUME: 0.05,
   /** Base SFX volume — each key can be adjusted via SFX_VOLUMES multiplier */
-  SFX_VOLUME: 0.3,
-  /** Per-key volume multipliers (applied on top of SFX_VOLUME). Tune these to balance levels on mobile. */
+  SFX_VOLUME: 0.4,
+  /** Per-key volume multipliers (applied on top of SFX_VOLUME). Tune these to balance levels on mobile [0.0 - 1.0]. */
   SFX_VOLUMES: {
     click: 0.5,
-    hover: 0.15,
-    fusion: 1.5,
+    fusion: 1.0,
     victory: 0.9,
     gameOver: 0.9,
-    notification: 0.8,
+    notification: 0.5,
     gridHurt: 0.9,
-    enemyHurt: 0.5,
+    enemyHurt: 0.3,
     enemyDeath: 1.0,
     enemyIn: 0.8,
-    contamination: 0.5,
+    contamination: 0.2,
   },
   /** Per-key volume multipliers for power SFX */
   POWER_SFX_VOLUMES: {
@@ -112,16 +113,12 @@ export const AUDIO = {
     bomb: 1.0,
     lightning: 0.9,
     nuclear: 1.0,
-    teleport: 0.8,
-    ice: 0.7,
-    'expel-h-in': 0.8,
-    'expel-v-in': 0.8,
+    teleport: 0.9,
     wind: 0.7,
-    blind: 0.7,
+    blind: 0.5,
   },
   SFX: {
     click: 'sounds/sfx-click.ogg',
-    hover: 'sounds/sfx-hover.ogg',
     fusion: 'sounds/sfx-fusion.ogg',
     victory: 'sounds/sfx-victory.ogg',
     gameOver: 'sounds/sfx-game-over.ogg',
@@ -145,9 +142,6 @@ export const AUDIO = {
     lightning: 'sounds/sfx-power-lightning.ogg',
     nuclear: 'sounds/sfx-power-nuclear.ogg',
     teleport: 'sounds/sfx-power-teleport.ogg',
-    ice: 'sounds/sfx-power-ice.ogg',
-    'expel-h-in': 'sounds/sfx-power-expel-horizontal.ogg',
-    'expel-v-in': 'sounds/sfx-power-expel-vertical.ogg',
     wind: 'sounds/sfx-power-wind.ogg',
     blind: 'sounds/sfx-power-blind.ogg',
   },
@@ -287,6 +281,12 @@ export const BATTLE = {
   CLASSIC_MOVES: 10,
   /** HP multiplier for enemy: HP = log2(level) × HP_PER_LEVEL */
   HP_PER_LEVEL: 10,
+  /**
+   * Fraction of total power budget available immediately at full HP (0–1).
+   * The rest is unlocked proportionally as the enemy loses HP, ensuring
+   * powers are spread across the full combat duration.
+   */
+  POWER_PACE_RATIO: 0.2,
   /**
    * Named enemy profiles — each defines a power stock (power type → cast count).
    * Profiles are independent of enemy level; assign them freely in BATTLE_LEVELS.

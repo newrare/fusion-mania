@@ -95,6 +95,7 @@ export const en = {
   'pred.expel_v_off': 'Vertical expulsion',
   'pred.expel_h_off': 'Horizontal expulsion',
   'pred.ads': 'Ad',
+  'pred.anim_skip': 'Animation skipped',
   'pred.ads_adjectives': [
     'untimely',
     'intrusive',
@@ -252,6 +253,7 @@ export const en = {
   'history.combo_bonus': 'Combo bonus',
   'history.tiles_lost': 'Tiles lost',
   'history.grid_damage': 'Grid takes -{damage} HP',
+  'history.anim_skip': 'Skip',
   'history.dir_up': '↑',
   'history.dir_down': '↓',
   'history.dir_left': '←',

@@ -99,6 +99,12 @@ export class Enemy {
    */
   powerStock;
 
+  /** @type {number} Total power charges at spawn time (used for HP-pacing gate). */
+  totalInitialCharges;
+
+  /** @type {number} Charges consumed since spawn (used for HP-pacing gate). */
+  usedCharges = 0;
+
   /** @type {string} Enemy profile key (from BATTLE.ENEMY_PROFILES) */
   profile;
 
@@ -115,6 +121,7 @@ export class Enemy {
     this.profile = profile ?? 'overlord';
     this.name = name ?? ENEMY_NAMES[Math.floor(Math.random() * ENEMY_NAMES.length)];
     this.powerStock = { ...(BATTLE.ENEMY_PROFILES[this.profile] ?? {}) };
+    this.totalInitialCharges = Object.values(this.powerStock).reduce((a, b) => a + b, 0);
 
     const maxHp = Math.ceil(Math.log2(level)) * BATTLE.HP_PER_LEVEL;
     this.life = new GridLife(maxHp);
@@ -169,6 +176,7 @@ export class Enemy {
     if (count <= 0) return false;
     this.powerStock[type] = count - 1;
     if (this.powerStock[type] <= 0) delete this.powerStock[type];
+    this.usedCharges++;
     return true;
   }
 
@@ -181,6 +189,8 @@ export class Enemy {
       life: this.life.serialize(),
       powerStock: { ...this.powerStock },
       boss: this.boss,
+      totalInitialCharges: this.totalInitialCharges,
+      usedCharges: this.usedCharges,
     };
   }
 
@@ -194,6 +204,10 @@ export class Enemy {
     enemy.life.restore(data.life);
     if (data.powerStock) enemy.powerStock = { ...data.powerStock };
     enemy.boss = data.boss ?? false;
+    enemy.totalInitialCharges =
+      data.totalInitialCharges ??
+      Object.values(BATTLE.ENEMY_PROFILES[data.profile] ?? {}).reduce((a, b) => a + b, 0);
+    enemy.usedCharges = data.usedCharges ?? 0;
     return enemy;
   }
 }

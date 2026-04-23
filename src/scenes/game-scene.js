@@ -201,6 +201,13 @@ export class GameScene extends Phaser.Scene {
    */
   #pendingDestructionTiles = new Map();
 
+  /**
+   * Power types whose animations were skipped due to a fast swipe interruption.
+   * Shown in the prediction panel as a discreet notice until the next move clears it.
+   * @type {string[]}
+   */
+  #animSkipNotice = [];
+
   /** @type {GridLife | null} HP system (Free mode only) */
   #gridLife = null;
 
@@ -312,6 +319,7 @@ export class GameScene extends Phaser.Scene {
     this.#predPanelTruncated = false;
     this.#pendingPowerTypes = data?.selectedPowers ?? null;
     this.#pendingDestructionTiles = new Map();
+    this.#animSkipNotice = [];
     this.#gridLife = null;
     this.#liquidEl = null;
     this.#gridFillEl = null;
@@ -526,6 +534,8 @@ export class GameScene extends Phaser.Scene {
       }
       this.#pendingDestructionTiles.clear();
     }
+    // Clear previous skip notice on each new move.
+    this.#animSkipNotice = [];
 
     // Wind blocks this direction — input is accepted but no tiles move
     if (this.#powerManager?.windDirection === direction) {
@@ -629,10 +639,16 @@ export class GameScene extends Phaser.Scene {
     if (this.#powerManager) {
       const fired = this.#powerManager.fireEdge(direction);
       if (fired) {
+        this.#powerManager.resolveTargetAfterMerge(merges);
         const target = this.#powerManager.getTargetedTile(this.#gm.grid);
         this.#powersTriggered.push(fired.type);
         this.#historyManager.addPower(fired.type);
-        const effectResult = this.#powerManager.executeEffect(fired.type, this.#gm.grid, target);
+        const effectResult = this.#powerManager.executeEffect(
+          fired.type,
+          this.#gm.grid,
+          target,
+          moveResult.newTile,
+        );
         for (const tile of effectResult.destroyed) {
           this.#pendingDestructionTiles.set(tile.id, tile.value);
         }
@@ -677,6 +693,7 @@ export class GameScene extends Phaser.Scene {
     if (this.#battlePowerManager && !enemyKilled) {
       const fired = this.#battlePowerManager.fireEdge(direction);
       if (fired) {
+        this.#battlePowerManager.resolveTargetAfterMerge(merges);
         const target = this.#battlePowerManager.getTargetedTile(this.#gm.grid);
         this.#powersTriggered.push(fired.type);
         this.#historyManager.addPower(fired.type);
@@ -684,6 +701,7 @@ export class GameScene extends Phaser.Scene {
           fired.type,
           this.#gm.grid,
           target,
+          moveResult.newTile,
         );
         for (const tile of effectResult.destroyed) {
           this.#pendingDestructionTiles.set(tile.id, tile.value);
@@ -796,7 +814,15 @@ export class GameScene extends Phaser.Scene {
         );
         if (work.damage > 0) this.#onGridLifeDamage(work.damage);
       }
+      // Mid-flight skip: animation started but was cut by a subsequent swipe.
+      if (moveGen !== this.#moveGen) {
+        this.#animSkipNotice.push(...powerWork.map((w) => w.chosenPower));
+      }
     } else {
+      // Total skip: animation never started (move was cancelled before animation phase).
+      if (!shouldAnimate && powerWork.length > 0) {
+        this.#animSkipNotice.push(...powerWork.map((w) => w.chosenPower));
+      }
       // Remove destroyed tiles from DOM immediately (no animation)
       for (const work of powerWork) {
         for (const tile of work.effectResult.destroyed) {
@@ -829,7 +855,15 @@ export class GameScene extends Phaser.Scene {
         );
         if (work.damage > 0) this.#onGridLifeDamage(work.damage);
       }
+      // Mid-flight skip: animation started but was cut by a subsequent swipe.
+      if (moveGen !== this.#moveGen) {
+        this.#animSkipNotice.push(...battlePowerWork.map((w) => w.chosenPower));
+      }
     } else {
+      // Total skip: animation never started.
+      if (!shouldAnimate && battlePowerWork.length > 0) {
+        this.#animSkipNotice.push(...battlePowerWork.map((w) => w.chosenPower));
+      }
       for (const work of battlePowerWork) {
         for (const tile of work.effectResult.destroyed) {
           this.#pendingDestructionTiles.delete(tile.id);
@@ -837,6 +871,14 @@ export class GameScene extends Phaser.Scene {
         }
         if (work.damage > 0) this.#onGridLifeDamage(work.damage);
       }
+    }
+
+    // ── Skip notice ──
+    // When power animations were cut (total or mid-flight), show a discreet notice
+    // in the prediction panel and record it in history.
+    if (this.#animSkipNotice.length > 0) {
+      this.#historyManager.amendLastTurnSkip(this.#animSkipNotice);
+      this.#updatePowerInfoPanel();
     }
 
     // ── Enemy defeated ──
@@ -928,9 +970,15 @@ export class GameScene extends Phaser.Scene {
       powerType === POWER_TYPES.FIRE_V ||
       powerType === POWER_TYPES.FIRE_X;
 
-    if (isFirePower && target && effectResult.destroyed.length > 0) {
+    if (isFirePower && target) {
+      // Launch fireballs even when there are no tiles to destroy in the row/column
+      // so the visual effect is always present when the power fires.
       this.#gm.playFireAnimation(powerType, target, effectResult.destroyed);
-      await this.#wait(ANIM.FIRE_BALL_DURATION + ANIM.FIRE_ZAP_DURATION);
+      const fireWait =
+        effectResult.destroyed.length > 0
+          ? ANIM.FIRE_BALL_DURATION + ANIM.FIRE_ZAP_DURATION
+          : ANIM.FIRE_BALL_DURATION;
+      await this.#wait(fireWait);
       this.#gm.removeTiles(effectResult.destroyed);
     } else if (effectResult.teleported) {
       const { tileA, tileB, oldA, oldB } = effectResult.teleported;
@@ -968,6 +1016,11 @@ export class GameScene extends Phaser.Scene {
         this.#adsShown = true;
         this.#disableAds();
         this.#gm.syncTileDom(mgr?.windDirection ?? null, null, mgr?.windTurns ?? 0);
+      }
+    } else if (powerType === POWER_TYPES.BLIND) {
+      if (effectResult.immuneTiles?.length > 0) {
+        this.#gm.playBlindImmunityFlash(effectResult.immuneTiles);
+        await this.#wait(ANIM.BLIND_IMMUNITY_FLASH_DURATION);
       }
     } else {
       this.#gm.applyDangerOverlay(effectResult.destroyed);
@@ -1517,9 +1570,9 @@ export class GameScene extends Phaser.Scene {
     // Clear battle power manager
     this.#battlePowerManager = null;
 
-    // Explicitly remove all edge power indicators and hide info panel
+    // Explicitly remove all edge power indicators, lightning charge icons, and hide info panel
     if (this.#gm.gridEl) {
-      for (const el of this.#gm.gridEl.querySelectorAll('.fm-edge-power')) {
+      for (const el of this.#gm.gridEl.querySelectorAll('.fm-edge-power, .fm-lightning-mini')) {
         el.remove();
       }
     }
@@ -1567,7 +1620,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.#battlePowerManager = null;
     if (this.#gm.gridEl) {
-      for (const el of this.#gm.gridEl.querySelectorAll('.fm-edge-power')) {
+      for (const el of this.#gm.gridEl.querySelectorAll('.fm-edge-power, .fm-lightning-mini')) {
         el.remove();
       }
     }
@@ -2595,7 +2648,8 @@ export class GameScene extends Phaser.Scene {
     if (
       !pm.hasEdgePowers() &&
       !pm.hasActiveExpelTiles(this.#gm.grid) &&
-      this.#pendingDestructionTiles.size === 0
+      this.#pendingDestructionTiles.size === 0 &&
+      this.#animSkipNotice.length === 0
     ) {
       this.#powerInfoEl.style.display = 'none';
       this.#hudManager?.setPredBtnVisible(false);
@@ -2782,6 +2836,25 @@ export class GameScene extends Phaser.Scene {
           <div class="fm-power-info-line fm-power-info-destroying">
             <span class="fm-info-destroy-icon">🗑</span>
             <div class="fm-power-info-tiles">${pills}</div>
+          </div>`);
+      }
+
+      // Skip notice row: shown when power animations were cut by a fast swipe
+      if (this.#animSkipNotice.length > 0) {
+        const icons = this.#animSkipNotice
+          .map((type) => {
+            const meta = POWER_META[type];
+            if (!meta) return '';
+            const cat = getPowerCategory(type);
+            return `<svg class="fm-pred-power-ico fm-pred-power-ico--${cat}" aria-hidden="true"><use href="#${meta.svgId}"/></svg>`;
+          })
+          .filter(Boolean)
+          .join('');
+        result.push(`
+          <div class="fm-power-info-line fm-power-info-skip">
+            <span class="fm-info-skip-icon">⏩</span>
+            <span class="fm-power-info-name">${i18n.t('pred.anim_skip')}</span>
+            ${icons ? `<span class="fm-pred-sep">:</span>${icons}` : ''}
           </div>`);
       }
 

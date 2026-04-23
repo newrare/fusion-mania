@@ -168,14 +168,6 @@ describe('AudioManager', () => {
       audioManager.setSound(true);
     });
 
-    it('maps expel-h to expel-h-in variant', () => {
-      expect(() => audioManager.playPowerSfx('expel-h')).not.toThrow();
-    });
-
-    it('maps expel-v to expel-v-in variant', () => {
-      expect(() => audioManager.playPowerSfx('expel-v')).not.toThrow();
-    });
-
     it('maps all wind variants to shared wind SFX', () => {
       expect(() => audioManager.playPowerSfx('wind-up')).not.toThrow();
       expect(() => audioManager.playPowerSfx('wind-down')).not.toThrow();
@@ -193,11 +185,10 @@ describe('AudioManager', () => {
       expect(() => audioManager.playPowerSfx('fire-x')).not.toThrow();
     });
 
-    it('plays bomb, nuclear, teleport, ice SFX', () => {
+    it('plays bomb, nuclear, teleport SFX', () => {
       expect(() => audioManager.playPowerSfx('bomb')).not.toThrow();
       expect(() => audioManager.playPowerSfx('nuclear')).not.toThrow();
       expect(() => audioManager.playPowerSfx('teleport')).not.toThrow();
-      expect(() => audioManager.playPowerSfx('ice')).not.toThrow();
     });
 
     it('silently ignores unknown power types', () => {
@@ -222,11 +213,6 @@ describe('AudioManager', () => {
   });
 
   describe('AUDIO constants integrity', () => {
-    it('expel-h-in and expel-v-in are defined', () => {
-      expect(AUDIO.POWER_SFX['expel-h-in']).toBeDefined();
-      expect(AUDIO.POWER_SFX['expel-v-in']).toBeDefined();
-    });
-
     it('all new SFX keys exist in AUDIO.SFX', () => {
       expect(AUDIO.SFX.gridHurt).toBeDefined();
       expect(AUDIO.SFX.enemyHurt).toBeDefined();

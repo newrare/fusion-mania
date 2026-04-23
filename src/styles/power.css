@@ -452,6 +452,17 @@
   animation: fm-blind-float var(--fm-bd, 2.8s) var(--fm-bdl, 0s) ease-in-out infinite;
 }
 
+/* --- Blind immunity flash --- */
+@keyframes fm-blind-immune {
+  0%   { border-color: #111; box-shadow: 0 0 0 3px rgba(0,0,0,0.55); }
+  60%  { border-color: #111; box-shadow: 0 0 0 3px rgba(0,0,0,0.55); }
+  100% { border-color: inherit; box-shadow: inherit; }
+}
+
+.fm-tile--blind-immune {
+  animation: fm-blind-immune 500ms ease-out forwards !important;
+}
+
 /* --- Tile state: expel marks --- */
 @keyframes fm-expel-float {
   0%, 100% { transform: translateY(0) scale(1);     opacity: 0.60; }
@@ -765,6 +776,18 @@
 
 .fm-info-destroy-icon {
   font-size: 1rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* Skip notice row: shown when power animations were cut by a fast swipe */
+.fm-power-info-skip {
+  opacity: 0.7;
+  font-size: 0.82rem;
+}
+
+.fm-info-skip-icon {
+  font-size: 0.9rem;
   flex-shrink: 0;
   line-height: 1;
 }

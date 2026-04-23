@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\"",
-    "format:check": "prettier --check \"src/**/*.js\" \"tests/**/*.js\""
+    "format:check": "prettier --check \"src/**/*.js\" \"tests/**/*.js\"",
+    "generate:assets": "capacitor-assets generate --assetPath public/images --iconBackgroundColor '#1a0a2e' --iconBackgroundColorDark '#1a0a2e' --splashBackgroundColor '#1a0a2e' --splashBackgroundColorDark '#1a0a2e' --android"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",
@@ -20,6 +21,7 @@
     "phaser": "^3.80.1"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "happy-dom": "^20.8.4",
     "prettier": "^3.8.1",
     "vite": "^6.3.5",
