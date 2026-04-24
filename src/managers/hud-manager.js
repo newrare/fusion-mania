@@ -71,9 +71,9 @@ export class HudManager {
 
   /**
    * Build and mount the HUD overlay.
-   * @param {{ onMenuOpen: () => void }} callbacks
+   * @param {{ onLauncherOpen: () => void, onRankingOpen: () => void, onReplayOpen: () => void }} callbacks
    */
-  createHUD({ onMenuOpen }) {
+  createHUD({ onLauncherOpen, onRankingOpen, onReplayOpen }) {
     const html = `
       <div class="fm-hud">
         <div class="fm-hud-row">
@@ -109,7 +109,9 @@ export class HudManager {
               <span class="fm-score-value" id="fm-best-max-tile">${saveManager.getBestMaxTile(this.#mode)}</span>
             </div>
           </div>
-          <div class="fm-menu-btn" id="fm-menu-btn">☰</div>
+          <div class="fm-menu-btn" id="fm-launcher-top-btn"><img src="/images/menu-list.svg" alt="Launcher" class="fm-hud-icon" /></div>
+          <div class="fm-menu-btn" id="fm-ranking-top-btn"><img src="/images/menu-ranking.svg" alt="Ranking" class="fm-hud-icon" /></div>
+          <div class="fm-menu-btn" id="fm-replay-top-btn"><img src="/images/menu-replay.svg" alt="Replay" class="fm-hud-icon" /></div>
         </div>
       </div>
     `;
@@ -118,10 +120,22 @@ export class HudManager {
     this.#hudDom.setOrigin(0.5, 0);
     this.#hudEl = this.#hudDom.node;
 
-    const menuBtn = this.#hudEl.querySelector('#fm-menu-btn');
-    menuBtn?.addEventListener('pointerdown', (e) => {
+    const launcherTopBtn = this.#hudEl.querySelector('#fm-launcher-top-btn');
+    launcherTopBtn?.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
-      onMenuOpen();
+      onLauncherOpen?.();
+    });
+
+    const rankingTopBtn = this.#hudEl.querySelector('#fm-ranking-top-btn');
+    rankingTopBtn?.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      onRankingOpen?.();
+    });
+
+    const replayTopBtn = this.#hudEl.querySelector('#fm-replay-top-btn');
+    replayTopBtn?.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      onReplayOpen?.();
     });
 
     this.#comboEl = this.#hudEl.querySelector('#fm-combo-display');
@@ -132,41 +146,71 @@ export class HudManager {
   }
 
   /**
-   * Create the floating bottom-right bar: (modeIcon → history) (! → pred) (? → help).
+   * Create the floating bottom bars:
+   * - Bottom-LEFT: (! → pred) + (modeIcon → history)
+   * - Bottom-RIGHT: (? → help) + (folder → sub-menu) + (setting → settings)
    * The "!" button is hidden by default; call setPredBtnVisible() to toggle it.
-   * @param {{ onHelpOpen: () => void, onHistoryOpen: () => void, onPredOpen?: () => void }} callbacks
+   * @param {{ onHistoryOpen: () => void, onHelpOpen: () => void, onMenuOpen: () => void, onSettingsOpen: () => void, onPredOpen?: () => void }} callbacks
    */
-  createHelpBtn({ onHelpOpen, onHistoryOpen, onPredOpen }) {
-    const modeIcon = HudManager.#MODE_ICONS[this.#mode] ?? '';
-    const html = `
+  createBottomBar({ onHistoryOpen, onHelpOpen, onMenuOpen, onSettingsOpen, onPredOpen }) {
+    const modeIcon = HudManager.#MODE_ICONS[this.#mode] ?? '🎮';
+
+    // ── Bottom-LEFT: history + pred ──
+    const leftHtml = `
       <div class="fm-help-bar">
-        <button class="fm-mode-badge fm-clickable fm-pred-btn" id="fm-pred-btn" aria-label="Predictions" style="display:none">!</button>
         <button class="fm-mode-badge fm-clickable" id="fm-history-mode-btn" aria-label="History">${modeIcon}</button>
-        <button class="fm-mode-badge fm-clickable" id="fm-mode-badge" aria-label="Help">?</button>
+        <button class="fm-mode-badge fm-clickable fm-pred-btn" id="fm-pred-btn" aria-label="Predictions" style="display:none">!</button>
       </div>
     `;
-    const x = layout.safe.right;
-    const y = layout.safe.bottom - 15;
-    this.#helpBtnDom = this.#scene.add.dom(x, y).createFromHTML(html);
-    this.#helpBtnDom.setOrigin(1, 1);
+    this.#historyBtnDom = this.#scene.add.dom(layout.safe.left, layout.safe.bottom - 15).createFromHTML(leftHtml);
+    this.#historyBtnDom.setOrigin(0, 1);
 
-    this.#helpBtnDom.node
+    this.#historyBtnDom.node
       .querySelector('#fm-history-mode-btn')
       ?.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         onHistoryOpen?.();
       });
 
-    this.#predBtnEl = this.#helpBtnDom.node.querySelector('#fm-pred-btn');
+    this.#predBtnEl = this.#historyBtnDom.node.querySelector('#fm-pred-btn');
     this.#predBtnEl?.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       onPredOpen?.();
     });
 
-    this.#helpBtnDom.node.querySelector('#fm-mode-badge')?.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      onHelpOpen();
-    });
+    // ── Bottom-RIGHT: help + menu + settings ──
+    const rightHtml = `
+      <div class="fm-help-bar">
+        <button class="fm-mode-badge fm-clickable" id="fm-help-btn" aria-label="Help">?</button>
+        <button class="fm-mode-badge fm-clickable" id="fm-menu-btn" aria-label="Menu"><img src="/images/menu-folder.svg" alt="Menu" class="fm-hud-icon" /></button>
+        <button class="fm-mode-badge fm-clickable" id="fm-settings-btn" aria-label="Settings"><img src="/images/menu-setting.svg" alt="Settings" class="fm-hud-icon" /></button>
+      </div>
+    `;
+    const x = layout.safe.right;
+    const y = layout.safe.bottom - 15;
+    this.#helpBtnDom = this.#scene.add.dom(x, y).createFromHTML(rightHtml);
+    this.#helpBtnDom.setOrigin(1, 1);
+
+    this.#helpBtnDom.node
+      .querySelector('#fm-help-btn')
+      ?.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        onHelpOpen?.();
+      });
+
+    this.#helpBtnDom.node
+      .querySelector('#fm-menu-btn')
+      ?.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        onMenuOpen?.();
+      });
+
+    this.#helpBtnDom.node
+      .querySelector('#fm-settings-btn')
+      ?.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        onSettingsOpen?.();
+      });
   }
 
   /**
@@ -180,11 +224,11 @@ export class HudManager {
   }
 
   /**
-   * @deprecated Use createHelpBtn with onHistoryOpen callback instead.
+   * @deprecated Use createBottomBar instead.
    * @param {{ onHistoryOpen: () => void }} callbacks
    */
   createHistoryBtn({ onHistoryOpen }) {
-    // No-op — history button is now part of the bottom-right bar created by createHelpBtn.
+    // No-op — kept for backward compatibility.
     void onHistoryOpen;
   }
 
@@ -422,6 +466,8 @@ export class HudManager {
     this.#hudDom = null;
     this.#helpBtnDom?.destroy();
     this.#helpBtnDom = null;
+    this.#historyBtnDom?.destroy();
+    this.#historyBtnDom = null;
     this.#hudEl = null;
     this.#comboEl = null;
     this.#scoreBonusEl = null;

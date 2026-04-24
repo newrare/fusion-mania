@@ -163,8 +163,8 @@ Referenced by `<use href="#s-[name]"/>`.
 
 ### Expel icon construction
 
-Both expel SVG symbols are built by superimposing two copies of
-`power-expulsion.svg`:
+Both expel SVG symbols are derived from `power-expel.svg` (a double-headed
+horizontal arrow, viewBox 0 0 24 24):
 
-- **`s-exp-d`** (vertical ↕): one arrow at 0° + one rotated 180°.
-- **`s-exp-r`** (horizontal ↔): one arrow rotated −90° + one rotated +90°.
+- **`s-exp-r`** (horizontal ↔): paths from `power-expel.svg` as-is.
+- **`s-exp-d`** (vertical ↕): same paths wrapped in `rotate(90 12 12)`.

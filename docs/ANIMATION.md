@@ -22,7 +22,7 @@ Durations are defined as constants in `src/configs/constants.js` under the `ANIM
 
 ## Interruption Model
 
-Players can input a new move at any time, including mid-animation. The game must remain responsive — it is acceptable for an in-progress animation to be visually incomplete.
+Players can input a new move at any time, including mid-animation — **provided the "Skip animations" option is enabled** in the Options modal (default: disabled). When the option is disabled the current animation must play out fully before another swipe/key press is accepted; new inputs are dropped at the `InputManager.isBlocked` gate while `GridManager.animating` is `true`. When the option is enabled, the behaviour described below kicks in and it is acceptable for an in-progress animation to be visually incomplete.
 
 ### How it works
 

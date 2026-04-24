@@ -47,9 +47,6 @@ export class HistoryModal {
         <div class="fm-modal fm-history-modal">
           <div class="fm-modal-title">${i18n.t('history.title')}</div>
           <div class="fm-history-content" id="fm-history-content"></div>
-          <div class="fm-modal-buttons">
-            <button class="fm-btn" data-action="close">${i18n.t('history.close')}</button>
-          </div>
         </div>
       </div>
     `;
@@ -62,12 +59,9 @@ export class HistoryModal {
 
     const overlay = this.#domElement.node.querySelector('#fm-history-overlay');
     overlay?.addEventListener('pointerdown', (e) => {
-      const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
-      if (!btn) return;
-      e.stopPropagation();
-      if (btn.dataset.action === 'close') {
-        this.#onClose?.();
-      }
+      // Click outside modal = close
+      const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
+      if (!modal) this.#onClose?.();
     });
 
     this.#keyNav = enableKeyboardNav(overlay, scene.input.keyboard, {

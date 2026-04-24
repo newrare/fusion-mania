@@ -58,13 +58,11 @@ export class MenuModal {
 
     const overlay = this.#domElement.node.querySelector('#fm-menu-overlay');
 
-    // Close on outside click — only when no game is in progress (title scene)
-    if (!options.showResume) {
-      overlay?.addEventListener('pointerdown', (e) => {
-        const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
-        if (!modal) options.onClose?.();
-      });
-    }
+    // Click outside modal = close/resume for all cases
+    overlay?.addEventListener('pointerdown', (e) => {
+      const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
+      if (!modal) options.onClose?.();
+    });
 
     overlay?.addEventListener('pointerdown', (e) => {
       const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
@@ -127,17 +125,10 @@ export class MenuModal {
     const opts = this.#options;
     let html = '';
     if (opts.showResume) {
-      // Game in progress: only show Resume + Save + Ranking + Options + (Quit) + (Admin)
-      html += `<button class="fm-btn fm-btn--primary" data-action="resume">${i18n.t('menu.resume')}</button>`;
+      // Game in progress: Load + Save (no Resume — click outside to resume)
+      html += `<button class="fm-btn" data-action="loadgame">${i18n.t('menu.load')}</button>`;
       if (opts.onSave) {
         html += `<button class="fm-btn" data-action="save">${i18n.t('menu.save')}</button>`;
-      }
-      html += `<button class="fm-btn" data-action="options">${i18n.t('menu.options')}</button>`;
-      if (opts.onReplay) {
-        html += `<button class="fm-btn" data-action="replay">${i18n.t('menu.replay')}</button>`;
-      }
-      if (opts.onQuit) {
-        html += `<button class="fm-btn" data-action="quit">${i18n.t('menu.quit')}</button>`;
       }
     } else {
       // No game in progress: show mode selection + Load

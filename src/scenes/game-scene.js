@@ -22,11 +22,15 @@ import { VictoryModal } from '../components/victory-modal.js';
 import { EnemyInfoModal } from '../components/enemy-info-modal.js';
 import { HelpModal } from '../components/help-modal.js';
 import { HistoryModal } from '../components/history-modal.js';
+import { OptionsModal } from '../components/options-modal.js';
+import { RankingModal } from '../components/ranking-modal.js';
+import { LevelSelectModal } from '../components/level-select-modal.js';
 import { GridLife } from '../entities/grid-life.js';
 import { BattleManager } from '../managers/battle-manager.js';
 import { HistoryManager } from '../managers/history-manager.js';
 import { getRandomFaceUrl } from '../configs/constants.js';
 import { audioManager } from '../managers/audio-manager.js';
+import { optionsManager } from '../managers/options-manager.js';
 import { addBackground } from '../utils/background.js';
 /* ── CSS liquid-fill helper (replaces former canvas LiquidWave) ── */
 
@@ -177,6 +181,9 @@ export class GameScene extends Phaser.Scene {
   /** @type {boolean} True once the victory modal has been shown this game */
   #victoryShown = false;
 
+  /** @type {ReturnType<typeof setTimeout> | null} Delay timer before showing battle victory modal */
+  #victoryDelayTimer = null;
+
   /** @type {HTMLElement | null} Power info panel below grid */
   #powerInfoEl = null;
 
@@ -270,6 +277,15 @@ export class GameScene extends Phaser.Scene {
   /** @type {HistoryModal | null} */
   #historyModal = null;
 
+  /** @type {OptionsModal | null} */
+  #optionsModal = null;
+
+  /** @type {RankingModal | null} */
+  #rankingModal = null;
+
+  /** @type {LevelSelectModal | null} */
+  #levelSelectModal = null;
+
   /** @type {HistoryManager} */
   #historyManager = new HistoryManager();
 
@@ -313,6 +329,7 @@ export class GameScene extends Phaser.Scene {
     this.#adminModal = null;
     this.#victoryModal = null;
     this.#victoryShown = false;
+    this.#victoryDelayTimer = null;
     this.#powerInfoEl = null;
     this.#powerInfoDom = null;
     this.#powerInfoAllDom = null;
@@ -333,6 +350,9 @@ export class GameScene extends Phaser.Scene {
     this.#pendingSlotData = data?.slotData ?? null;
     this.#helpModal = null;
     this.#historyModal = null;
+    this.#optionsModal = null;
+    this.#rankingModal = null;
+    this.#levelSelectModal = null;
     this.#historyManager = new HistoryManager();
     // Battle mode
     this.#battleManager = null;
@@ -368,7 +388,11 @@ export class GameScene extends Phaser.Scene {
     addBackground(this);
     layout.drawDebugSafeZone(this);
     this.#hudManager = new HudManager(this, this.#mode);
-    this.#hudManager.createHUD({ onMenuOpen: () => this.#openMenu() });
+    this.#hudManager.createHUD({
+      onLauncherOpen: () => this.#openLauncher(),
+      onRankingOpen: () => this.#openRanking(),
+      onReplayOpen: () => this.#handleReplay(),
+    });
     this.#hudManager.onComboTimeout = () => this.#endCombo();
     this.#gm.createContainer(this);
 
@@ -385,9 +409,11 @@ export class GameScene extends Phaser.Scene {
       this.matter.world.pause();
     }
 
-    this.#hudManager.createHelpBtn({
-      onHelpOpen: () => this.#openHelp(),
+    this.#hudManager.createBottomBar({
       onHistoryOpen: () => this.#openHistory(),
+      onHelpOpen: () => this.#openHelp(),
+      onMenuOpen: () => this.#openMenu(),
+      onSettingsOpen: () => this.#openSettings(),
       onPredOpen: () => this.#openPredModal(),
     });
     this.#inputManager = new InputManager(this, {
@@ -403,8 +429,12 @@ export class GameScene extends Phaser.Scene {
           this.#enemyInfoModal ||
           this.#adminModal ||
           this.#powerSelectModal ||
+          this.#optionsModal ||
+          this.#rankingModal ||
+          this.#levelSelectModal ||
           this.#showingAds ||
-          this.#victoryModal
+          this.#victoryModal ||
+          (!optionsManager.animSkipEnabled && this.#gm?.animating)
         ),
     });
     this.#inputManager.bind();
@@ -1268,7 +1298,8 @@ export class GameScene extends Phaser.Scene {
     const W = window.innerWidth;
     const H = window.innerHeight;
     const thickness = 100;
-    // Top edge of the body sits exactly at viewport bottom (H)
+    const wallOpts = { isStatic: true, restitution: 0.1, friction: 0.5 };
+    // Bottom floor — top edge sits exactly at viewport bottom (H)
     this.#physicsFloor = this.matter.add.rectangle(W / 2, H + thickness / 2, W * 4, thickness, {
       isStatic: true,
       label: 'floor',
@@ -1276,6 +1307,24 @@ export class GameScene extends Phaser.Scene {
       frictionStatic: 10.0,
       restitution: 0.02,
     });
+    // Left and right invisible walls — keep dead enemies inside the viewport
+    this.matter.add.rectangle(-thickness / 2, H / 2, thickness, H * 4, { ...wallOpts, label: 'wall-left' });
+    this.matter.add.rectangle(W + thickness / 2, H / 2, thickness, H * 4, { ...wallOpts, label: 'wall-right' });
+
+    // In dev mode, render the walls as semi-transparent overlays for debugging
+    if (import.meta.env.DEV) {
+      const makeWallDebug = (x, w) => {
+        const el = document.createElement('div');
+        el.style.cssText =
+          `position:fixed;top:0;left:${x}px;width:${w}px;height:${H}px;` +
+          `background:rgba(255,80,80,0.35);border:2px dashed red;` +
+          `pointer-events:none;z-index:9999;box-sizing:border-box;`;
+        el.dataset.physicsDebug = 'wall';
+        document.body.appendChild(el);
+      };
+      makeWallDebug(-thickness / 2, thickness); // left wall
+      makeWallDebug(W - thickness / 2, thickness); // right wall
+    }
   }
 
   /**
@@ -2069,38 +2118,74 @@ export class GameScene extends Phaser.Scene {
 
   #openMenu() {
     if (this.#menuModal || this.#gameOverModal) return;
-    saveManager.saveGame({ ...this.#gm.grid.serialize(), mode: this.#mode });
 
     this.#menuModal = new MenuModal(this, {
       showResume: true,
       onResume: () => this.#destroyMenuModal(),
-      onClassic: () => {
+      onLoadGame: (slotData) => {
         this.#destroyMenuModal();
-        this.scene.restart({ mode: 'classic' });
-      },
-      onBattle: () => {
-        this.#destroyMenuModal();
-        this.scene.restart({ mode: 'battle' });
-      },
-      onFree: () => {
-        this.#destroyMenuModal();
-        this.scene.restart({ mode: 'free' });
-      },
-      onReplay: () => {
-        this.#destroyMenuModal();
-        this.scene.restart({
-          mode: this.#mode,
-          battleLevel: this.#battleLevel >= 0 ? this.#battleLevel : undefined,
-        });
-      },
-      onClose: () => this.#destroyMenuModal(),
-      onQuit: () => {
-        this.#destroyMenuModal();
-        saveManager.saveGame({ ...this.#gm.grid.serialize(), mode: this.#mode });
-        this.scene.start(SCENE_KEYS.TITLE);
+        this.scene.restart({ mode: slotData.mode, slotData });
       },
       onSave: () => this.#handleSaveSlot(),
+      onClose: () => this.#destroyMenuModal(),
       onAdmin: () => this.#openAdminMenu(),
+    });
+  }
+
+  #openSettings() {
+    if (this.#optionsModal) return;
+    this.#optionsModal = new OptionsModal(this, {
+      onClose: () => {
+        this.#optionsModal?.destroy();
+        this.#optionsModal = null;
+      },
+    });
+  }
+
+  #openRanking() {
+    if (this.#rankingModal) return;
+    this.#rankingModal = new RankingModal(this, {
+      onClose: () => {
+        this.#rankingModal?.destroy();
+        this.#rankingModal = null;
+      },
+    });
+  }
+
+  #openLauncher() {
+    if (this.#levelSelectModal) return;
+    this.#levelSelectModal = new LevelSelectModal(this, {
+      onSelect: (levelIndex) => {
+        this.#levelSelectModal?.destroy();
+        this.#levelSelectModal = null;
+        this.scene.restart({ mode: 'battle', battleLevel: levelIndex });
+      },
+      onClassic: () => {
+        this.#levelSelectModal?.destroy();
+        this.#levelSelectModal = null;
+        this.scene.restart({ mode: 'classic' });
+      },
+      onFree: () => {
+        this.#levelSelectModal?.destroy();
+        this.#levelSelectModal = null;
+        this.scene.restart({ mode: 'free' });
+      },
+      onLoadGame: (slotData) => {
+        this.#levelSelectModal?.destroy();
+        this.#levelSelectModal = null;
+        this.scene.restart({ mode: slotData.mode, slotData });
+      },
+      onCancel: () => {
+        this.#levelSelectModal?.destroy();
+        this.#levelSelectModal = null;
+      },
+    });
+  }
+
+  #handleReplay() {
+    this.scene.restart({
+      mode: this.#mode,
+      battleLevel: this.#battleLevel >= 0 ? this.#battleLevel : undefined,
     });
   }
 
@@ -2382,8 +2467,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   #onVictory() {
-    audioManager.playSfx('victory');
     this.#victoryShown = true;
+    const isBattle = this.#mode === 'battle';
+    if (isBattle) {
+      // Short delay so the player can see the enemy death animation
+      this.#victoryDelayTimer = setTimeout(() => {
+        this.#victoryDelayTimer = null;
+        this.#showVictoryModal();
+      }, 2000);
+      return;
+    }
+    this.#showVictoryModal();
+  }
+
+  #showVictoryModal() {
+    audioManager.playSfx('victory');
     const isBattle = this.#mode === 'battle';
 
     // Build stats (same structure as game over)
@@ -2441,6 +2539,11 @@ export class GameScene extends Phaser.Scene {
           comboScore: extra.comboScore,
         };
 
+    const nextBattleLevel =
+      isBattle && this.#battleLevel >= 0 && this.#battleLevel < 29
+        ? this.#battleLevel + 1
+        : null;
+
     this.#victoryModal = new VictoryModal(this, {
       score: this.#gm.grid.score,
       mode: this.#mode,
@@ -2453,19 +2556,18 @@ export class GameScene extends Phaser.Scene {
             this.#victoryModal = null;
             // Player continues — game is NOT over
           },
-      onNewGame: () => {
-        this.#victoryModal?.destroy();
-        this.#victoryModal = null;
-        if (isBattle) {
-          this.scene.start(SCENE_KEYS.TITLE, { openBattle: true });
-        } else {
-          this.scene.restart({ mode: this.#mode });
-        }
-      },
+      onNextLevel:
+        nextBattleLevel !== null
+          ? () => {
+              this.#victoryModal?.destroy();
+              this.#victoryModal = null;
+              this.scene.restart({ mode: 'battle', battleLevel: nextBattleLevel });
+            }
+          : undefined,
       onMenu: () => {
         this.#victoryModal?.destroy();
         this.#victoryModal = null;
-        this.scene.start(SCENE_KEYS.TITLE);
+        this.#openLauncher();
       },
     });
   }
@@ -2512,7 +2614,7 @@ export class GameScene extends Phaser.Scene {
       score: this.#gm.grid.score,
       mode: this.#mode,
       stats: extra,
-      onNewGame: () => {
+      onReplay: () => {
         this.#gameOverModal?.destroy();
         this.#gameOverModal = null;
         this.scene.restart({
@@ -2523,7 +2625,7 @@ export class GameScene extends Phaser.Scene {
       onMenu: () => {
         this.#gameOverModal?.destroy();
         this.#gameOverModal = null;
-        this.scene.start(SCENE_KEYS.TITLE);
+        this.#openLauncher();
       },
     });
   }
@@ -3031,10 +3133,20 @@ export class GameScene extends Phaser.Scene {
     this.#destroyMenuModal();
     this.#gameOverModal?.destroy();
     this.#victoryModal?.destroy();
+    if (this.#victoryDelayTimer !== null) {
+      clearTimeout(this.#victoryDelayTimer);
+      this.#victoryDelayTimer = null;
+    }
     this.#powerSelectModal?.destroy();
     this.#adminModal?.destroy();
     this.#helpModal?.destroy();
     this.#helpModal = null;
+    this.#optionsModal?.destroy();
+    this.#optionsModal = null;
+    this.#rankingModal?.destroy();
+    this.#rankingModal = null;
+    this.#levelSelectModal?.destroy();
+    this.#levelSelectModal = null;
     this.#powerInfoDom?.destroy();
     this.#powerInfoAllDom?.destroy();
     this.#criticalOverlay?.remove();
@@ -3052,6 +3164,7 @@ export class GameScene extends Phaser.Scene {
     this.#enemyFriseEl = null;
     // Remove all dead enemy DOM nodes (in-flight or settled)
     document.querySelectorAll('.fm-dead-enemy').forEach((el) => el.remove());
+    document.querySelectorAll('[data-physics-debug="wall"]').forEach((el) => el.remove());
     this.#deadEnemyBodies = [];
     if (this.#matterPauseTimer !== null) {
       clearTimeout(this.#matterPauseTimer);

@@ -93,10 +93,9 @@ describe('HelpModal', () => {
     expect(keys).toEqual(['modes', 'fusion', 'powers', 'predictions', 'enemies', 'hp']);
   });
 
-  it('has a close button', () => {
+  it('does not have a close button (outside-click closes)', () => {
     const btn = document.querySelector('[data-action="close"]');
-    expect(btn).not.toBeNull();
-    expect(btn.textContent).toBe('Close');
+    expect(btn).toBeNull();
   });
 
   it('has a back button initially hidden', () => {
@@ -152,9 +151,9 @@ describe('HelpModal', () => {
     expect(backBtn.style.display).toBe('none');
   });
 
-  it('clicking close calls onClose', () => {
-    const closeBtn = document.querySelector('[data-action="close"]');
-    closeBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+  it('clicking outside the modal calls onClose', () => {
+    const overlay = document.querySelector('#fm-help-overlay');
+    overlay.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

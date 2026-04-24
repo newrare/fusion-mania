@@ -50,9 +50,6 @@ export class RankingDetailModal {
         <div class="fm-modal fm-rank-detail-modal">
           <div class="fm-modal-title" id="fm-rdd-title"></div>
           <div class="fm-rank-detail-body" id="fm-rdd-body"></div>
-          <div class="fm-modal-buttons">
-            <button class="fm-btn" data-action="close">${i18n.t('ranking.close')}</button>
-          </div>
         </div>
       </div>
     `;
@@ -65,10 +62,13 @@ export class RankingDetailModal {
 
     const overlay = this.#domElement.node.querySelector('#fm-rank-detail-overlay');
     overlay?.addEventListener('pointerdown', (e) => {
+      // Click outside modal = close
+      const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
+      if (!modal) { this.#onClose?.(); return; }
+
       const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
       if (!btn) return;
       e.stopPropagation();
-      if (btn.dataset.action === 'close') this.#onClose?.();
       if (btn.dataset.action === 'see-all-enemies') {
         const enemies = JSON.parse(btn.dataset.enemies ?? '[]');
         this.#openAllEnemiesModal(enemies);
@@ -82,8 +82,6 @@ export class RankingDetailModal {
 
     this.#unsubI18n = i18n.onChange(() => {
       this.#renderContent(options);
-      const closeBtn = this.#domElement?.node.querySelector('[data-action="close"]');
-      if (closeBtn) closeBtn.textContent = i18n.t('ranking.close');
     });
   }
 
@@ -217,9 +215,6 @@ export class RankingDetailModal {
           <div class="fm-rank-detail-body">
             <div class="fm-rdd-enemies">${rowsHtml}</div>
           </div>
-          <div class="fm-modal-buttons">
-            <button class="fm-btn" data-action="close-all-enemies">${i18n.t('ranking.close')}</button>
-          </div>
         </div>
       </div>
     `;
@@ -231,10 +226,8 @@ export class RankingDetailModal {
     this.#allEnemiesOverlay.node
       .querySelector('#fm-all-enemies-overlay')
       ?.addEventListener('pointerdown', (e) => {
-        const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
-        if (!btn) return;
-        e.stopPropagation();
-        if (btn.dataset.action === 'close-all-enemies') this.#closeAllEnemiesModal();
+        const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
+        if (!modal) { e.stopPropagation(); this.#closeAllEnemiesModal(); }
       });
 
     this.#allEnemiesKeyHandler = (event) => {

@@ -38,6 +38,7 @@ export class VictoryModal {
    *   mode: string,
    *   stats: object,
    *   onContinue?: Function,
+   *   onNextLevel?: Function,
    *   onNewGame?: Function,
    *   onMenu?: Function,
    * }} options
@@ -53,6 +54,11 @@ export class VictoryModal {
     const continueBtn =
       !isBattle && options.onContinue
         ? `<button class="fm-btn fm-btn--primary" data-action="continue">${i18n.t('victory.continue')}</button>`
+        : '';
+
+    const nextLevelBtn =
+      isBattle && options.onNextLevel
+        ? `<button class="fm-btn fm-btn--primary" data-action="next-level">${i18n.t('victory.next_level')}</button>`
         : '';
 
     const html = `
@@ -73,8 +79,8 @@ export class VictoryModal {
           </div>
           <div class="fm-modal-buttons">
             ${continueBtn}
-            <button class="fm-btn fm-btn--primary" data-action="new-game">${i18n.t('gameover.new_game')}</button>
-            <button class="fm-btn" data-action="quit">${i18n.t('gameover.quit')}</button>
+            ${nextLevelBtn}
+            <button class="fm-btn" data-action="quit">${i18n.t('gameover.menu')}</button>
           </div>
         </div>
       </div>
@@ -92,7 +98,7 @@ export class VictoryModal {
 
       const action = btn.dataset.action;
       if (action === 'continue') options.onContinue?.();
-      else if (action === 'new-game') options.onNewGame?.();
+      else if (action === 'next-level') options.onNextLevel?.();
       else if (action === 'quit') options.onMenu?.();
     });
 
@@ -298,10 +304,8 @@ export class VictoryModal {
     }
     const continueBtn = overlay.querySelector('[data-action="continue"]');
     if (continueBtn) continueBtn.textContent = i18n.t('victory.continue');
-    const newGameBtn = overlay.querySelector('[data-action="new-game"]');
-    if (newGameBtn) newGameBtn.textContent = i18n.t('gameover.new_game');
     const menuBtn = overlay.querySelector('[data-action="quit"]');
-    if (menuBtn) menuBtn.textContent = i18n.t('gameover.quit');
+    if (menuBtn) menuBtn.textContent = i18n.t('gameover.menu');
     requestAnimationFrame(() => this.#alignSunburst());
   }
 

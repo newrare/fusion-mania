@@ -368,6 +368,15 @@ html, body {
   box-shadow: 0 1px 0 var(--fm-hud-shadow, rgba(10,4,30,0.8)), 0 2px 6px var(--fm-hud-glow, rgba(140,80,200,0.15));
 }
 
+/* --- SVG icon inside HUD / bottom-bar buttons --- */
+.fm-hud-icon {
+  width: 60%;
+  height: 60%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: brightness(0) invert(1);
+}
+
 /* --- Score wrap: relative container for combo sticker + bonus float --- */
 .fm-score-wrap {
   position: relative;
@@ -594,6 +603,13 @@ html, body {
   gap: 10px;
   pointer-events: none;
   z-index: 150;
+}
+
+/* Inline variant — positioned via Phaser DOM element, not absolute */
+.fm-title-dev-credit--inline {
+  position: static;
+  width: auto;
+  bottom: auto;
 }
 
 .fm-title-dev-logo {
@@ -1739,7 +1755,7 @@ html, body {
   -webkit-overflow-scrolling: touch;
   margin-bottom: 12px;
 }
-.fm-saveload-mode-col { flex: 0 0 58px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; justify-content: center; padding: 0 4px; }
+.fm-saveload-mode-col { flex: 0 0 58px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; justify-content: center; padding: 0 4px; white-space: nowrap; }
 .fm-saveload-empty { opacity: 0.35; cursor: default; }
 .fm-saveload-row { cursor: pointer; }
 .fm-saveload-row--autosave { color: #7ecfff; }
@@ -2551,14 +2567,13 @@ html, body {
   font-size: 0.8rem;
 }
 
-/* --- Help bar (mode badge = help button, bottom-right safe zone) --- */
+/* --- Help bar (action buttons, bottom-right safe zone) --- */
 
 .fm-help-bar {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  width: calc(3 * var(--fm-hud-box-height, 46px) + 2 * 6px);
 }
 
 .fm-mode-badge {
@@ -2842,6 +2857,34 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
   -webkit-overflow-scrolling: touch;
   max-width: 400px;
   width: 92%;
+}
+
+/* Compact variant — tighter spacing for mobile */
+.fm-level-select-modal--compact .fm-level-tiers {
+  gap: 10px;
+}
+.fm-level-select-modal--compact .fm-level-tier-header {
+  margin-bottom: 5px;
+}
+
+/* Compact level buttons — smaller on mobile */
+.fm-level-btn--compact {
+  font-size: 0.78rem;
+  border-radius: 10px;
+}
+
+/* --- Launcher quick-play row (Classic + Free) --- */
+.fm-launcher-quick {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.fm-launcher-mode-btn {
+  flex: 1;
+  font-size: 0.82rem;
+  padding: 8px 0;
+  min-height: unset;
 }
 
 /* Title centered, total count on its own line below */

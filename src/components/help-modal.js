@@ -54,7 +54,6 @@ export class HelpModal {
           <div class="fm-help-content" id="fm-help-content"></div>
           <div class="fm-modal-buttons">
             <button class="fm-btn fm-help-back" data-action="back" style="display:none">${i18n.t('help.back')}</button>
-            <button class="fm-btn" data-action="close">${i18n.t('help.close')}</button>
           </div>
         </div>
       </div>
@@ -68,13 +67,15 @@ export class HelpModal {
 
     const overlay = this.#domElement.node.querySelector('#fm-help-overlay');
     overlay?.addEventListener('pointerdown', (e) => {
+      // Click outside modal = close
+      const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
+      if (!modal) { this.#onClose?.(); return; }
+
       const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
       if (btn) {
         e.stopPropagation();
         const action = btn.dataset.action;
-        if (action === 'close') {
-          this.#onClose?.();
-        } else if (action === 'back') {
+        if (action === 'back') {
           this.#showIndex();
         }
         return;
@@ -371,8 +372,6 @@ export class HelpModal {
     if (title) title.textContent = i18n.t('help.title');
     const backBtn = node.querySelector('[data-action="back"]');
     if (backBtn) backBtn.textContent = i18n.t('help.back');
-    const closeBtn = node.querySelector('[data-action="close"]');
-    if (closeBtn) closeBtn.textContent = i18n.t('help.close');
   }
 
   destroy() {

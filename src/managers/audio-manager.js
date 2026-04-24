@@ -1,13 +1,13 @@
-import { STORAGE_KEYS, DEFAULT_OPTIONS, AUDIO } from '../configs/constants.js';
+import { AUDIO } from '../configs/constants.js';
+import { optionsManager } from './options-manager.js';
 
 /**
  * AudioManager — manages background music and sound effects using HTML5 Audio.
- * Persists user preferences (music/sound toggles) in localStorage.
+ * User preferences (music/sound toggles) are owned by `optionsManager`; this
+ * class only reacts to changes (pause/resume music, gate SFX playback).
  * Singleton: import { audioManager } from './audio-manager.js'.
  */
 class AudioManager {
-  #options = { ...DEFAULT_OPTIONS };
-
   /** @type {HTMLAudioElement | null} */
   #music = null;
 
@@ -20,26 +20,21 @@ class AudioManager {
   /** @type {boolean} True once the user has interacted (autoplay policy gate) */
   #unlocked = false;
 
-  constructor() {
-    this.#loadOptions();
-  }
-
-  // ─── Options persistence ───────────────────────────
+  // ─── Options (delegated to optionsManager) ─────────
 
   /** @returns {boolean} */
   get musicEnabled() {
-    return this.#options.music;
+    return optionsManager.musicEnabled;
   }
 
   /** @returns {boolean} */
   get soundEnabled() {
-    return this.#options.sound;
+    return optionsManager.soundEnabled;
   }
 
   /** @param {boolean} value */
   setMusic(value) {
-    this.#options.music = value;
-    this.#saveOptions();
+    optionsManager.set('music', value);
     if (value) {
       this.#resumeMusic();
     } else {
@@ -49,23 +44,7 @@ class AudioManager {
 
   /** @param {boolean} value */
   setSound(value) {
-    this.#options.sound = value;
-    this.#saveOptions();
-  }
-
-  #loadOptions() {
-    const raw = localStorage.getItem(STORAGE_KEYS.OPTIONS);
-    if (raw) {
-      try {
-        Object.assign(this.#options, JSON.parse(raw));
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-
-  #saveOptions() {
-    localStorage.setItem(STORAGE_KEYS.OPTIONS, JSON.stringify(this.#options));
+    optionsManager.set('sound', value);
   }
 
   // ─── Preloading ────────────────────────────────────
@@ -92,7 +71,7 @@ class AudioManager {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         this.#pauseMusic();
-      } else if (this.#options.music) {
+      } else if (optionsManager.musicEnabled) {
         this.#resumeMusic();
       }
     });
@@ -121,7 +100,7 @@ class AudioManager {
   unlock() {
     if (this.#unlocked) return;
     this.#unlocked = true;
-    if (this.#options.music) {
+    if (optionsManager.musicEnabled) {
       this.#resumeMusic();
     }
 
@@ -167,7 +146,7 @@ class AudioManager {
    * @param {string} key
    */
   playSfx(key) {
-    if (!this.#options.sound || !this.#unlocked) return;
+    if (!optionsManager.soundEnabled || !this.#unlocked) return;
     const audio = this.#sfxPool.get(key);
     if (!audio) return;
     // Clone to allow overlapping playback

@@ -53,7 +53,7 @@ fusion-mania/
 │   ├── scenes/                # Phaser scenes (one per screen / state)
 │   │   ├── boot-scene.js      # Minimal boot, transitions to preload-scene
 │   │   ├── preload-scene.js   # Asset loading with progress bar
-│   │   ├── title-scene.js     # Title screen — tap/key → opens menu modal
+│   │   ├── title-scene.js     # Title screen — 3 s splash then auto-loads latest save
 │   │   └── game-scene.js      # Main 2048 gameplay (DOM tiles + CSS animations)
 │   │
 │   ├── components/            # DOM-based UI overlays (modals)
@@ -61,13 +61,14 @@ fusion-mania/
 │   │   ├── enemy-info-modal.js# Enemy info display during battle
 │   │   ├── game-over-modal.js # Game over overlay (score + actions)
 │   │   ├── help-modal.js      # In-game help/tutorial (6 categories)
-│   │   ├── menu-modal.js      # Main menu overlay (resume, modes, save, quit)
+│   │   ├── menu-modal.js      # Sub-menu overlay (resume, save, load)
 │   │   ├── options-modal.js   # Options (music, sound, theme, language, reset)
 │   │   ├── power-select-modal.js  # Pre-game power selection (Free mode)
 │   │   ├── ranking-detail-modal.js# Detailed ranking entry view
 │   │   ├── ranking-modal.js   # Leaderboard with tabs (Classic, Battle, Free)
 │   │   ├── history-modal.js   # Game event history/log modal
 │   │   ├── save-load-modal.js # Save/Load game slots management
+│   │   ├── level-select-modal.js  # Game launcher (Classic, Free, Battle levels, Load)
 │   │   ├── tile-renderer.js   # Tile DOM rendering helper (value, power, state)
 │   │   └── victory-modal.js   # 2048 victory celebration
 │   │
@@ -88,6 +89,7 @@ fusion-mania/
 │   │   ├── i18n-manager.js    # Locale switching & translation lookups (singleton)
 │   │   ├── input-manager.js   # Keyboard + swipe input (detect-on-move architecture)
 │   │   ├── layout-manager.js  # Responsive layout & CSS custom properties (singleton)
+│   │   ├── options-manager.js # User preferences persistence (music, sound, animSkip)
 │   │   ├── power-manager.js   # Power assignment, activation, prediction (Free/Battle)
 │   │   ├── save-manager.js    # Persistence: rankings, save slots, auto-save (singleton)
 │   │   └── theme-manager.js   # Tile color theme switching (singleton)
@@ -159,6 +161,7 @@ Managers are **singleton-ish** classes for cross-cutting concerns:
 - **InputManager** — keyboard (arrows/WASD) and touch swipe handling. Uses a **detect-on-move** architecture: direction fires during `touchmove` as soon as the finger crosses `SWIPE_THRESHOLD` px, with a one-direction-per-gesture flag. No time-based cooldown — ghost events are rejected structurally (near-zero displacement). 34 unit tests.
 - **I18nManager** — singleton handling locale selection, translation lookups (`i18n.t('key')`), and persistence to `localStorage`. See [TRANSLATE.md](TRANSLATE.md).
 - **LayoutManager** — singleton computing responsive layout from viewport. See [LAYOUT.md](LAYOUT.md).
+- **OptionsManager** — singleton owning `STORAGE_KEYS.OPTIONS` (music, sound, animSkip). `AudioManager` delegates music/sound persistence here; `OptionsModal` and `GameScene` read/write `animSkip` directly.
 - **PowerManager** — handles power assignment, activation of all 16 power types, and directional prediction for edge indicators. Used in Free and Battle modes.
 - **SaveManager** — singleton persisting game state to `localStorage`: auto-save, manual save slots (up to 10), and per-mode rankings (top 10). See [SAVE.md](SAVE.md).
 - **BattleManager** — handles enemy spawn logic, contamination, damage, and level progression. See [BATTLE.md](BATTLE.md).

@@ -472,12 +472,16 @@
 .fm-expel-mark {
   position: absolute;
   pointer-events: none;
-  font-weight: 900;
   color: rgba(80, 0, 160, 0.80);
-  text-shadow: 0 1px 4px rgba(120, 0, 220, 0.45);
+  filter: drop-shadow(0 1px 4px rgba(120, 0, 220, 0.45));
   z-index: 5;
-  line-height: 1;
   animation: fm-expel-float var(--fm-ed, 2.6s) var(--fm-edl, 0s) ease-in-out infinite;
+}
+
+.fm-expel-ico {
+  display: block;
+  width: var(--fm-esz, 0.80rem);
+  height: var(--fm-esz, 0.80rem);
 }
 
 /* --- Wind overlay: single full-grid overlay (replaces per-tile animated lines) --- */

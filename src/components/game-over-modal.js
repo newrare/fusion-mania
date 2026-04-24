@@ -47,7 +47,7 @@ export class GameOverModal {
    *     enemyMaxLevel?: number,
    *     defeatedEnemies?: { name: string, level: number }[],
    *   },
-   *   onNewGame?: Function,
+   *   onReplay?: Function,
    *   onMenu?: Function,
    * }} options
    */
@@ -74,8 +74,8 @@ export class GameOverModal {
             ${this.#renderRankObtained()}
           </div>
           <div class="fm-modal-buttons">
-            <button class="fm-btn fm-btn--primary" data-action="new-game">${i18n.t('gameover.new_game')}</button>
-            <button class="fm-btn" data-action="quit">${i18n.t('gameover.quit')}</button>
+            <button class="fm-btn fm-btn--primary" data-action="replay">${i18n.t('gameover.replay')}</button>
+            <button class="fm-btn" data-action="quit">${i18n.t('gameover.menu')}</button>
           </div>
         </div>
       </div>
@@ -92,7 +92,7 @@ export class GameOverModal {
       e.stopPropagation();
 
       const action = btn.dataset.action;
-      if (action === 'new-game') options.onNewGame?.();
+      if (action === 'replay') options.onReplay?.();
       else if (action === 'quit') options.onMenu?.();
     });
 
@@ -251,10 +251,10 @@ export class GameOverModal {
     if (title) title.textContent = i18n.t('gameover.title');
     const label = overlay.querySelector('.fm-score-label');
     if (label) label.textContent = i18n.t('gameover.score');
-    const newGameBtn = overlay.querySelector('[data-action="new-game"]');
-    if (newGameBtn) newGameBtn.textContent = i18n.t('gameover.new_game');
+    const replayBtn = overlay.querySelector('[data-action="replay"]');
+    if (replayBtn) replayBtn.textContent = i18n.t('gameover.replay');
     const menuBtn = overlay.querySelector('[data-action="quit"]');
-    if (menuBtn) menuBtn.textContent = i18n.t('gameover.quit');
+    if (menuBtn) menuBtn.textContent = i18n.t('gameover.menu');
     const statsEl = overlay.querySelector('#fm-gameover-stats');
     if (statsEl) statsEl.innerHTML = this.#renderStats();
     const rankingEl = overlay.querySelector('#fm-gameover-ranking');

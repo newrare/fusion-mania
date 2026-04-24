@@ -1,59 +1,46 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS } from '../configs/constants.js';
-import { i18n } from '../managers/i18n-manager.js';
 import { layout } from '../managers/layout-manager.js';
 import { audioManager } from '../managers/audio-manager.js';
-import { MenuModal } from '../components/menu-modal.js';
-import { LevelSelectModal } from '../components/level-select-modal.js';
+import { saveManager } from '../managers/save-manager.js';
 import { addBackground } from '../utils/background.js';
 
 export class TitleScene extends Phaser.Scene {
   /** @type {Phaser.GameObjects.DOMElement | null} */
   #titleOverlay = null;
 
-  /** @type {HTMLElement | null} */
-  #devCreditEl = null;
-
   /** @type {Phaser.GameObjects.DOMElement | null} */
-  #promptElement = null;
-
-  /** @type {MenuModal | null} */
-  #menuModal = null;
-
-  /** @type {LevelSelectModal | null} */
-  #levelSelectModal = null;
+  #devCreditDom = null;
 
   /** @type {ReturnType<typeof setTimeout> | null} */
   #logoAppearTimer = null;
 
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  #autoTransitionTimer = null;
+
   /** @type {boolean} */
-  #openBattle = false;
+  #transitioned = false;
 
   constructor() {
     super({ key: SCENE_KEYS.TITLE });
   }
 
-  /** @param {{ openBattle?: boolean }} [data] */
-  init(data) {
-    this.#openBattle = data?.openBattle ?? false;
-  }
-
   create() {
-    // Clean up any DOM nodes left over from GameScene (dead enemies, critical
-    // overlay, etc.) — simpler than relying solely on GameScene.shutdown().
+    // Clean up any DOM nodes left over from GameScene
     document
       .querySelectorAll(
         '.fm-dead-enemy, .fm-enemy-area, .fm-contaminate-particle, .fm-critical-overlay',
       )
       .forEach((el) => el.remove());
 
-    // Recalculate layout with real viewport dimensions at the moment create() runs.
     layout.update(window.innerWidth, window.innerHeight);
 
     addBackground(this);
     layout.drawDebugSafeZone(this);
 
-    // Logo — full-screen CSS flex overlay, no layout calculations needed
+    this.#transitioned = false;
+
+    // Logo — full-screen CSS flex overlay
     this.#titleOverlay = this.add.dom(0, 0).createFromHTML(`
         <div class="fm-title-overlay">
           <div class="fm-title-logo-wrapper" id="fm-logo-wrapper">
@@ -68,150 +55,78 @@ export class TitleScene extends Phaser.Scene {
       const wrapper = document.getElementById('fm-logo-wrapper');
       if (!wrapper) return;
       wrapper.classList.add('fm-logo-visible');
-      // Switch to floating after bounce-in completes (700 ms)
       setTimeout(() => {
         if (wrapper.isConnected) wrapper.classList.add('fm-logo-floating');
       }, 700);
     }, 500);
 
+    // Dev credit shown directly (replaces "tap to start")
     const { safe } = layout;
-    const promptY = safe.top + safe.height * 0.7;
-
-    this.#promptElement = this.add
-      .dom(safe.cx, promptY)
-      .createFromHTML(`<div class="fm-title-prompt">${i18n.t('title.prompt')}</div>`);
-    this.#promptElement.setOrigin(0.5);
-
-    // Any key or tap → open menu
-    this.input.keyboard.on('keydown', this.#openMenu, this);
-    this.input.on('pointerdown', this.#openMenu, this);
-
-    if (this.#openBattle) {
-      this.#openBattle = false;
-      this.time.delayedCall(100, () => this.#openLevelSelectDirect());
-    }
-  }
-
-  #openLevelSelectDirect() {
-    this.input.keyboard.off('keydown', this.#openMenu, this);
-    this.input.off('pointerdown', this.#openMenu, this);
-    audioManager.unlock();
-    this.#levelSelectModal = new LevelSelectModal(this, {
-      onSelect: (levelIndex) => {
-        this.#levelSelectModal?.destroy();
-        this.#levelSelectModal = null;
-        this.#removeDevCredit();
-        this.scene.start(SCENE_KEYS.GRID, { mode: 'battle', battleLevel: levelIndex });
-      },
-      onCancel: () => {
-        this.#levelSelectModal?.destroy();
-        this.#levelSelectModal = null;
-        this.input.keyboard.on('keydown', this.#openMenu, this);
-        this.input.on('pointerdown', this.#openMenu, this);
-      },
-    });
-  }
-
-  #openMenu = () => {
-    // Prevent multiple modals
-    if (this.#menuModal) return;
-
-    // Unlock audio on first user interaction (browser autoplay policy)
-    audioManager.unlock();
-
-    this.input.keyboard.off('keydown', this.#openMenu, this);
-    this.input.off('pointerdown', this.#openMenu, this);
-
-    // Inject dev credit now — removed again when the modal closes or navigates away
-    const gameContainer = document.getElementById('game-container');
-    if (gameContainer && !this.#devCreditEl) {
-      this.#devCreditEl = document.createElement('div');
-      this.#devCreditEl.className = 'fm-title-dev-credit';
-      this.#devCreditEl.innerHTML = `
-        <img class="fm-title-dev-logo" src="/images/newrare.png" alt="Newrare" />
-        <div class="fm-title-dev-info">
-          <span>A Newrare Game</span>
-          <span class="fm-title-version">v1.0</span>
+    const creditY = safe.top + safe.height * 0.75;
+    this.#devCreditDom = this.add
+      .dom(safe.cx, creditY)
+      .createFromHTML(`
+        <div class="fm-title-dev-credit fm-title-dev-credit--inline">
+          <img class="fm-title-dev-logo" src="/images/newrare.png" alt="Newrare" />
+          <div class="fm-title-dev-info">
+            <span>A Newrare Game</span>
+            <span class="fm-title-version">v1.0</span>
+          </div>
         </div>
-      `;
-      gameContainer.appendChild(this.#devCreditEl);
-    }
+      `);
+    this.#devCreditDom.setOrigin(0.5, 0);
 
-    this.#menuModal = new MenuModal(this, {
-      showResume: false,
-      onSubModalOpen: () => {
-        if (this.#devCreditEl) this.#devCreditEl.style.display = 'none';
-      },
-      onSubModalClose: () => {
-        if (this.#devCreditEl) this.#devCreditEl.style.display = '';
-      },
-      onClassic: () => {
-        this.#removeDevCredit();
-        this.#destroyModal();
-        this.scene.start(SCENE_KEYS.GRID, { mode: 'classic' });
-      },
-      onBattle: () => {
-        if (this.#devCreditEl) this.#devCreditEl.style.display = 'none';
-        this.#levelSelectModal = new LevelSelectModal(this, {
-          onSelect: (levelIndex) => {
-            this.#levelSelectModal?.destroy();
-            this.#levelSelectModal = null;
-            this.#removeDevCredit();
-            this.#destroyModal();
-            this.scene.start(SCENE_KEYS.GRID, { mode: 'battle', battleLevel: levelIndex });
-          },
-          onCancel: () => {
-            this.#levelSelectModal?.destroy();
-            this.#levelSelectModal = null;
-            if (this.#devCreditEl) this.#devCreditEl.style.display = '';
-          },
-        });
-      },
-      onFree: () => {
-        this.#removeDevCredit();
-        this.#destroyModal();
-        this.scene.start(SCENE_KEYS.GRID, { mode: 'free' });
-      },
-      onLoadGame: (slotData) => {
-        this.#removeDevCredit();
-        this.#destroyModal();
-        this.scene.start(SCENE_KEYS.GRID, { mode: slotData.mode, slotData });
-      },
-      onClose: () => {
-        this.#removeDevCredit();
-        this.#destroyModal();
-        // Wait 150 ms before re-binding so the touch-end / pointer-up from the
-        // close button fully completes and cannot ghost-trigger #openMenu.
-        this.time.delayedCall(150, () => {
-          this.input.keyboard.on('keydown', this.#openMenu, this);
-          this.input.on('pointerdown', this.#openMenu, this);
-        });
-      },
-    });
+    // Unlock audio on first user interaction
+    this.input.keyboard.on('keydown', this.#unlockAudio, this);
+    this.input.on('pointerdown', this.#unlockAudio, this);
+
+    // Auto-transition after 3 seconds → load latest save or new classic game
+    this.#autoTransitionTimer = setTimeout(() => {
+      this.#autoTransitionTimer = null;
+      this.#goToGame();
+    }, 3000);
+  }
+
+  #unlockAudio = () => {
+    audioManager.unlock();
+    this.input.keyboard.off('keydown', this.#unlockAudio, this);
+    this.input.off('pointerdown', this.#unlockAudio, this);
   };
 
-  #destroyModal() {
-    if (this.#menuModal) {
-      this.#menuModal.destroy();
-      this.#menuModal = null;
-    }
-    if (this.#levelSelectModal) {
-      this.#levelSelectModal.destroy();
-      this.#levelSelectModal = null;
-    }
-  }
+  #goToGame() {
+    if (this.#transitioned) return;
+    this.#transitioned = true;
 
-  #removeDevCredit() {
-    this.#devCreditEl?.remove();
-    this.#devCreditEl = null;
+    // Try loading the most recent save (auto-save or latest manual slot)
+    const autoSave = saveManager.loadAutoSave();
+    const slots = saveManager.getSlots().filter((s) => s != null);
+
+    // Pick the most recent save across auto-save and manual slots
+    let bestSave = null;
+    if (autoSave) bestSave = autoSave;
+    for (const slot of slots) {
+      if (!bestSave || (slot.date ?? 0) > (bestSave.date ?? 0)) {
+        bestSave = slot;
+      }
+    }
+
+    if (bestSave) {
+      this.scene.start(SCENE_KEYS.GRID, { mode: bestSave.mode ?? 'classic', slotData: bestSave });
+    } else {
+      this.scene.start(SCENE_KEYS.GRID, { mode: 'classic' });
+    }
   }
 
   shutdown() {
-    this.#destroyModal();
-    this.#removeDevCredit();
     if (this.#logoAppearTimer !== null) {
       clearTimeout(this.#logoAppearTimer);
       this.#logoAppearTimer = null;
     }
+    if (this.#autoTransitionTimer !== null) {
+      clearTimeout(this.#autoTransitionTimer);
+      this.#autoTransitionTimer = null;
+    }
+    this.#devCreditDom?.destroy();
+    this.#devCreditDom = null;
   }
 }

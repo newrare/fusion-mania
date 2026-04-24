@@ -241,13 +241,13 @@ export class TileRenderer {
   /**
    * Inject animated expel-mark children for the ghost-h / ghost-v tile state.
    * The number of marks matches the remaining state turns (max 3).
-   * ↔ for horizontal expel, ↕ for vertical expel.
+   * Uses s-exp-r for horizontal expel, s-exp-d (rotated 90°) for vertical expel.
    * @param {HTMLElement} el
    * @param {'ghost-h'|'ghost-v'} state
    * @param {number} [turns]
    */
   static #injectExpelMarks(el, state, turns = 3) {
-    const icon = state === 'ghost-h' ? '↔' : '↕';
+    const symId = state === 'ghost-h' ? 's-exp-r' : 's-exp-d';
     const marks = [
       { top: '10%', left: '55%', sz: '0.80rem', ed: '2.5s', edl: '0s' },
       { top: '42%', left: '14%', sz: '0.70rem', ed: '2.9s', edl: '-1.0s' },
@@ -257,8 +257,8 @@ export class TileRenderer {
     for (const m of marks.slice(0, count)) {
       const span = document.createElement('span');
       span.className = 'fm-expel-mark';
-      span.textContent = icon;
-      span.style.cssText = `top:${m.top};left:${m.left};font-size:${m.sz};--fm-ed:${m.ed};--fm-edl:${m.edl}`;
+      span.style.cssText = `top:${m.top};left:${m.left};--fm-esz:${m.sz};--fm-ed:${m.ed};--fm-edl:${m.edl}`;
+      span.innerHTML = `<svg class="fm-expel-ico" aria-hidden="true"><use href="#${symId}"/></svg>`;
       el.appendChild(span);
     }
   }

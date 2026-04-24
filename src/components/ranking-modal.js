@@ -36,10 +36,6 @@ export class RankingModal {
     this.#scene = scene;
     this.#onClose = options.onClose ?? null;
 
-    const resumeBtn = options.showResume
-      ? `<button class="fm-btn fm-btn--primary" data-action="resume">${i18n.t('menu.resume')}</button>`
-      : '';
-
     const html = `
       <div class="fm-modal-overlay" id="fm-ranking-overlay">
         <div class="fm-modal fm-ranking-modal">
@@ -50,10 +46,6 @@ export class RankingModal {
             <button class="fm-ranking-tab fm-clickable" data-tab="classic">${i18n.t('ranking.classic')}</button>
           </div>
           <div class="fm-ranking-table-wrap" id="fm-ranking-table-wrap"></div>
-          <div class="fm-modal-buttons">
-            ${resumeBtn}
-            <button class="fm-btn" data-action="close">${i18n.t('ranking.close')}</button>
-          </div>
         </div>
       </div>
     `;
@@ -66,6 +58,10 @@ export class RankingModal {
 
     const overlay = this.#domElement.node.querySelector('#fm-ranking-overlay');
     overlay?.addEventListener('pointerdown', (e) => {
+      // Click outside modal = close
+      const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
+      if (!modal) { this.#onClose?.(); return; }
+
       const tab = /** @type {HTMLElement} */ (e.target).closest('[data-tab]');
       if (tab) {
         e.stopPropagation();
@@ -75,8 +71,6 @@ export class RankingModal {
       const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
       if (btn) {
         e.stopPropagation();
-        if (btn.dataset.action === 'resume') options.onResume?.();
-        else if (btn.dataset.action === 'close') this.#onClose?.();
         return;
       }
       const row = /** @type {HTMLElement} */ (e.target).closest('[data-rank-index]');

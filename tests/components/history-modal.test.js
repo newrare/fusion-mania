@@ -234,12 +234,11 @@ describe('HistoryModal', () => {
 
   // ─── CLOSE BUTTON ────────────────────────────────
 
-  it('calls onClose when close button is clicked', () => {
+  it('calls onClose when clicking outside the modal', () => {
     new HistoryModal(scene, { historyManager: hm, onClose });
 
-    const closeBtn = document.querySelector('[data-action="close"]');
-    expect(closeBtn).not.toBeNull();
-    closeBtn.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    const overlay = document.querySelector('#fm-history-overlay');
+    overlay.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

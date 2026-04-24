@@ -35,6 +35,7 @@ vi.stubGlobal('Audio', MockAudio);
 
 const { OptionsModal } = await import('../../src/components/options-modal.js');
 const { audioManager } = await import('../../src/managers/audio-manager.js');
+const { optionsManager } = await import('../../src/managers/options-manager.js');
 
 /* ── Minimal Phaser scene stub ──────────────────────────── */
 
@@ -88,6 +89,7 @@ describe('OptionsModal', () => {
     vi.clearAllMocks();
     audioManager.setMusic(true);
     audioManager.setSound(true);
+    optionsManager.set('animSkip', false);
     scene = createMockScene();
     onClose = vi.fn();
     modal = new OptionsModal(scene, { onClose });
@@ -117,9 +119,15 @@ describe('OptionsModal', () => {
     expect(label.textContent).toBe('ON');
   });
 
-  it('has 4 option rows (music, sound, theme, language)', () => {
+  it('has 5 option rows (music, sound, theme, language, anim-skip)', () => {
     const rows = document.querySelectorAll('.fm-option-row');
-    expect(rows.length).toBe(4);
+    expect(rows.length).toBe(5);
+  });
+
+  it('renders anim-skip toggle row defaulting to OFF', () => {
+    const label = document.querySelector('#fm-anim-skip-label');
+    expect(label).not.toBeNull();
+    expect(label.textContent).toBe('OFF');
   });
 
   // ─── MUSIC TOGGLE ─────────────────────────────────
@@ -156,11 +164,28 @@ describe('OptionsModal', () => {
     expect(btn.textContent).toBe('ON');
   });
 
+  // ─── ANIM-SKIP TOGGLE ─────────────────────────────
+
+  it('toggles anim-skip on on click', () => {
+    const btn = document.querySelector('[data-action="anim-skip"]');
+    click(btn);
+    expect(optionsManager.animSkipEnabled).toBe(true);
+    expect(btn.textContent).toBe('ON');
+  });
+
+  it('toggles anim-skip back off', () => {
+    const btn = document.querySelector('[data-action="anim-skip"]');
+    click(btn); // ON
+    click(btn); // OFF
+    expect(optionsManager.animSkipEnabled).toBe(false);
+    expect(btn.textContent).toBe('OFF');
+  });
+
   // ─── CLOSE ────────────────────────────────────────
 
-  it('calls onClose when close button is clicked', () => {
-    const btn = document.querySelector('[data-action="close"]');
-    click(btn);
+  it('calls onClose when clicking outside the modal', () => {
+    const overlay = document.querySelector('#fm-options-overlay');
+    overlay.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     expect(onClose).toHaveBeenCalled();
   });
 

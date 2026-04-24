@@ -50,9 +50,6 @@ export class SaveLoadModal {
         <div class="fm-modal fm-saveload-modal">
           <div class="fm-modal-title">${i18n.t('save.title')}</div>
           <div class="fm-saveload-table-wrap" id="fm-saveload-table-wrap"></div>
-          <div class="fm-modal-buttons">
-            <button class="fm-btn" data-action="close">${i18n.t('save.close')}</button>
-          </div>
         </div>
       </div>
     `;
@@ -67,12 +64,14 @@ export class SaveLoadModal {
     overlay?.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
 
+      // Click outside modal = close
+      const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
+      if (!modal) { this.#onClose?.(); return; }
+
       const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
       if (btn) {
         const action = btn.dataset.action;
-        if (action === 'close') {
-          this.#onClose?.();
-        } else if (action === 'load-auto') {
+        if (action === 'load-auto') {
           this.#handleLoadAutoSave();
         } else if (action === 'load') {
           const idx = parseInt(btn.dataset.slot, 10);

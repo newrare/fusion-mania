@@ -32,7 +32,9 @@ Fusion Mania is a 2048-style puzzle game (mobile-first, vertical orientation) bu
 
 ### Scene flow
 
-`BootScene` → `PreloadScene` → `TitleScene` → `GameScene`
+`BootScene` → `PreloadScene` → `TitleScene` (3 s auto-transition) → `GameScene`
+
+TitleScene displays the logo and dev credit for 3 seconds then automatically loads the most recent save (auto-save or manual slot). If no save exists, a new Classic game starts. There is no menu modal on the title screen.
 
 Scenes are thin and delegate everything to managers. The main gameplay scene is `src/scenes/game-scene.js`. It delegates input to `InputManager` and HUD/combo to `HudManager`.
 
@@ -78,7 +80,7 @@ To add a new animation: add a keyframe to `src/styles/main.css`, add a method to
 ### Save & i18n
 
 - `SaveManager` — `localStorage` persistence for game state, per-mode rankings (top 10), save slots (up to 10), and auto-save (after every move). Rankings store score, date, maxTile, moves, fusions, and (for free mode) selected powers, (for battle mode) enemies defeated. Save slots store full game state including tile powers, states, grid life, battle/power manager state.
-- `SaveLoadModal` (`src/components/save-load-modal.js`) — Modal listing saved game slots with mode, date, score, and max tile. Accessible from the title menu (Load) and in-game menu (Save).
+- `SaveLoadModal` (`src/components/save-load-modal.js`) — Modal listing saved game slots with mode, date, score, and max tile. Accessible from the in-game sub-menu (menu-folder) and the game launcher modal.
 - `I18nManager` — English/French via `src/locales/`. Keys are dot-separated (`menu.play`). Never hardcode user-facing strings; always use `i18n.t('key')`.
 
 ### Ranking modal
@@ -87,7 +89,17 @@ To add a new animation: add a keyframe to `src/styles/main.css`, add a method to
 
 ### Help modal
 
-`HelpModal` (`src/components/help-modal.js`) is an in-game help/tutorial overlay accessible via the `?` button in the HUD (between stat3 and menu). Two-level navigation: index of 6 categories → detail view with back button. Categories: game modes, fusion, powers (with SVG icons), predictions, enemies, grid life. Fully i18n-aware (EN/FR) and keyboard-navigable. 29 unit tests in `tests/components/help-modal.test.js`.
+`HelpModal` (`src/components/help-modal.js`) is an in-game help/tutorial overlay. Two-level navigation: index of 6 categories → detail view with back button. Categories: game modes, fusion, powers (with SVG icons), predictions, enemies, grid life. Fully i18n-aware (EN/FR) and keyboard-navigable. 29 unit tests in `tests/components/help-modal.test.js`.
+
+### In-game HUD buttons
+
+**Top row** (HUD): stat cards + menu-folder.svg (sub-menu) + menu-setting.svg (options).
+**Bottom-right bar**: menu-ranking.svg (ranking) + menu-list.svg (game launcher) + menu-replay.svg (replay).
+
+The **sub-menu** (menu-folder) opens `MenuModal` with Resume, Load Game, and Save Game.
+The **game launcher** (menu-list) opens `LevelSelectModal` — a general launcher for Classic, Free, and Battle modes plus a Load Game button.
+
+`LevelSelectModal` (`src/components/level-select-modal.js`) now serves as the main game launcher. It has a quick-play row (Classic + Free), battle level tiers with success counters, and a Load Game button.
 
 ### Battle mode
 
@@ -101,7 +113,7 @@ To add a new animation: add a keyframe to `src/styles/main.css`, add a method to
 
 **SFX triggers**: `playSfx(key)` for UI/game events (fusion, victory, gameOver, notification, click), `playPowerSfx(powerType)` for power activations. A global `pointerdown` delegation on `.fm-btn` / `.fm-theme-btn` provides click SFX for all buttons.
 
-**Options**: Music and sound toggles are in `OptionsModal`. Preferences are persisted to localStorage via `STORAGE_KEYS.OPTIONS`. 16 audio-manager tests + 11 options-modal tests.
+**Options**: Music, sound and "skip animations" toggles are in `OptionsModal`. All three preferences are owned by `optionsManager` ([src/managers/options-manager.js](src/managers/options-manager.js)) — a singleton that is the single source of truth for `STORAGE_KEYS.OPTIONS` in localStorage. `audioManager` reads/writes music + sound through `optionsManager` but keeps its side-effect API (pause/resume music, gate SFX). The `animSkip` flag (default `false`) controls whether a new swipe/key press is accepted mid-animation — when off, inputs are dropped until the current animation finishes (enforced via `isBlocked` in `GameScene` against `GridManager.animating`); when on, the interruption model in [docs/ANIMATION.md](docs/ANIMATION.md) kicks in.
 
 ### Keyboard navigation
 

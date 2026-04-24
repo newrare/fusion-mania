@@ -54,7 +54,6 @@ export class PowerSelectModal {
           <div class="fm-power-grid">${powersHtml}</div>
           <div class="fm-modal-buttons">
             <button class="fm-btn fm-btn--primary" id="fm-power-start-btn" disabled>${i18n.t('free.start')}</button>
-            <button class="fm-btn" data-action="cancel">${i18n.t('menu.close')}</button>
           </div>
         </div>
       </div>
@@ -66,6 +65,10 @@ export class PowerSelectModal {
 
     const overlay = this.#domElement.node.querySelector('#fm-power-select-overlay');
     overlay?.addEventListener('pointerdown', (e) => {
+      // Click outside modal = cancel
+      const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
+      if (!modal) { this.#onCancel?.(); return; }
+
       const item = /** @type {HTMLElement} */ (e.target).closest('.fm-power-item');
       if (item) {
         e.stopPropagation();
@@ -73,16 +76,12 @@ export class PowerSelectModal {
         return;
       }
 
-      const btn = /** @type {HTMLElement} */ (e.target).closest(
-        '[data-action], #fm-power-start-btn',
-      );
+      const btn = /** @type {HTMLElement} */ (e.target).closest('#fm-power-start-btn');
       if (!btn) return;
       e.stopPropagation();
 
       if (btn.id === 'fm-power-start-btn' && !btn.disabled) {
         this.#onStart?.([...this.#selected]);
-      } else if (btn.dataset.action === 'cancel') {
-        this.#onCancel?.();
       }
     });
 

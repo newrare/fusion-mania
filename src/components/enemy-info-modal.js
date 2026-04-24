@@ -78,7 +78,6 @@ export class EnemyInfoModal {
           <div class="fm-ei-powers">
             ${powersHtml || '<span class="fm-ei-no-powers">—</span>'}
           </div>
-          <button class="fm-btn fm-ei-close" tabindex="0">${i18n.t('menu.close')}</button>
         </div>
       </div>
     `;
@@ -88,9 +87,9 @@ export class EnemyInfoModal {
 
     const overlay = this.#domElement.node.querySelector('#fm-enemy-info-overlay');
 
-    overlay.querySelector('.fm-ei-close').addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      this.#onClose?.();
+    overlay?.addEventListener('pointerdown', (e) => {
+      const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
+      if (!modal) { e.stopPropagation(); this.#onClose?.(); }
     });
 
     this.#keyNav = enableKeyboardNav(overlay, scene.input.keyboard);
