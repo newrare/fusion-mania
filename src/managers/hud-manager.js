@@ -71,9 +71,9 @@ export class HudManager {
 
   /**
    * Build and mount the HUD overlay.
-   * @param {{ onLauncherOpen: () => void, onRankingOpen: () => void, onReplayOpen: () => void }} callbacks
+   * @param {{ onLauncherOpen: () => void }} callbacks
    */
-  createHUD({ onLauncherOpen, onRankingOpen, onReplayOpen }) {
+  createHUD({ onLauncherOpen }) {
     const html = `
       <div class="fm-hud">
         <div class="fm-hud-row">
@@ -110,8 +110,6 @@ export class HudManager {
             </div>
           </div>
           <div class="fm-menu-btn" id="fm-launcher-top-btn"><img src="/images/menu-list.svg" alt="Launcher" class="fm-hud-icon" /></div>
-          <div class="fm-menu-btn" id="fm-ranking-top-btn"><img src="/images/menu-ranking.svg" alt="Ranking" class="fm-hud-icon" /></div>
-          <div class="fm-menu-btn" id="fm-replay-top-btn"><img src="/images/menu-replay.svg" alt="Replay" class="fm-hud-icon" /></div>
         </div>
       </div>
     `;
@@ -126,18 +124,6 @@ export class HudManager {
       onLauncherOpen?.();
     });
 
-    const rankingTopBtn = this.#hudEl.querySelector('#fm-ranking-top-btn');
-    rankingTopBtn?.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      onRankingOpen?.();
-    });
-
-    const replayTopBtn = this.#hudEl.querySelector('#fm-replay-top-btn');
-    replayTopBtn?.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      onReplayOpen?.();
-    });
-
     this.#comboEl = this.#hudEl.querySelector('#fm-combo-display');
     this.#scoreBonusEl = this.#hudEl.querySelector('#fm-score-bonus');
 
@@ -147,17 +133,26 @@ export class HudManager {
 
   /**
    * Create the floating bottom bars:
-   * - Bottom-LEFT: (! → pred) + (modeIcon → history)
-   * - Bottom-RIGHT: (? → help) + (folder → sub-menu) + (setting → settings)
+   * - Bottom-LEFT: (ranking) + (modeIcon → history) + (! → pred)
+   * - Bottom-RIGHT: (? → help) + (folder → sub-menu) + column[(replay) / (setting → settings)]
    * The "!" button is hidden by default; call setPredBtnVisible() to toggle it.
-   * @param {{ onHistoryOpen: () => void, onHelpOpen: () => void, onMenuOpen: () => void, onSettingsOpen: () => void, onPredOpen?: () => void }} callbacks
+   * @param {{ onHistoryOpen: () => void, onHelpOpen: () => void, onMenuOpen: () => void, onSettingsOpen: () => void, onRankingOpen: () => void, onReplayOpen: () => void, onPredOpen?: () => void }} callbacks
    */
-  createBottomBar({ onHistoryOpen, onHelpOpen, onMenuOpen, onSettingsOpen, onPredOpen }) {
+  createBottomBar({
+    onHistoryOpen,
+    onHelpOpen,
+    onMenuOpen,
+    onSettingsOpen,
+    onRankingOpen,
+    onReplayOpen,
+    onPredOpen,
+  }) {
     const modeIcon = HudManager.#MODE_ICONS[this.#mode] ?? '🎮';
 
-    // ── Bottom-LEFT: history + pred ──
+    // ── Bottom-LEFT: ranking + history + pred ──
     const leftHtml = `
       <div class="fm-help-bar">
+        <button class="fm-mode-badge fm-clickable" id="fm-ranking-btn" aria-label="Ranking"><img src="/images/menu-ranking.svg" alt="Ranking" class="fm-hud-icon" /></button>
         <button class="fm-mode-badge fm-clickable" id="fm-history-mode-btn" aria-label="History">${modeIcon}</button>
         <button class="fm-mode-badge fm-clickable fm-pred-btn" id="fm-pred-btn" aria-label="Predictions" style="display:none">!</button>
       </div>
@@ -166,6 +161,13 @@ export class HudManager {
       .dom(layout.safe.left, layout.safe.bottom - 15)
       .createFromHTML(leftHtml);
     this.#historyBtnDom.setOrigin(0, 1);
+
+    this.#historyBtnDom.node
+      .querySelector('#fm-ranking-btn')
+      ?.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        onRankingOpen?.();
+      });
 
     this.#historyBtnDom.node
       .querySelector('#fm-history-mode-btn')
@@ -180,12 +182,15 @@ export class HudManager {
       onPredOpen?.();
     });
 
-    // ── Bottom-RIGHT: help + menu + settings ──
+    // ── Bottom-RIGHT: help + menu + (replay stacked above settings) ──
     const rightHtml = `
       <div class="fm-help-bar">
         <button class="fm-mode-badge fm-clickable" id="fm-help-btn" aria-label="Help">?</button>
         <button class="fm-mode-badge fm-clickable" id="fm-menu-btn" aria-label="Menu"><img src="/images/menu-folder.svg" alt="Menu" class="fm-hud-icon" /></button>
-        <button class="fm-mode-badge fm-clickable" id="fm-settings-btn" aria-label="Settings"><img src="/images/menu-setting.svg" alt="Settings" class="fm-hud-icon" /></button>
+        <div class="fm-help-col">
+          <button class="fm-mode-badge fm-clickable" id="fm-replay-btn" aria-label="Replay"><img src="/images/menu-replay.svg" alt="Replay" class="fm-hud-icon" /></button>
+          <button class="fm-mode-badge fm-clickable" id="fm-settings-btn" aria-label="Settings"><img src="/images/menu-setting.svg" alt="Settings" class="fm-hud-icon" /></button>
+        </div>
       </div>
     `;
     const x = layout.safe.right;
@@ -201,6 +206,11 @@ export class HudManager {
     this.#helpBtnDom.node.querySelector('#fm-menu-btn')?.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       onMenuOpen?.();
+    });
+
+    this.#helpBtnDom.node.querySelector('#fm-replay-btn')?.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      onReplayOpen?.();
     });
 
     this.#helpBtnDom.node

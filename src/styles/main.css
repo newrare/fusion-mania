@@ -2571,8 +2571,14 @@ html, body {
 
 .fm-help-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: flex-end;
+  gap: 6px;
+}
+
+.fm-help-col {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
 }
 
@@ -2885,6 +2891,7 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
   font-size: 0.82rem;
   padding: 8px 0;
   min-height: unset;
+  margin-top: 12px;
 }
 
 /* Title centered, total count on its own line below */
@@ -3280,28 +3287,9 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
   100% { transform: translate(-50%, 0)   scale(1); }
 }
 
-/* Skip button, top-right of the safe area. */
+/* Skip button — centered below the tutorial grid, using the standard .fm-btn theme. */
 .fm-tuto-skip-btn {
-  position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 14px);
-  right: calc(env(safe-area-inset-right, 0px) + 12px);
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 10px;
-  color: rgba(255,255,255,0.9);
-  font-family: inherit;
-  font-size: 0.75rem;
-  padding: 0.35rem 0.7rem;
-  cursor: pointer;
   pointer-events: auto;
-  z-index: 50;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
-.fm-tuto-skip-btn:hover,
-.fm-tuto-skip-btn:focus-visible {
-  background: rgba(255,255,255,0.18);
-  outline: none;
 }
 
 /* Attached to document.body so it survives the tutorial enemy removal. */

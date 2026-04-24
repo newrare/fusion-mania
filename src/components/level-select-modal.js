@@ -111,9 +111,6 @@ export class LevelSelectModal {
           <div class="fm-modal-title">${i18n.t('launcher.title')}</div>
           <div class="fm-level-total-count">⚔️ ${totalWon} / 30</div>
           <div class="fm-level-tiers">${sectionsHtml}</div>
-          <div class="fm-modal-buttons">
-            <button class="fm-btn" data-action="loadgame">${i18n.t('launcher.load')}</button>
-          </div>
           ${quickPlayHtml}
         </div>
       </div>
@@ -141,9 +138,6 @@ export class LevelSelectModal {
             return;
           case 'free':
             options.onFree?.();
-            return;
-          case 'loadgame':
-            this.#openSaveLoad();
             return;
         }
       }

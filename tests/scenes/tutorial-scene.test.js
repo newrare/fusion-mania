@@ -107,6 +107,7 @@ function attachStubs(scene) {
   scene.time = {
     delayedCall: (_ms, cb) => cb(),
   };
+  scene.events = { on: vi.fn() };
   scene.game = { domContainer: { style: {} } };
   return { sceneStart };
 }
@@ -285,20 +286,37 @@ describe('TutorialScene (scripted level-0)', () => {
     );
   });
 
-  it('tips step shows a Play button that finishes the tutorial', async () => {
-    // Walk all the way through
+  async function walkToTips() {
     await advanceStepWith({ moved: true, merges: [] });
     await advanceStepWith({ moved: true, merges: [{}] });
     await advanceStepWith({ moved: true, merges: [] });
     await inputHandles.onDirection('down');
     await new Promise((r) => setTimeout(r, 0));
     await advanceStepWith({ moved: true, merges: [{}] });
-    // Now on tips
-    const btn = document.querySelector('[data-action="play"]');
-    expect(btn).not.toBeNull();
-    expect(btn.textContent.trim()).toBe(i18n.t('tuto.play'));
-    btn.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-    expect(stubs.sceneStart).toHaveBeenCalledWith(SCENE_KEYS.GRID, { mode: 'classic' });
+    // Let the deferred tap/key listeners attach
+    await new Promise((r) => setTimeout(r, 0));
+  }
+
+  it('tips step hides skip/play buttons and starts battle mode on any tap', async () => {
+    await walkToTips();
+    expect(document.querySelector('[data-action="play"]')).toBeNull();
+    const skip = document.querySelector('[data-action="skip"]');
+    expect(skip.style.display).toBe('none');
+
+    window.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    expect(stubs.sceneStart).toHaveBeenCalledWith(SCENE_KEYS.GRID, {
+      mode: 'battle',
+      battleLevel: 0,
+    });
+  });
+
+  it('tips step starts battle mode on any keyboard key', async () => {
+    await walkToTips();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(stubs.sceneStart).toHaveBeenCalledWith(SCENE_KEYS.GRID, {
+      mode: 'battle',
+      battleLevel: 0,
+    });
   });
 
   it('removes the floating enemy when leaving the enemy step', async () => {
@@ -313,10 +331,13 @@ describe('TutorialScene (scripted level-0)', () => {
     expect(document.querySelector('.fm-tuto-enemy')).toBeNull();
   });
 
-  it('Skip jumps straight to GameScene', () => {
+  it('Skip jumps straight to battle mode level 0', () => {
     const skip = document.querySelector('.fm-tuto-skip-btn');
     skip.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-    expect(stubs.sceneStart).toHaveBeenCalledWith(SCENE_KEYS.GRID, { mode: 'classic' });
+    expect(stubs.sceneStart).toHaveBeenCalledWith(SCENE_KEYS.GRID, {
+      mode: 'battle',
+      battleLevel: 0,
+    });
   });
 
   it('Escape key finishes the tutorial', () => {

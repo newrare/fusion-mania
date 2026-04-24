@@ -60,6 +60,12 @@ export class TutorialScene extends Phaser.Scene {
   /** @type {((e: KeyboardEvent) => void) | null} */
   #keyHandler = null;
 
+  /** @type {((e: PointerEvent) => void) | null} Global tap-to-start handler for the final step. */
+  #tipsTapHandler = null;
+
+  /** @type {((e: KeyboardEvent) => void) | null} Global key-to-start handler for the final step. */
+  #tipsKeyHandler = null;
+
   /**
    * @type {Array<{
    *   id: string,
@@ -159,6 +165,8 @@ export class TutorialScene extends Phaser.Scene {
 
     this.#unsubI18n = i18n.onChange(() => this.#refreshTexts());
 
+    this.events.on('shutdown', () => this.shutdown());
+
     this.#step = 0;
     this.#renderStep();
 
@@ -185,10 +193,12 @@ export class TutorialScene extends Phaser.Scene {
     this.#removeEdgeIndicators();
 
     this.#hidePlayButton();
+    this.#removeTipsTapHandler();
     if (step.type === 'message') {
       this.#clearBoard();
       this.#setBanner(i18n.t(`tuto.step_${step.id}_title`), i18n.t(`tuto.step_${step.id}_hint`));
-      this.#showPlayButton();
+      this.#setSkipBtnVisible(false);
+      this.#installTipsTapHandler();
     } else if (step.type === 'scripted' && step.id === 'enemy') {
       this.#setupBoard(step.setup ?? []);
       this.#spawnEnemy();
@@ -736,20 +746,62 @@ export class TutorialScene extends Phaser.Scene {
   // ─── Skip button ───────────────────────────────────
 
   #createSkipButton() {
-    const html = `
-      <div class="fm-tuto-layer">
-        <button class="fm-tuto-skip-btn fm-clickable" data-action="skip">${i18n.t('tuto.skip')}</button>
-      </div>
-    `;
-    const dom = this.add.dom(0, 0).createFromHTML(html);
-    dom.setOrigin(0, 0);
+    const html = `<button class="fm-btn fm-btn--small fm-tuto-skip-btn fm-clickable" data-action="skip">${i18n.t('tuto.skip')}</button>`;
+    const gridBottom = layout.grid.y + layout.grid.totalWidth / 2;
+    const y = gridBottom + 20;
+    const dom = this.add.dom(layout.safe.cx, y).createFromHTML(html);
+    dom.setOrigin(0.5, 0);
     dom.setDepth(220);
     this.#skipDom = dom;
     const btn = dom.node.querySelector('[data-action="skip"]');
     btn?.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
-      this.#finish();
+      this.#finish({ mode: 'battle', battleLevel: 0 });
     });
+  }
+
+  /** @param {boolean} visible */
+  #setSkipBtnVisible(visible) {
+    const btn = this.#skipDom?.node.querySelector('[data-action="skip"]');
+    if (btn) btn.style.display = visible ? '' : 'none';
+  }
+
+  /** On the final tips step, any pointerdown or key press starts a fresh battle-mode run. */
+  #installTipsTapHandler() {
+    if (this.#tipsTapHandler || this.#tipsKeyHandler) return;
+    const tap = (e) => {
+      if (this.#advancing) return;
+      e.stopPropagation();
+      this.#finish({ mode: 'battle', battleLevel: 0 });
+    };
+    const key = (e) => {
+      if (this.#advancing) return;
+      e.stopPropagation();
+      e.preventDefault();
+      this.#finish({ mode: 'battle', battleLevel: 0 });
+    };
+    this.#tipsTapHandler = tap;
+    this.#tipsKeyHandler = key;
+    // Defer one frame so the pointerdown/keydown that advanced into this step doesn't immediately fire it.
+    this.time.delayedCall(0, () => {
+      if (this.#tipsTapHandler === tap) {
+        window.addEventListener('pointerdown', tap, { capture: true });
+      }
+      if (this.#tipsKeyHandler === key) {
+        window.addEventListener('keydown', key, { capture: true });
+      }
+    });
+  }
+
+  #removeTipsTapHandler() {
+    if (this.#tipsTapHandler) {
+      window.removeEventListener('pointerdown', this.#tipsTapHandler, { capture: true });
+      this.#tipsTapHandler = null;
+    }
+    if (this.#tipsKeyHandler) {
+      window.removeEventListener('keydown', this.#tipsKeyHandler, { capture: true });
+      this.#tipsKeyHandler = null;
+    }
   }
 
   // ─── Locale live-refresh ───────────────────────────
@@ -769,8 +821,10 @@ export class TutorialScene extends Phaser.Scene {
 
   // ─── Teardown ──────────────────────────────────────
 
-  #finish() {
-    this.scene.start(SCENE_KEYS.GRID, { mode: 'classic' });
+  /** @param {{ mode?: string, battleLevel?: number }} [data] */
+  #finish(data = { mode: 'classic' }) {
+    this.#removeTipsTapHandler();
+    this.scene.start(SCENE_KEYS.GRID, data);
   }
 
   shutdown() {
@@ -778,6 +832,7 @@ export class TutorialScene extends Phaser.Scene {
       window.removeEventListener('keydown', this.#keyHandler);
       this.#keyHandler = null;
     }
+    this.#removeTipsTapHandler();
     this.#inputManager?.shutdown();
     this.#inputManager = null;
     this.#unsubI18n?.();

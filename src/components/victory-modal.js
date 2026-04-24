@@ -203,23 +203,26 @@ export class VictoryModal {
    * @returns {number | null}
    */
   #computeProvisionalRank(rankings, score) {
+    if (this.#mode === 'battle') {
+      // Score is already saved before this modal is shown — count entries that rank strictly better.
+      if (rankings.length === 0) return null;
+      let rank = 1;
+      const myLevel = this.#stats.enemyMaxLevel ?? 0;
+      for (const r of rankings) {
+        const lvlDiff = (r.enemyMaxLevel ?? 0) - myLevel;
+        if (lvlDiff > 0) rank++;
+        else if (lvlDiff === 0 && (r.score ?? 0) > score) rank++;
+      }
+      return rank;
+    }
+    // Non-battle: score not yet saved — insert a provisional entry to find rank.
     const provisional = { score, date: Date.now(), ...this.#stats };
     const list = [...rankings, provisional];
-    if (this.#mode === 'battle') {
-      list.sort((a, b) => {
-        const lvlDiff = (b.enemyMaxLevel ?? 0) - (a.enemyMaxLevel ?? 0);
-        if (lvlDiff !== 0) return lvlDiff;
-        const scoreDiff = b.score - a.score;
-        if (scoreDiff !== 0) return scoreDiff;
-        return (a.date ?? 0) - (b.date ?? 0);
-      });
-    } else {
-      list.sort((a, b) => {
-        const scoreDiff = b.score - a.score;
-        if (scoreDiff !== 0) return scoreDiff;
-        return (a.date ?? 0) - (b.date ?? 0);
-      });
-    }
+    list.sort((a, b) => {
+      const scoreDiff = b.score - a.score;
+      if (scoreDiff !== 0) return scoreDiff;
+      return (a.date ?? 0) - (b.date ?? 0);
+    });
     const rank = list.indexOf(provisional) + 1;
     return rank > 0 ? rank : null;
   }

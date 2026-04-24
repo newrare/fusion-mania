@@ -298,6 +298,9 @@ export class GameScene extends Phaser.Scene {
   /** @type {object | null} Full save slot data to restore from */
   #pendingSlotData = null;
 
+  /** @type {boolean} Open launcher modal after restart */
+  #pendingOpenLauncher = false;
+
   constructor() {
     super({ key: SCENE_KEYS.GRID });
     this.#gm = new GridManager();
@@ -363,6 +366,7 @@ export class GameScene extends Phaser.Scene {
     this.#physicsFloor = null;
     this.#battleLevel = data?.battleLevel ?? -1;
     this.#enemyFriseEl = null;
+    this.#pendingOpenLauncher = !!data?.openLauncher;
   }
 
   create() {
@@ -390,8 +394,6 @@ export class GameScene extends Phaser.Scene {
     this.#hudManager = new HudManager(this, this.#mode);
     this.#hudManager.createHUD({
       onLauncherOpen: () => this.#openLauncher(),
-      onRankingOpen: () => this.#openRanking(),
-      onReplayOpen: () => this.#handleReplay(),
     });
     this.#hudManager.onComboTimeout = () => this.#endCombo();
     this.#gm.createContainer(this);
@@ -414,6 +416,8 @@ export class GameScene extends Phaser.Scene {
       onHelpOpen: () => this.#openHelp(),
       onMenuOpen: () => this.#openMenu(),
       onSettingsOpen: () => this.#openSettings(),
+      onRankingOpen: () => this.#openRanking(),
+      onReplayOpen: () => this.#handleReplay(),
       onPredOpen: () => this.#openPredModal(),
     });
     this.#inputManager = new InputManager(this, {
@@ -454,7 +458,11 @@ export class GameScene extends Phaser.Scene {
         ) || 64;
     });
 
-    if (this.#pendingSlotData) {
+    if (this.#pendingOpenLauncher) {
+      this.#pendingOpenLauncher = false;
+      this.#startNewGame();
+      this.#openLauncher();
+    } else if (this.#pendingSlotData) {
       this.#restoreFromSlot(this.#pendingSlotData);
       this.#pendingSlotData = null;
     } else if (this.#mode === 'free' && !this.#pendingPowerTypes) {
@@ -2571,7 +2579,11 @@ export class GameScene extends Phaser.Scene {
       onMenu: () => {
         this.#victoryModal?.destroy();
         this.#victoryModal = null;
-        this.#openLauncher();
+        this.scene.restart({
+          mode: this.#mode,
+          battleLevel: this.#battleLevel >= 0 ? this.#battleLevel : undefined,
+          openLauncher: true,
+        });
       },
     });
   }
@@ -2629,7 +2641,11 @@ export class GameScene extends Phaser.Scene {
       onMenu: () => {
         this.#gameOverModal?.destroy();
         this.#gameOverModal = null;
-        this.#openLauncher();
+        this.scene.restart({
+          mode: this.#mode,
+          battleLevel: this.#battleLevel >= 0 ? this.#battleLevel : undefined,
+          openLauncher: true,
+        });
       },
     });
   }
