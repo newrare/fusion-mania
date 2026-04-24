@@ -266,4 +266,21 @@ export const en = {
   'launcher.classic': 'Classic',
   'launcher.free': 'Free',
   'launcher.load': 'Load Game',
+  'tuto.skip': 'Skip',
+  'tuto.play': 'Play!',
+  'tuto.step_swipe_title': 'Swipe to move',
+  'tuto.step_swipe_hint': 'Swipe any direction to slide the tile.',
+  'tuto.step_fusion_title': 'Merge two tiles',
+  'tuto.step_fusion_hint': 'Swipe left or right to fuse the 2s into a 4.',
+  'tuto.step_ice_title': 'Frozen tiles',
+  'tuto.step_ice_hint': "Swipe — the frozen tile won't move and can't merge.",
+  'tuto.step_fire_v_title': 'Vertical fire',
+  'tuto.step_fire_v_hint':
+    'The sunburst tile carries fire-V. Swipe up or down to unleash it along its column!',
+  'tuto.step_fire_v_wrong': 'Try swiping up or down.',
+  'tuto.step_enemy_title': 'Enemies',
+  'tuto.step_enemy_hint':
+    'Merge tiles to damage the enemy. Careful — it will contaminate one of your tiles!',
+  'tuto.step_tips_title': "You're ready!",
+  'tuto.step_tips_hint': 'Find predictions, enemy info and more via the in-game Help button.',
 };

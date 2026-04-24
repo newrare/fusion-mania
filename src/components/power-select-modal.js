@@ -67,7 +67,10 @@ export class PowerSelectModal {
     overlay?.addEventListener('pointerdown', (e) => {
       // Click outside modal = cancel
       const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
-      if (!modal) { this.#onCancel?.(); return; }
+      if (!modal) {
+        this.#onCancel?.();
+        return;
+      }
 
       const item = /** @type {HTMLElement} */ (e.target).closest('.fm-power-item');
       if (item) {

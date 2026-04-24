@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BootScene } from '../scenes/boot-scene.js';
 import { PreloadScene } from '../scenes/preload-scene.js';
 import { TitleScene } from '../scenes/title-scene.js';
+import { TutorialScene } from '../scenes/tutorial-scene.js';
 import { GameScene } from '../scenes/game-scene.js';
 
 /* Cap the Phaser canvas resolution on high-DPI mobile screens.
@@ -41,7 +42,7 @@ const gameConfig = {
   dom: {
     createContainer: true,
   },
-  scene: [BootScene, PreloadScene, TitleScene, GameScene],
+  scene: [BootScene, PreloadScene, TitleScene, TutorialScene, GameScene],
 };
 
 export default gameConfig;

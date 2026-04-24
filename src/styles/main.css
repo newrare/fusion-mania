@@ -3182,5 +3182,259 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
   opacity: 0.5;
 }
 
+/* --- Tutorial scene (scripted level-0) ---
+   Each tutorial DOM (banner, skip button, info card) is wrapped in
+   .fm-tuto-layer — a full-viewport container — so its absolute/centered
+   positioning resolves against the viewport and not against Phaser's
+   zero-width DOMElement wrapper. */
+.fm-tuto-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
+.fm-tuto-layer--center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px
+           calc(env(safe-area-inset-bottom, 0px) + 12px);
+  box-sizing: border-box;
+}
+
+/* Top banner with step title, hint and progress dots. */
+.fm-tuto-banner {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92vw, 420px);
+  padding: 0.65rem 0.9rem;
+  box-sizing: border-box;
+  background: var(--fm-modal-bg, linear-gradient(160deg, #2a1050, #1a0a2e));
+  border: 2px solid var(--fm-modal-border, rgba(200,140,255,.5));
+  border-radius: 14px;
+  box-shadow: 0 6px 0 var(--fm-modal-shadow, rgba(180,100,255,.45)),
+              0 10px 30px var(--fm-modal-glow, rgba(180,100,255,.2));
+  color: var(--fm-modal-text, rgba(255,255,255,.9));
+  text-align: center;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.fm-tuto-banner-title {
+  font-family: 'Merkin', cursive, sans-serif;
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--fm-modal-title, #e8c0ff);
+  margin-bottom: 0.1rem;
+}
+
+.fm-tuto-banner-hint {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: rgba(255,255,255,0.82);
+  min-height: 0.78rem;
+}
+
+.fm-tuto-banner-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+
+.fm-tuto-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  transition: background 0.2s, transform 0.2s;
+}
+.fm-tuto-dot--pending { background: rgba(255,255,255,0.2); }
+.fm-tuto-dot--active  { background: var(--fm-modal-title, #e8c0ff); transform: scale(1.35); }
+.fm-tuto-dot--done    { background: rgba(130, 240, 160, 0.75); }
+
+/* Enter animation when a new step begins. */
+.fm-tuto-banner--enter {
+  animation: fm-tuto-banner-in 0.35s cubic-bezier(.36,1.6,.6,1) both;
+}
+@keyframes fm-tuto-banner-in {
+  0%   { opacity: 0; transform: translate(-50%, -18px) scale(0.94); }
+  60%  { opacity: 1; transform: translate(-50%, 4px)   scale(1.02); }
+  100% { opacity: 1; transform: translate(-50%, 0)     scale(1); }
+}
+
+/* Success flash when the step goal is met. */
+.fm-tuto-banner--success {
+  animation: fm-tuto-banner-success 0.55s ease-out;
+  border-color: rgba(130, 240, 160, 0.9);
+  box-shadow: 0 6px 0 rgba(60,180,90,.45),
+              0 10px 30px rgba(120,240,160,.35);
+}
+@keyframes fm-tuto-banner-success {
+  0%   { transform: translate(-50%, 0)   scale(1); }
+  40%  { transform: translate(-50%, -4px) scale(1.05); }
+  100% { transform: translate(-50%, 0)   scale(1); }
+}
+
+/* Skip button, top-right of the safe area. */
+.fm-tuto-skip-btn {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  color: rgba(255,255,255,0.9);
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 50;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.fm-tuto-skip-btn:hover,
+.fm-tuto-skip-btn:focus-visible {
+  background: rgba(255,255,255,0.18);
+  outline: none;
+}
+
+/* Attached to document.body so it survives the tutorial enemy removal. */
+.fm-tuto-damage-float {
+  position: fixed !important;
+  left: auto;
+  top: auto;
+  z-index: 1100;
+}
+
+/* Clean leftover tutorial particle canvases (defensive — shutdown also strips them). */
+.fm-tuto-particle-canvas {
+  pointer-events: none;
+}
+
+/* Final "Play!" button — prominent, centered in the bottom safe area,
+   only present on the tips step. */
+.fm-tuto-layer--play {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 12px calc(env(safe-area-inset-bottom, 0px) + 36px);
+  box-sizing: border-box;
+}
+
+.fm-tuto-play-btn {
+  pointer-events: auto;
+  min-width: 180px;
+  font-size: 1.05rem;
+  padding: 14px 28px;
+  animation: fm-tuto-play-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes fm-tuto-play-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+
+/* Edge indicators on the fire-V step — sit on the grid's top/bottom edges,
+   same markup as the real game's edge-charged powers. */
+.fm-tuto-edge-indicator {
+  z-index: 6;
+}
+
+.fm-tuto-edge-indicator .fm-power-dot {
+  animation: fm-tuto-edge-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes fm-tuto-edge-pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50%      { transform: scale(1.18); filter: brightness(1.25); }
+}
+
+/* Wrong-direction flash (fire-V step). */
+.fm-tuto-banner--wrong {
+  animation: fm-tuto-banner-wrong 0.35s ease-out;
+  border-color: rgba(255, 180, 90, 0.9);
+}
+@keyframes fm-tuto-banner-wrong {
+  0%, 100% { transform: translate(-50%, 0); }
+  25%      { transform: translate(calc(-50% - 8px), 0); }
+  50%      { transform: translate(calc(-50% + 8px), 0); }
+  75%      { transform: translate(calc(-50% - 6px), 0); }
+}
+
+/* Floating enemy above the grid during the enemy step. */
+.fm-tuto-enemy {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 145px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  pointer-events: none;
+  z-index: 35;
+}
+
+.fm-tuto-enemy-tile {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  overflow: hidden;
+  position: static !important;
+  transition: transform 0.15s;
+  animation: none !important;
+}
+
+.fm-tuto-enemy-hp {
+  font-family: 'Merkin', cursive, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: rgba(255, 180, 180, 0.95);
+  background: rgba(120, 20, 30, 0.7);
+  padding: 0.15rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 80, 80, 0.4);
+  min-width: 50px;
+  text-align: center;
+}
+
+.fm-tuto-enemy-hit {
+  animation: fm-tuto-enemy-shake 0.4s ease-out;
+}
+@keyframes fm-tuto-enemy-shake {
+  0%, 100% { transform: translate(0, 0); }
+  15%      { transform: translate(-6px, -2px) rotate(-5deg); filter: brightness(1.5); }
+  30%      { transform: translate(6px, 2px) rotate(5deg); }
+  45%      { transform: translate(-4px, 0) rotate(-3deg); filter: brightness(1.2); }
+  60%      { transform: translate(4px, 0) rotate(3deg); }
+  80%      { transform: translate(-2px, 0); filter: brightness(1); }
+}
+
+/* Contamination flash on a tile getting frozen. */
+.fm-tuto-contaminate-flash {
+  animation: fm-tuto-contaminate 0.5s ease-out;
+  outline: 3px solid rgba(120, 200, 255, 0.9);
+}
+@keyframes fm-tuto-contaminate {
+  0%   { box-shadow: 0 0 0 0 rgba(120, 200, 255, 0.9); }
+  50%  { box-shadow: 0 0 20px 10px rgba(120, 200, 255, 0.5); }
+  100% { box-shadow: 0 0 0 0 rgba(120, 200, 255, 0); }
+}
+
+/* Grid damage flash (fire-V step). */
+.fm-tuto-grid-hurt {
+  animation: fm-tuto-grid-hurt 0.4s ease-out;
+}
+@keyframes fm-tuto-grid-hurt {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  50%      { box-shadow: 0 0 30px 6px rgba(239, 68, 68, 0.55); }
+}
 
 

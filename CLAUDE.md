@@ -32,9 +32,16 @@ Fusion Mania is a 2048-style puzzle game (mobile-first, vertical orientation) bu
 
 ### Scene flow
 
-`BootScene` → `PreloadScene` → `TitleScene` (3 s auto-transition) → `GameScene`
+`BootScene` → `PreloadScene` → `TitleScene` (3 s auto-transition) → `TutorialScene` (first start only) → `GameScene`
 
-TitleScene displays the logo and dev credit for 3 seconds then automatically loads the most recent save (auto-save or manual slot). If no save exists, a new Classic game starts. There is no menu modal on the title screen.
+TitleScene displays the logo and dev credit for 3 seconds then automatically loads the most recent save (auto-save or manual slot). If no save exists and no ranking history is present (genuine first start), `TutorialScene` runs first; otherwise a new Classic game starts. There is no menu modal on the title screen.
+
+`TutorialScene` ([src/scenes/tutorial-scene.js](src/scenes/tutorial-scene.js)) is a **scripted "level 0"** — a real grid built from the same `GridManager` + `InputManager` + `AnimationManager` as the live game, with `Grid.spawnTile` overridden to a no-op so each step starts from a deterministic board. The seven steps alternate between:
+
+- **Interactive** (swipe, fusion, chain): place specific tiles, show a hint banner, wait for a condition (move / merge / reach an 8-tile) before advancing with a green flash.
+- **Info** (modes, enemies, powers, tips): clear the board, show a modal card with a Continue button. Reuses `HelpModal` CSS atoms (`.fm-help-card`, `.fm-power-dot`, enemy preview tile, prediction rows) so no new visual vocabulary is introduced.
+
+A top banner and top-right Skip button are always visible; Escape or Skip jumps straight to a new Classic `GameScene`. The scene is triggered only on genuine first start (no auto-save, no manual slots, no rankings).
 
 Scenes are thin and delegate everything to managers. The main gameplay scene is `src/scenes/game-scene.js`. It delegates input to `InputManager` and HUD/combo to `HudManager`.
 

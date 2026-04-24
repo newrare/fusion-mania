@@ -63,9 +63,7 @@ export class TitleScene extends Phaser.Scene {
     // Dev credit shown directly (replaces "tap to start")
     const { safe } = layout;
     const creditY = safe.top + safe.height * 0.75;
-    this.#devCreditDom = this.add
-      .dom(safe.cx, creditY)
-      .createFromHTML(`
+    this.#devCreditDom = this.add.dom(safe.cx, creditY).createFromHTML(`
         <div class="fm-title-dev-credit fm-title-dev-credit--inline">
           <img class="fm-title-dev-logo" src="/images/newrare.png" alt="Newrare" />
           <div class="fm-title-dev-info">
@@ -112,9 +110,19 @@ export class TitleScene extends Phaser.Scene {
 
     if (bestSave) {
       this.scene.start(SCENE_KEYS.GRID, { mode: bestSave.mode ?? 'classic', slotData: bestSave });
-    } else {
-      this.scene.start(SCENE_KEYS.GRID, { mode: 'classic' });
+      return;
     }
+
+    // No save at all — first start. Route to tutorial if no ranking history either.
+    const hasAnyRanking = ['classic', 'free', 'battle'].some(
+      (m) => saveManager.getRankings(m).length > 0,
+    );
+    if (!hasAnyRanking) {
+      this.scene.start(SCENE_KEYS.TUTORIAL);
+      return;
+    }
+
+    this.scene.start(SCENE_KEYS.GRID, { mode: 'classic' });
   }
 
   shutdown() {

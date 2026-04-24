@@ -94,7 +94,6 @@ describe('AudioManager', () => {
       audioManager.setSound(true);
       expect(audioManager.soundEnabled).toBe(true);
     });
-
   });
 
   describe('preload', () => {

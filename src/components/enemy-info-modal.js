@@ -89,7 +89,10 @@ export class EnemyInfoModal {
 
     overlay?.addEventListener('pointerdown', (e) => {
       const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
-      if (!modal) { e.stopPropagation(); this.#onClose?.(); }
+      if (!modal) {
+        e.stopPropagation();
+        this.#onClose?.();
+      }
     });
 
     this.#keyNav = enableKeyboardNav(overlay, scene.input.keyboard);

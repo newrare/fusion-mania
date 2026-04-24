@@ -278,4 +278,21 @@ export const fr = {
   'launcher.classic': 'Classic',
   'launcher.free': 'Free',
   'launcher.load': 'Charger une partie',
+  'tuto.skip': 'Passer',
+  'tuto.play': 'Jouer !',
+  'tuto.step_swipe_title': 'Glissez pour déplacer',
+  'tuto.step_swipe_hint': 'Glissez dans une direction pour faire glisser la tuile.',
+  'tuto.step_fusion_title': 'Fusionnez deux tuiles',
+  'tuto.step_fusion_hint': 'Glissez à gauche ou à droite pour fusionner les deux 2 en un 4.',
+  'tuto.step_ice_title': 'Tuiles gelées',
+  'tuto.step_ice_hint': 'Glissez — la tuile gelée ne bouge pas et ne fusionne pas.',
+  'tuto.step_fire_v_title': 'Feu vertical',
+  'tuto.step_fire_v_hint':
+    'La tuile au soleil porte le feu vertical. Glissez en haut ou en bas pour le déclencher sur sa colonne !',
+  'tuto.step_fire_v_wrong': 'Essayez de glisser en haut ou en bas.',
+  'tuto.step_enemy_title': 'Les ennemis',
+  'tuto.step_enemy_hint':
+    "Fusionnez pour blesser l'ennemi. Attention — il va contaminer une de vos tuiles !",
+  'tuto.step_tips_title': 'Vous êtes prêt !',
+  'tuto.step_tips_hint': 'Retrouvez prédictions, infos ennemis et plus via le bouton Aide en jeu.',
 };

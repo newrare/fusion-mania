@@ -1308,8 +1308,14 @@ export class GameScene extends Phaser.Scene {
       restitution: 0.02,
     });
     // Left and right invisible walls — keep dead enemies inside the viewport
-    this.matter.add.rectangle(-thickness / 2, H / 2, thickness, H * 4, { ...wallOpts, label: 'wall-left' });
-    this.matter.add.rectangle(W + thickness / 2, H / 2, thickness, H * 4, { ...wallOpts, label: 'wall-right' });
+    this.matter.add.rectangle(-thickness / 2, H / 2, thickness, H * 4, {
+      ...wallOpts,
+      label: 'wall-left',
+    });
+    this.matter.add.rectangle(W + thickness / 2, H / 2, thickness, H * 4, {
+      ...wallOpts,
+      label: 'wall-right',
+    });
 
     // In dev mode, render the walls as semi-transparent overlays for debugging
     if (import.meta.env.DEV) {
@@ -2540,9 +2546,7 @@ export class GameScene extends Phaser.Scene {
         };
 
     const nextBattleLevel =
-      isBattle && this.#battleLevel >= 0 && this.#battleLevel < 29
-        ? this.#battleLevel + 1
-        : null;
+      isBattle && this.#battleLevel >= 0 && this.#battleLevel < 29 ? this.#battleLevel + 1 : null;
 
     this.#victoryModal = new VictoryModal(this, {
       score: this.#gm.grid.score,

@@ -162,7 +162,9 @@ export class HudManager {
         <button class="fm-mode-badge fm-clickable fm-pred-btn" id="fm-pred-btn" aria-label="Predictions" style="display:none">!</button>
       </div>
     `;
-    this.#historyBtnDom = this.#scene.add.dom(layout.safe.left, layout.safe.bottom - 15).createFromHTML(leftHtml);
+    this.#historyBtnDom = this.#scene.add
+      .dom(layout.safe.left, layout.safe.bottom - 15)
+      .createFromHTML(leftHtml);
     this.#historyBtnDom.setOrigin(0, 1);
 
     this.#historyBtnDom.node
@@ -191,19 +193,15 @@ export class HudManager {
     this.#helpBtnDom = this.#scene.add.dom(x, y).createFromHTML(rightHtml);
     this.#helpBtnDom.setOrigin(1, 1);
 
-    this.#helpBtnDom.node
-      .querySelector('#fm-help-btn')
-      ?.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();
-        onHelpOpen?.();
-      });
+    this.#helpBtnDom.node.querySelector('#fm-help-btn')?.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      onHelpOpen?.();
+    });
 
-    this.#helpBtnDom.node
-      .querySelector('#fm-menu-btn')
-      ?.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();
-        onMenuOpen?.();
-      });
+    this.#helpBtnDom.node.querySelector('#fm-menu-btn')?.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      onMenuOpen?.();
+    });
 
     this.#helpBtnDom.node
       .querySelector('#fm-settings-btn')

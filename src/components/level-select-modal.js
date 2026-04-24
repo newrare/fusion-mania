@@ -165,9 +165,18 @@ export class LevelSelectModal {
     if (!container) return;
 
     const colors = [
-      '#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff9ff3',
-      '#feca57', '#48dbfb', '#ff6348', '#1dd1a1', '#ee5a24',
-      '#c8d6e5', '#f368e0',
+      '#ff6b6b',
+      '#ffd93d',
+      '#6bcb77',
+      '#4d96ff',
+      '#ff9ff3',
+      '#feca57',
+      '#48dbfb',
+      '#ff6348',
+      '#1dd1a1',
+      '#ee5a24',
+      '#c8d6e5',
+      '#f368e0',
     ];
 
     const spawn = () => {

@@ -53,7 +53,8 @@ fusion-mania/
 │   ├── scenes/                # Phaser scenes (one per screen / state)
 │   │   ├── boot-scene.js      # Minimal boot, transitions to preload-scene
 │   │   ├── preload-scene.js   # Asset loading with progress bar
-│   │   ├── title-scene.js     # Title screen — 3 s splash then auto-loads latest save
+│   │   ├── title-scene.js     # Title screen — 3 s splash then auto-loads latest save (or tutorial on first start)
+│   │   ├── tutorial-scene.js  # First-start interactive tutorial (6 slides)
 │   │   └── game-scene.js      # Main 2048 gameplay (DOM tiles + CSS animations)
 │   │
 │   ├── components/            # DOM-based UI overlays (modals)

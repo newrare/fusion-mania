@@ -86,7 +86,10 @@ export class OptionsModal {
     // Click outside modal = close
     overlay?.addEventListener('pointerdown', (e) => {
       const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
-      if (!modal) { options.onClose?.(); return; }
+      if (!modal) {
+        options.onClose?.();
+        return;
+      }
     });
     overlay?.addEventListener('pointerdown', (e) => {
       const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');

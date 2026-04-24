@@ -64,7 +64,10 @@ export class RankingDetailModal {
     overlay?.addEventListener('pointerdown', (e) => {
       // Click outside modal = close
       const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
-      if (!modal) { this.#onClose?.(); return; }
+      if (!modal) {
+        this.#onClose?.();
+        return;
+      }
 
       const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
       if (!btn) return;
@@ -227,7 +230,10 @@ export class RankingDetailModal {
       .querySelector('#fm-all-enemies-overlay')
       ?.addEventListener('pointerdown', (e) => {
         const modal = /** @type {HTMLElement} */ (e.target).closest('.fm-modal');
-        if (!modal) { e.stopPropagation(); this.#closeAllEnemiesModal(); }
+        if (!modal) {
+          e.stopPropagation();
+          this.#closeAllEnemiesModal();
+        }
       });
 
     this.#allEnemiesKeyHandler = (event) => {
