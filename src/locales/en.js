@@ -209,8 +209,7 @@ export const en = {
   'help.power_expel_h_desc': 'Target tile can slide off left/right edges for a few moves.',
   'help.power_expel_v_desc': 'Target tile can slide off top/bottom edges for a few moves.',
   'help.power_teleport_desc': 'Swaps the target tile with a random other tile.',
-  'help.power_ice_desc':
-    'Freezes the target tile for a few moves. It cannot move or merge.',
+  'help.power_ice_desc': 'Freezes the target tile for a few moves. It cannot move or merge.',
   'help.power_wind_up_desc': 'Blocks downward movement for a few moves.',
   'help.power_wind_down_desc': 'Blocks upward movement for a few moves.',
   'help.power_wind_left_desc': 'Blocks rightward movement for a few moves.',
@@ -220,7 +219,8 @@ export const en = {
   'help.predictions_desc':
     'The colored "!" indicators on each edge of the grid predict what will happen if you swipe in that direction.',
   'help.predictions_danger': 'Red — one or more tiles may be lost.',
-  'help.predictions_warning': 'Yellow — a potentially dangerous power will be created or triggered.',
+  'help.predictions_warning':
+    'Yellow — a potentially dangerous power will be created or triggered.',
   'help.predictions_info': 'Blue — a power is loaded but overall harmless.',
   'help.predictions_priority':
     'If multiple powers would trigger, the highest severity color is shown.',
@@ -272,7 +272,7 @@ export const en = {
     'Goal: fuse tiles to reach 2048 or higher without filling the grid. Bigger tiles score more points. Grid full with no merges left? <strong>Game Over!</strong>',
   'tuto.step_ice_title': 'Powers on tiles',
   'tuto.step_ice_hint':
-    'In Battle &amp; Free modes, tiles can be hit by powers acting as debuffs. Here: <strong>Ice</strong> freezes a tile — it can\'t move or merge!',
+    "In Battle &amp; Free modes, tiles can be hit by powers acting as debuffs. Here: <strong>Ice</strong> freezes a tile — it can't move or merge!",
   'tuto.step_fire_v_title': 'Powers on the edges',
   'tuto.step_fire_v_hint':
     'Powers also load onto grid edges. They always fire from the glowing <strong>sunburst</strong> tile. Swipe ↑ or ↓ to trigger Fire&#8209;V!',

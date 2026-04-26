@@ -1238,8 +1238,7 @@ export class GameScene extends Phaser.Scene {
 
     document.querySelector('#fm-enemy-frise')?.remove();
 
-    const formatProfile = p =>
-      p.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const formatProfile = (p) => p.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
     let track = '';
     for (let i = 0; i < seq.length; i++) {
@@ -1330,7 +1329,10 @@ export class GameScene extends Phaser.Scene {
     const windowStart = Math.max(0, Math.min(clampedFocus - 1, total - 3));
     if (!animate) track.style.transition = 'none';
     track.style.transform = `translateX(${-windowStart * SLOT}px)`;
-    if (!animate) requestAnimationFrame(() => { track.style.transition = ''; });
+    if (!animate)
+      requestAnimationFrame(() => {
+        track.style.transition = '';
+      });
   }
 
   /**
@@ -1863,7 +1865,12 @@ export class GameScene extends Phaser.Scene {
     const r = this.#gm.gridEl.getBoundingClientRect();
     const cx = r.left + r.width / 2;
     const cy = r.top + r.height / 2;
-    const pt = { top: { x: cx, y: r.top }, bottom: { x: cx, y: r.bottom }, left: { x: r.left, y: cy }, right: { x: r.right, y: cy } }[side];
+    const pt = {
+      top: { x: cx, y: r.top },
+      bottom: { x: cx, y: r.bottom },
+      left: { x: r.left, y: cy },
+      right: { x: r.right, y: cy },
+    }[side];
     if (!pt) return;
     await this.#playContaminationTo(pt, null);
   }
@@ -1874,7 +1881,9 @@ export class GameScene extends Phaser.Scene {
     const dot = badge?.querySelector('.fm-power-dot');
     if (!dot) return;
     dot.classList.add('fm-edge-power-appear');
-    dot.addEventListener('animationend', () => dot.classList.remove('fm-edge-power-appear'), { once: true });
+    dot.addEventListener('animationend', () => dot.classList.remove('fm-edge-power-appear'), {
+      once: true,
+    });
   }
 
   /**
@@ -2000,7 +2009,9 @@ export class GameScene extends Phaser.Scene {
 
     if (targetEl && hitClass) {
       targetEl.classList.add(hitClass);
-      targetEl.addEventListener('animationend', () => targetEl.classList.remove(hitClass), { once: true });
+      targetEl.addEventListener('animationend', () => targetEl.classList.remove(hitClass), {
+        once: true,
+      });
     }
   }
 

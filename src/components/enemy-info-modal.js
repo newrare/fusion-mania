@@ -28,7 +28,7 @@ export class EnemyInfoModal {
     this.#onClose = options.onClose;
 
     const { enemy } = options;
-    const formatProfile = p => p.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const formatProfile = (p) => p.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     const tileClass = `fm-t${enemy.level}`;
     const currentHp = Math.ceil(enemy.life.currentHp);
     const maxHp = enemy.life.maxHp;

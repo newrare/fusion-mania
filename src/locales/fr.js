@@ -195,8 +195,9 @@ export const fr = {
   'help.powers_intro':
     "Les pouvoirs sont des effets spéciaux qui se déclenchent lorsque vous swiper vers un icôn de pouvoir chargé sur l'un des coté de la grille.",
   'help.powers_appear':
-    "Après quelques mouvements sur le mode Free, un pouvoir aléatoire est assigné à une tuile choisie au hasard. Un pouvoir peut aussi être chargé sur les bords de la grille. Dans ce cas une tuile prendra un aspect spécial pour déterminer depuis quel tuile le pouvoir se lancera.",
-  'help.powers_activate': 'Quand un swipe (glissement) est effectué vers un pouvoir chargé, son effet se déclenche.',
+    'Après quelques mouvements sur le mode Free, un pouvoir aléatoire est assigné à une tuile choisie au hasard. Un pouvoir peut aussi être chargé sur les bords de la grille. Dans ce cas une tuile prendra un aspect spécial pour déterminer depuis quel tuile le pouvoir se lancera.',
+  'help.powers_activate':
+    'Quand un swipe (glissement) est effectué vers un pouvoir chargé, son effet se déclenche.',
   'help.powers_cat_danger': 'Destructeurs',
   'help.powers_cat_warning': 'Potentiellement dangereux',
   'help.powers_cat_info': 'Perturbateurs',
@@ -224,12 +225,10 @@ export const fr = {
   'help.predictions_title': 'Prédictions sur les bords',
   'help.predictions_desc':
     'Les indicateurs colorés sur chaque bord de la grille prédisent ce qui se passera si vous glissez dans cette direction.',
-  'help.predictions_danger':
-    'Rouge — une ou plusieurs tuiles peuvent être perdues.',
+  'help.predictions_danger': 'Rouge — une ou plusieurs tuiles peuvent être perdues.',
   'help.predictions_warning':
     'Jaune — un pouvoir potentiellement dangereux sera créé ou déclenché.',
-  'help.predictions_info':
-    'Bleu — un pouvoir est chargé mais globalement inoffensif.',
+  'help.predictions_info': 'Bleu — un pouvoir est chargé mais globalement inoffensif.',
   'help.predictions_priority':
     'Si plusieurs pouvoirs se déclenchent, la couleur de plus haute sévérité est affichée.',
   'help.enemies_title': "Système d'ennemis",

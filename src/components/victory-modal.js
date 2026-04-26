@@ -293,9 +293,11 @@ export class VictoryModal {
     const title = overlay.querySelector('.fm-victory-title');
     if (title) title.textContent = i18n.t('victory.title');
     const subtitle = overlay.querySelector('.fm-victory-subtitle');
-    if (subtitle) subtitle.textContent = this.#mode === 'battle'
-      ? i18n.t('victory.subtitle_battle', { level: (this.#stats.battleLevel ?? 0) + 1 })
-      : i18n.t('victory.subtitle');
+    if (subtitle)
+      subtitle.textContent =
+        this.#mode === 'battle'
+          ? i18n.t('victory.subtitle_battle', { level: (this.#stats.battleLevel ?? 0) + 1 })
+          : i18n.t('victory.subtitle');
     const statsEl = overlay.querySelector('#fm-victory-stats');
     if (statsEl) statsEl.innerHTML = this.#renderStats();
     const rankingEl = overlay.querySelector('#fm-victory-ranking');

@@ -149,9 +149,8 @@ export class HudManager {
     battleLevel = -1,
   }) {
     const modeIcon = HudManager.#MODE_ICONS[this.#mode] ?? '🎮';
-    const levelLabel = battleLevel >= 0
-      ? `<span class="fm-mode-badge-level">L${battleLevel + 1}</span>`
-      : '';
+    const levelLabel =
+      battleLevel >= 0 ? `<span class="fm-mode-badge-level">L${battleLevel + 1}</span>` : '';
     const historyBtnClass = `fm-mode-badge fm-clickable${battleLevel >= 0 ? ' fm-mode-badge--with-label' : ''}`;
 
     // ── Bottom-LEFT: ranking + history + pred ──
