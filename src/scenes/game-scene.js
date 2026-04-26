@@ -1228,8 +1228,9 @@ export class GameScene extends Phaser.Scene {
   // ─── ENEMY SEQUENCE FRISE ─────────────────────────
 
   /**
-   * Create the enemy sequence timeline — a horizontal track showing all enemies
-   * for the current level, appended to document.body (fixed position below HUD).
+   * Create the enemy sequence timeline — a horizontal sliding carousel showing
+   * 3 enemies at a time: last defeated (left), current (center), next (right).
+   * Appended to document.body (fixed position below HUD).
    */
   #createEnemyFrise() {
     if (!this.#battleManager) return;
@@ -1247,36 +1248,29 @@ export class GameScene extends Phaser.Scene {
       const nodeClasses = `fm-tl-node fm-frise-item${isBoss ? ' fm-frise-boss' : ''}`;
       const label = formatProfile(profile);
 
-      if (isBoss) {
-        track += `<div class="${nodeClasses}" data-idx="${i}">
-          <div class="fm-tl-boss"><span>🔥</span><span class="fm-tl-label">${label}</span></div>
-        </div>`;
-      } else {
-        track += `<div class="${nodeClasses}" data-idx="${i}">
-          <div class="fm-tl-tile fm-t${level}">${label}</div>
-        </div>`;
-      }
-
-      if (i < seq.length - 1) {
-        track += `<div class="fm-tl-connector"><span class="fm-tl-line"></span></div>`;
-      }
+      track += `<div class="${nodeClasses}" data-idx="${i}">`;
+      track += `<div class="fm-tl-card${isBoss ? ' fm-tl-card--boss' : ''} fm-t${level}">`;
+      if (isBoss) track += `<span class="fm-tl-boss-icon">🔥</span>`;
+      track += `<span class="fm-tl-name">${label}</span>`;
+      track += `</div>`;
+      track += `<span class="fm-tl-idx">${i + 1}</span>`;
+      track += `</div>`;
     }
 
     const el = document.createElement('div');
     el.className = 'fm-enemy-frise';
     el.id = 'fm-enemy-frise';
-    const viewport = document.createElement('div');
-    viewport.className = 'fm-tl-viewport';
-    viewport.innerHTML = `<div class="fm-tl-track">${track}</div>`;
-    if (seq.length > 3) {
-      // 3 nodes × 90px + 2 connectors × 18px = 306px
-      viewport.style.width = '306px';
-    }
+
     const counter = document.createElement('div');
     counter.className = 'fm-tl-counter';
     counter.textContent = `0/${seq.length}`;
-    el.appendChild(viewport);
+
+    const viewport = document.createElement('div');
+    viewport.className = 'fm-tl-viewport';
+    viewport.innerHTML = `<div class="fm-tl-track">${track}</div>`;
+
     el.appendChild(counter);
+    el.appendChild(viewport);
     document.body.appendChild(el);
     this.#enemyFriseEl = el;
     // Defer positioning until grid is laid out
@@ -1314,21 +1308,33 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Slide the frise track to keep `focusIdx` visible (centered in the 3-item window).
-   * @param {number} focusIdx - Index of the current/next enemy to focus on
+   * Slide the frise track so `focusIdx` is always centered in the viewport.
+   * Uses CSS translateX to shift the track; the viewport masks overflow with
+   * edge-fade gradients for a polished carousel look.
+   * @param {number} focusIdx - Index of the current/next enemy to center
    * @param {boolean} animate  - Whether to use CSS transition
    */
   #slideFrise(focusIdx, animate = true) {
     const track = this.#enemyFriseEl?.querySelector('.fm-tl-track');
     if (!track) return;
-    const total = this.#enemyFriseEl.querySelectorAll('.fm-frise-item').length;
-    if (total <= 3) return;
-    // SLOT = node width (90px) + connector width (18px)
-    const SLOT = 108;
+    const items = this.#enemyFriseEl.querySelectorAll('.fm-frise-item');
+    const total = items.length;
+    if (total === 0) return;
+
+    // Measure actual node width (includes gap via track gap)
+    const node = items[0];
+    const gap = parseFloat(getComputedStyle(track).gap) || 0;
+    const SLOT = node.offsetWidth + gap;
+
+    const viewport = this.#enemyFriseEl.querySelector('.fm-tl-viewport');
+    const vpWidth = viewport?.offsetWidth || SLOT * 3;
+
+    // Center focusIdx in the viewport
     const clampedFocus = Math.min(focusIdx, total - 1);
-    const windowStart = Math.max(0, Math.min(clampedFocus - 1, total - 3));
+    const offset = clampedFocus * SLOT - (vpWidth - node.offsetWidth) / 2;
+
     if (!animate) track.style.transition = 'none';
-    track.style.transform = `translateX(${-windowStart * SLOT}px)`;
+    track.style.transform = `translateX(${-offset}px)`;
     if (!animate)
       requestAnimationFrame(() => {
         track.style.transition = '';
