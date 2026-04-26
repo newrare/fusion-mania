@@ -29,7 +29,7 @@ export const ENEMY_NAMES = [
   'Equatix',
   'Theorix',
   'Axiomix',
-  'Geometx',
+  'Geometix',
   'Parallox',
   'Trapezix',
   'Octarix',

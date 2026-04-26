@@ -87,6 +87,17 @@ export class GridLife {
   }
 
   /**
+   * Restore HP by the given amount (capped at maxHp).
+   * @param {number} amount — HP to restore
+   * @returns {number} Actual HP restored
+   */
+  heal(amount) {
+    const actual = Math.min(amount, this.#maxHp - this.#currentHp);
+    this.#currentHp = Math.min(this.#maxHp, this.#currentHp + amount);
+    return actual;
+  }
+
+  /**
    * Colour category for the liquid visual.
    * @returns {'info' | 'warning' | 'danger'}
    */

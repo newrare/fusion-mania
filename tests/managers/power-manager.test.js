@@ -508,6 +508,67 @@ describe('PowerManager', () => {
       expect(pred.destroyedValues).toEqual([]);
     });
 
+    it('fire-h predicts danger when targeted tile is consumed by a merge', () => {
+      const targetTile = new Tile(2, 0, 0);
+      grid.cells[0][0] = targetTile;
+      grid.cells[1][0] = new Tile(8, 1, 0);
+      pm.chargeEdge('right', POWER_TYPES.FIRE_H);
+      pm.refreshTargetedTile(grid);
+      // Force target to be targetTile (only eligible, since 8 is also eligible but pick may vary)
+      pm.chargeEdge('right', POWER_TYPES.FIRE_H);
+      // Pin the target to targetTile by clearing other tiles and refreshing
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) grid.cells[r][c] = null;
+      grid.cells[0][0] = targetTile;
+      pm.refreshTargetedTile(grid);
+      // Now add a matching 2-tile in same row — they will merge on swipe-right
+      grid.cells[0][1] = new Tile(2, 0, 1);
+      // Add a tile in row 0 that will survive the merge (different value)
+      grid.cells[0][3] = new Tile(8, 0, 3);
+      // Swipe right: targetTile [0][0] is consumed. Surviving merged tile lands at [0][3]?
+      // Actually [0][1]=2 also moves right and merges with targetTile...
+      // Let's just check severity and that it's not empty
+      const pred = pm.predictForDirection('right', grid);
+      expect(pred.severity).toBe('danger');
+      expect(pred.destroyedValues.length).toBeGreaterThan(0);
+    });
+
+    it('fire-v predicts danger when targeted tile is consumed by a merge', () => {
+      // Targeted tile at [0][0], a matching 2 at [1][0]: swipe-down consumes [0][0].
+      // Surviving merged tile lands at [1][0] (value 4). fire_v should see col 0
+      // and report the 8 at [3][0] as destroyed.
+      const targetTile = new Tile(2, 0, 0);
+      const pm2 = new PowerManager([POWER_TYPES.FIRE_V]);
+      pm2.chargeEdge('bottom', POWER_TYPES.FIRE_V);
+      grid.cells[0][0] = targetTile;
+      pm2.refreshTargetedTile(grid);
+      grid.cells[1][0] = new Tile(2, 1, 0);
+      grid.cells[3][0] = new Tile(8, 3, 0);
+      const pred = pm2.predictForDirection('down', grid);
+      // targetTile [0][0] is consumed by merge with [1][0]. Survivor is at [1][0] (value 4).
+      // fire_v on col 0: destroys the 8 at row 3 (survivor at row 1 is the target, survives).
+      expect(pred.severity).toBe('danger');
+      expect(pred.destroyedValues.length).toBeGreaterThan(0);
+    });
+
+    it('fire-x predicts danger when targeted tile is consumed by a merge', () => {
+      const targetTile = new Tile(2, 0, 0);
+      grid.cells[0][0] = targetTile;
+      pm.chargeEdge('right', POWER_TYPES.FIRE_X);
+      // Clear grid and pin target
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) grid.cells[r][c] = null;
+      grid.cells[0][0] = targetTile;
+      const pm2 = new PowerManager([POWER_TYPES.FIRE_X]);
+      pm2.chargeEdge('right', POWER_TYPES.FIRE_X);
+      pm2.refreshTargetedTile(grid);
+      // Add matching tile in row 0 → merge on swipe-right
+      grid.cells[0][1] = new Tile(2, 0, 1);
+      // Add tile in row 0 for fire_x cross to destroy
+      grid.cells[0][3] = new Tile(16, 0, 3);
+      const pred = pm2.predictForDirection('right', grid);
+      expect(pred.severity).toBe('danger');
+      expect(pred.destroyedValues.length).toBeGreaterThan(0);
+    });
+
     it('bomb predicts the post-swipe neighbours', () => {
       fillGrid(grid, [
         [2, 4, null, null],
@@ -522,6 +583,21 @@ describe('PowerManager', () => {
       // Whichever is targeted, the bomb destroys both.
       expect(pred.destroyedValues.sort((a, b) => a - b)).toEqual([2, 4]);
       expect(pred.severity).toBe('danger');
+    });
+
+    it('bomb shows danger when targeted tile is consumed by a merge', () => {
+      // Set up only the targeted tile first so refreshTargetedTile picks it.
+      const targetTile = new Tile(2, 0, 0);
+      grid.cells[0][0] = targetTile;
+      pm.chargeEdge('right', POWER_TYPES.BOMB);
+      pm.refreshTargetedTile(grid); // targetTile is now the only eligible tile → it becomes the target
+      // Add a matching tile — they will merge on swipe-right.
+      grid.cells[0][1] = new Tile(2, 0, 1);
+      // Swipe right: targetTile (at [0][0]) is consumed by the merge with [0][1].
+      // The bomb must redirect to the surviving merged tile (value 4 at [0][3]).
+      const pred = pm.predictForDirection('right', grid);
+      expect(pred.severity).toBe('danger');
+      expect(pred.destroyedValues).toEqual([4]);
     });
 
     it('nuclear destroys all post-swipe tiles', () => {

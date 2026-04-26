@@ -118,6 +118,25 @@ async function advanceStepWith(dirResult, dir = 'right') {
   await new Promise((r) => setTimeout(r, 0));
 }
 
+/** Sends 4 distinct directional swipes to satisfy the new swipe step requirement. */
+async function advanceSwipeStep() {
+  for (const dir of ['up', 'down', 'left', 'right']) {
+    await advanceStepWith({ moved: true, merges: [] }, dir);
+  }
+}
+
+/**
+ * Fires the fire-V direction (down), lets async ops settle, then dismisses the
+ * aftermath banner with a pointerdown. Returns after the script fully completes.
+ */
+async function fireVAndDismiss() {
+  const p = inputHandles.onDirection('down');
+  await new Promise((r) => setTimeout(r, 0)); // let fire animation + aftermath show
+  window.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 0)); // let advance happen
+  await p;
+}
+
 describe('TutorialScene (scripted level-0)', () => {
   /** @type {TutorialScene} */
   let scene;
@@ -146,7 +165,7 @@ describe('TutorialScene (scripted level-0)', () => {
     expect(document.querySelector('.fm-tuto-banner-title').textContent).toBe(
       i18n.t('tuto.step_swipe_title'),
     );
-    expect(document.querySelector('.fm-tuto-banner-hint').textContent).toBe(
+    expect(document.querySelector('.fm-tuto-banner-hint').innerHTML).toBe(
       i18n.t('tuto.step_swipe_hint'),
     );
   });
@@ -157,8 +176,8 @@ describe('TutorialScene (scripted level-0)', () => {
     expect(dots[0].classList.contains('fm-tuto-dot--active')).toBe(true);
   });
 
-  it('advances to fusion after a valid swipe', async () => {
-    await advanceStepWith({ moved: true, merges: [] });
+  it('advances to fusion after swiping all 4 directions', async () => {
+    await advanceSwipeStep();
     expect(document.querySelector('.fm-tuto-banner-title').textContent).toBe(
       i18n.t('tuto.step_fusion_title'),
     );
@@ -172,7 +191,7 @@ describe('TutorialScene (scripted level-0)', () => {
   });
 
   it('requires a merge to pass the fusion step', async () => {
-    await advanceStepWith({ moved: true, merges: [] });
+    await advanceSwipeStep();
     await advanceStepWith({ moved: true, merges: [] });
     expect(document.querySelector('.fm-tuto-banner-title').textContent).toBe(
       i18n.t('tuto.step_fusion_title'),
@@ -184,7 +203,7 @@ describe('TutorialScene (scripted level-0)', () => {
   });
 
   it('ice step advances on any move', async () => {
-    await advanceStepWith({ moved: true, merges: [] });
+    await advanceSwipeStep();
     await advanceStepWith({ moved: true, merges: [{}] });
     // Now on ice step
     expect(document.querySelector('.fm-tuto-banner-title').textContent).toBe(
@@ -197,7 +216,7 @@ describe('TutorialScene (scripted level-0)', () => {
   });
 
   it('fire-V step shows top/bottom edge indicators', async () => {
-    await advanceStepWith({ moved: true, merges: [] });
+    await advanceSwipeStep();
     await advanceStepWith({ moved: true, merges: [{}] });
     await advanceStepWith({ moved: true, merges: [] });
     // Now on fire_v
@@ -209,7 +228,7 @@ describe('TutorialScene (scripted level-0)', () => {
 
   it('fire-V step rejects horizontal swipes and keeps the board', async () => {
     // Walk to fire_v
-    await advanceStepWith({ moved: true, merges: [] });
+    await advanceSwipeStep();
     await advanceStepWith({ moved: true, merges: [{}] });
     await advanceStepWith({ moved: true, merges: [] });
     expect(document.querySelector('.fm-tuto-banner-title').textContent).toBe(
@@ -227,15 +246,23 @@ describe('TutorialScene (scripted level-0)', () => {
     // because the test's delayedCall stub fires synchronously.)
   });
 
-  it('fire-V step fires on a vertical swipe and advances', async () => {
-    await advanceStepWith({ moved: true, merges: [] });
+  it('fire-V step fires on a vertical swipe, shows aftermath, then advances on tap', async () => {
+    await advanceSwipeStep();
     await advanceStepWith({ moved: true, merges: [{}] });
     await advanceStepWith({ moved: true, merges: [] });
-    // Now on fire_v — vertical swipe
-    await inputHandles.onDirection('down');
-    await new Promise((r) => setTimeout(r, 0));
+    // Start fire_v — don't await since it blocks on the aftermath dismissal
+    const firePromise = inputHandles.onDirection('down');
+    await new Promise((r) => setTimeout(r, 0)); // let fire animation run
     expect(gridState.playFireAnimation).toHaveBeenCalled();
     expect(gridState.removeTiles).toHaveBeenCalled();
+    // Aftermath banner is now showing
+    expect(document.querySelector('.fm-tuto-banner-title').textContent).toBe(
+      i18n.t('tuto.step_fire_v_aftermath_title'),
+    );
+    // Tap to advance past aftermath
+    window.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    await firePromise;
     expect(document.querySelector('.fm-tuto-banner-title').textContent).toBe(
       i18n.t('tuto.step_enemy_title'),
     );
@@ -243,11 +270,10 @@ describe('TutorialScene (scripted level-0)', () => {
 
   it('enemy step plays attack particles + damage popup on merge', async () => {
     // Walk to enemy step
-    await advanceStepWith({ moved: true, merges: [] });
+    await advanceSwipeStep();
     await advanceStepWith({ moved: true, merges: [{}] });
     await advanceStepWith({ moved: true, merges: [] });
-    await inputHandles.onDirection('down');
-    await new Promise((r) => setTimeout(r, 0));
+    await fireVAndDismiss();
 
     // Swipe that produces merges — use a concrete tile object so the
     // attack-particles loop can find it.
@@ -264,11 +290,10 @@ describe('TutorialScene (scripted level-0)', () => {
   });
 
   it('enemy step advances only after a merging swipe and shows the enemy', async () => {
-    await advanceStepWith({ moved: true, merges: [] });
+    await advanceSwipeStep();
     await advanceStepWith({ moved: true, merges: [{}] });
     await advanceStepWith({ moved: true, merges: [] });
-    await inputHandles.onDirection('down');
-    await new Promise((r) => setTimeout(r, 0));
+    await fireVAndDismiss();
 
     // Now on enemy step
     expect(document.querySelector('.fm-tuto-enemy')).not.toBeNull();
@@ -287,19 +312,18 @@ describe('TutorialScene (scripted level-0)', () => {
   });
 
   async function walkToTips() {
-    await advanceStepWith({ moved: true, merges: [] });
+    await advanceSwipeStep();
     await advanceStepWith({ moved: true, merges: [{}] });
     await advanceStepWith({ moved: true, merges: [] });
-    await inputHandles.onDirection('down');
-    await new Promise((r) => setTimeout(r, 0));
+    await fireVAndDismiss();
     await advanceStepWith({ moved: true, merges: [{}] });
     // Let the deferred tap/key listeners attach
     await new Promise((r) => setTimeout(r, 0));
   }
 
-  it('tips step hides skip/play buttons and starts battle mode on any tap', async () => {
+  it('tips step shows play button, hides skip, and starts battle mode on any tap', async () => {
     await walkToTips();
-    expect(document.querySelector('[data-action="play"]')).toBeNull();
+    expect(document.querySelector('[data-action="play"]')).not.toBeNull();
     const skip = document.querySelector('[data-action="skip"]');
     expect(skip.style.display).toBe('none');
 
@@ -320,11 +344,10 @@ describe('TutorialScene (scripted level-0)', () => {
   });
 
   it('removes the floating enemy when leaving the enemy step', async () => {
-    await advanceStepWith({ moved: true, merges: [] });
+    await advanceSwipeStep();
     await advanceStepWith({ moved: true, merges: [{}] });
     await advanceStepWith({ moved: true, merges: [] });
-    await inputHandles.onDirection('down');
-    await new Promise((r) => setTimeout(r, 0));
+    await fireVAndDismiss();
     expect(document.querySelector('.fm-tuto-enemy')).not.toBeNull();
     await advanceStepWith({ moved: true, merges: [{}] });
     // On tips now — enemy gone

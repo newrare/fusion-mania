@@ -66,6 +66,15 @@ export class TutorialScene extends Phaser.Scene {
   /** @type {((e: KeyboardEvent) => void) | null} Global key-to-start handler for the final step. */
   #tipsKeyHandler = null;
 
+  /** Tracks which directions the player has validated on the swipe step. */
+  #swipedDirs = new Set();
+
+  /** @type {(() => void) | null} Pointerdown handler waiting for aftermath dismissal. */
+  #aftermathTapHandler = null;
+
+  /** @type {((e: KeyboardEvent) => void) | null} Keydown handler waiting for aftermath dismissal. */
+  #aftermathKeyHandler = null;
+
   /**
    * @type {Array<{
    *   id: string,
@@ -79,7 +88,7 @@ export class TutorialScene extends Phaser.Scene {
       id: 'swipe',
       type: 'interactive',
       setup: [{ r: 1, c: 1, v: 2 }],
-      condition: (res) => res.moved,
+      // condition handled inline in #handleDirection (requires all 4 directions)
     },
     {
       id: 'fusion',
@@ -194,11 +203,25 @@ export class TutorialScene extends Phaser.Scene {
 
     this.#hidePlayButton();
     this.#removeTipsTapHandler();
+
+    const extraEl = this.#banner?.node.querySelector('#fm-tuto-banner-extra');
+    if (extraEl) extraEl.innerHTML = '';
+
     if (step.type === 'message') {
       this.#clearBoard();
       this.#setBanner(i18n.t(`tuto.step_${step.id}_title`), i18n.t(`tuto.step_${step.id}_hint`));
       this.#setSkipBtnVisible(false);
       this.#installTipsTapHandler();
+      this.#showPlayButton();
+      if (extraEl) {
+        extraEl.innerHTML = `
+          <div class="fm-tuto-help-preview">
+            <span class="fm-mode-badge fm-tuto-help-badge" aria-hidden="true">?</span>
+            <span class="fm-tuto-help-label">${i18n.t('menu.help')}</span>
+          </div>
+          <p class="fm-tuto-banner-sub">${i18n.t('tuto.step_tips_sub')}</p>
+        `;
+      }
     } else if (step.type === 'scripted' && step.id === 'enemy') {
       this.#setupBoard(step.setup ?? []);
       this.#spawnEnemy();
@@ -210,6 +233,10 @@ export class TutorialScene extends Phaser.Scene {
     } else {
       this.#setupBoard(step.setup ?? []);
       this.#setBanner(i18n.t(`tuto.step_${step.id}_title`), i18n.t(`tuto.step_${step.id}_hint`));
+      if (step.id === 'swipe') {
+        this.#swipedDirs.clear();
+        this.#updateSwipeDirsDisplay();
+      }
     }
     this.#updateDots();
   }
@@ -255,6 +282,12 @@ export class TutorialScene extends Phaser.Scene {
       // executeMove leaves animating=true after a success — reset so the next swipe isn't blocked.
       if (this.#gridManager) this.#gridManager.animating = false;
       if (!result || !result.moved) return;
+      if (step.id === 'swipe') {
+        this.#swipedDirs.add(dir);
+        this.#updateSwipeDirsDisplay();
+        if (this.#swipedDirs.size >= 4) await this.#advance();
+        return;
+      }
       if (step.condition?.(result, this.#gridManager.grid)) {
         await this.#advance();
       }
@@ -262,6 +295,24 @@ export class TutorialScene extends Phaser.Scene {
       if (step.id === 'fire_v') await this.#scriptFireV(dir);
       else if (step.id === 'enemy') await this.#scriptEnemy(dir);
     }
+  }
+
+  /** Renders the 4 directional arrow indicators inside the banner extra div. */
+  #updateSwipeDirsDisplay() {
+    const extraEl = this.#banner?.node.querySelector('#fm-tuto-banner-extra');
+    if (!extraEl) return;
+    const dirs = [
+      { key: 'up', arrow: '↑' },
+      { key: 'down', arrow: '↓' },
+      { key: 'left', arrow: '←' },
+      { key: 'right', arrow: '→' },
+    ];
+    extraEl.innerHTML = `<div class="fm-tuto-dir-arrows">${dirs
+      .map(
+        ({ key, arrow }) =>
+          `<span class="fm-tuto-dir-arrow${this.#swipedDirs.has(key) ? ' fm-tuto-dir-arrow--done' : ''}">${arrow}</span>`,
+      )
+      .join('')}</div>`;
   }
 
   async #advance() {
@@ -339,6 +390,13 @@ export class TutorialScene extends Phaser.Scene {
     this.#flashGridHurt();
     await new Promise((resolve) => this.time.delayedCall(250, resolve));
 
+    // 8) Show HP/Game Over aftermath message — wait for player tap or key press.
+    this.#setBanner(
+      i18n.t('tuto.step_fire_v_aftermath_title'),
+      i18n.t('tuto.step_fire_v_aftermath_hint'),
+    );
+    await this.#waitForAftermath();
+
     this.#advancing = false;
     await this.#advance();
   }
@@ -377,6 +435,44 @@ export class TutorialScene extends Phaser.Scene {
 
       this.#advancing = false;
       await this.#advance();
+    }
+  }
+
+  /**
+   * Waits for a tap (pointerdown) or any non-Escape key before resolving.
+   * Used after the fire-V aftermath banner so the player can read it.
+   */
+  async #waitForAftermath() {
+    return new Promise((resolve) => {
+      const complete = () => {
+        this.#removeAftermathHandlers();
+        resolve();
+      };
+      const tap = () => complete();
+      const key = (e) => {
+        if (e.key === 'Escape') return;
+        complete();
+      };
+      this.#aftermathTapHandler = tap;
+      this.#aftermathKeyHandler = key;
+      // Small delay so the swipe that triggered fire-V doesn't immediately resolve.
+      this.time.delayedCall(150, () => {
+        if (this.#aftermathTapHandler === tap) {
+          window.addEventListener('pointerdown', tap, { capture: true });
+          window.addEventListener('keydown', key, { capture: true });
+        }
+      });
+    });
+  }
+
+  #removeAftermathHandlers() {
+    if (this.#aftermathTapHandler) {
+      window.removeEventListener('pointerdown', this.#aftermathTapHandler, { capture: true });
+      this.#aftermathTapHandler = null;
+    }
+    if (this.#aftermathKeyHandler) {
+      window.removeEventListener('keydown', this.#aftermathKeyHandler, { capture: true });
+      this.#aftermathKeyHandler = null;
     }
   }
 
@@ -654,6 +750,7 @@ export class TutorialScene extends Phaser.Scene {
         <div class="fm-tuto-banner">
           <div class="fm-tuto-banner-title" id="fm-tuto-banner-title"></div>
           <div class="fm-tuto-banner-hint" id="fm-tuto-banner-hint"></div>
+          <div class="fm-tuto-banner-extra" id="fm-tuto-banner-extra"></div>
           <div class="fm-tuto-banner-dots" id="fm-tuto-banner-dots"></div>
         </div>
       </div>
@@ -672,7 +769,7 @@ export class TutorialScene extends Phaser.Scene {
     const titleEl = this.#banner?.node.querySelector('#fm-tuto-banner-title');
     const hintEl = this.#banner?.node.querySelector('#fm-tuto-banner-hint');
     if (titleEl) titleEl.textContent = title;
-    if (hintEl) hintEl.textContent = hint;
+    if (hintEl) hintEl.innerHTML = hint;
     const bannerEl = this.#banner?.node.querySelector('.fm-tuto-banner');
     if (bannerEl) {
       bannerEl.classList.remove('fm-tuto-banner--enter', 'fm-tuto-banner--wrong');
@@ -814,7 +911,13 @@ export class TutorialScene extends Phaser.Scene {
     const titleEl = this.#banner?.node.querySelector('#fm-tuto-banner-title');
     const hintEl = this.#banner?.node.querySelector('#fm-tuto-banner-hint');
     if (titleEl) titleEl.textContent = i18n.t(`tuto.step_${step.id}_title`);
-    if (hintEl) hintEl.textContent = i18n.t(`tuto.step_${step.id}_hint`);
+    if (hintEl) hintEl.innerHTML = i18n.t(`tuto.step_${step.id}_hint`);
+    if (step.id === 'tips') {
+      const subEl = this.#banner?.node.querySelector('.fm-tuto-banner-sub');
+      if (subEl) subEl.innerHTML = i18n.t('tuto.step_tips_sub');
+      const labelEl = this.#banner?.node.querySelector('.fm-tuto-help-label');
+      if (labelEl) labelEl.textContent = i18n.t('menu.help');
+    }
     const playBtn = this.#playDom?.node.querySelector('[data-action="play"]');
     if (playBtn) playBtn.textContent = i18n.t('tuto.play');
   }
@@ -833,6 +936,7 @@ export class TutorialScene extends Phaser.Scene {
       this.#keyHandler = null;
     }
     this.#removeTipsTapHandler();
+    this.#removeAftermathHandlers();
     this.#inputManager?.shutdown();
     this.#inputManager = null;
     this.#unsubI18n?.();

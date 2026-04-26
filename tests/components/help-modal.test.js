@@ -246,21 +246,18 @@ describe('HelpModal', () => {
 
   // ─── CATEGORY: ENEMIES ───────────────────────────
 
-  it('enemies category shows level badges', () => {
+  it('enemies category shows the enemy preview illustration', () => {
     document
       .querySelector('[data-category="enemies"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-    const badges = document.querySelectorAll('.fm-help-enemy-badge');
-    expect(badges.length).toBe(11); // 2..2048
+    expect(document.querySelector('.fm-help-enemy-preview')).not.toBeNull();
   });
 
-  it('enemies category shows level progression', () => {
+  it('enemies category shows tip cards', () => {
     document
       .querySelector('[data-category="enemies"]')
       .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-    const badges = [...document.querySelectorAll('.fm-help-enemy-badge')];
-    const values = badges.map((b) => parseInt(b.textContent, 10));
-    expect(values).toEqual([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]);
+    expect(document.querySelector('.fm-help-card')).not.toBeNull();
   });
 
   // ─── CATEGORY: HP ────────────────────────────────

@@ -50,6 +50,7 @@ export const en = {
   'ranking.rank': '#',
   'victory.title': 'Victory!',
   'victory.subtitle': 'You reached the 2048 tile!',
+  'victory.subtitle_battle': 'You completed level {level}!',
   'victory.continue': 'Keep Playing',
   'victory.next_level': 'Next Level',
   'gameover.title': 'Game Over',
@@ -190,18 +191,17 @@ export const en = {
   'help.fusion_example': '2 + 2 = 4, 4 + 4 = 8, 8 + 8 = 16 ...',
   'help.fusion_score': 'Each fusion adds the new tile value to your score.',
   'help.fusion_combo': 'Multiple quick fusions in a row build a combo for bonus points!',
-  'help.powers_intro': 'Powers are special effects that activate when a powered tile merges.',
+  'help.powers_intro':
+    "Powers are special effects that trigger when you swipe toward a loaded power icon on one of the grid's edges.",
   'help.powers_appear':
-    'After a few moves in Free mode, a random power is assigned to a random tile. The tile appearance changes to show its power.',
-  'help.powers_activate': 'When a powered tile merges, its power triggers on the resulting tile.',
-  'help.powers_conflict':
-    'If two tiles with different powers merge, you choose which power activates.',
+    'After a few moves in Free mode, a random power is assigned to a random tile. A power can also be loaded on the grid edges — in that case a tile will take on a special appearance indicating from which tile the power will launch.',
+  'help.powers_activate': 'When a swipe is made toward a loaded power, its effect triggers.',
   'help.powers_cat_danger': 'Destructive',
   'help.powers_cat_warning': 'Potentially dangerous',
   'help.powers_cat_info': 'Disruptive',
-  'help.power_fire_h_desc': 'Destroys all tiles in the same row.',
-  'help.power_fire_v_desc': 'Destroys all tiles in the same column.',
-  'help.power_fire_x_desc': 'Destroys all tiles in the same row and column.',
+  'help.power_fire_h_desc': 'Destroys all tiles in the same row except itself.',
+  'help.power_fire_v_desc': 'Destroys all tiles in the same column except itself.',
+  'help.power_fire_x_desc': 'Destroys all tiles in the same row and column except itself.',
   'help.power_bomb_desc': 'Destroys itself and adjacent tiles.',
   'help.power_lightning_desc': 'Strikes 1–3 random columns, destroying the top tile of each.',
   'help.power_nuclear_desc': 'Destroys all tiles on the grid!',
@@ -210,7 +210,7 @@ export const en = {
   'help.power_expel_v_desc': 'Target tile can slide off top/bottom edges for a few moves.',
   'help.power_teleport_desc': 'Swaps the target tile with a random other tile.',
   'help.power_ice_desc':
-    'Freezes the target tile for a few moves. It cannot move but can be merged.',
+    'Freezes the target tile for a few moves. It cannot move or merge.',
   'help.power_wind_up_desc': 'Blocks downward movement for a few moves.',
   'help.power_wind_down_desc': 'Blocks upward movement for a few moves.',
   'help.power_wind_left_desc': 'Blocks rightward movement for a few moves.',
@@ -219,11 +219,9 @@ export const en = {
   'help.predictions_title': 'Edge predictions',
   'help.predictions_desc':
     'The colored "!" indicators on each edge of the grid predict what will happen if you swipe in that direction.',
-  'help.predictions_danger':
-    'Red "!" — a destructive power would trigger (fire, bomb, nuclear, lightning).',
-  'help.predictions_warning':
-    'Amber "!" — a disruptive power would trigger (teleport, expel, blind).',
-  'help.predictions_info': 'Blue "!" — a disruptive power would trigger (wind, ice, ads).',
+  'help.predictions_danger': 'Red — one or more tiles may be lost.',
+  'help.predictions_warning': 'Yellow — a potentially dangerous power will be created or triggered.',
+  'help.predictions_info': 'Blue — a power is loaded but overall harmless.',
   'help.predictions_priority':
     'If multiple powers would trigger, the highest severity color is shown.',
   'help.enemies_title': 'Enemy system',
@@ -231,14 +229,13 @@ export const en = {
     'In Battle mode, enemies appear after each classic phase. They contaminate your tiles with powers every move.',
   'help.enemies_spawn':
     'An enemy spawns after a few classic moves if you have achieved a tile ≥ its level.',
-  'help.enemies_levels': 'Levels: 2 → 4 → 8 → 16 → 32 → 64 → 128 → 256 → 512 → 1024 → 2048 (boss).',
   'help.enemies_damage': 'Merge tiles to deal damage! Higher merges deal more damage.',
   'help.enemies_powers': 'Higher-level enemies have access to more powerful abilities.',
   'help.enemies_defeat': 'When defeated, all powers are cleared and the next classic phase begins.',
   'help.enemies_tap': 'Tap the enemy tile during battle to see its name, HP, and available powers.',
   'help.hp_title': 'Grid life (HP)',
   'help.hp_desc':
-    'In Free and Battle modes, your grid has a health bar. Destructive powers that destroy tiles damage the grid.',
+    'In Free and Battle modes, your grid has a health bar. Destroyed or lost tiles damage the grid.',
   'help.hp_formula': 'Damage depends on the value of destroyed tiles.',
   'help.hp_critical': 'When HP drops below 10%, a red warning overlay appears.',
   'help.hp_gameover': 'If the grid HP reaches 0, the game is over!',
@@ -267,20 +264,28 @@ export const en = {
   'launcher.free': 'Free',
   'launcher.load': 'Load Game',
   'tuto.skip': 'Skip',
-  'tuto.play': 'Play!',
+  'tuto.play': 'Play Battle Mode!',
   'tuto.step_swipe_title': 'Swipe to move',
-  'tuto.step_swipe_hint': 'Swipe any direction to slide the tile.',
-  'tuto.step_fusion_title': 'Merge two tiles',
-  'tuto.step_fusion_hint': 'Swipe left or right to fuse the 2s into a 4.',
-  'tuto.step_ice_title': 'Frozen tiles',
-  'tuto.step_ice_hint': "Swipe — the frozen tile won't move and can't merge.",
-  'tuto.step_fire_v_title': 'Vertical fire',
+  'tuto.step_swipe_hint': 'Swipe in all 4 directions to continue.',
+  'tuto.step_fusion_title': 'Merge tiles',
+  'tuto.step_fusion_hint':
+    'Goal: fuse tiles to reach 2048 or higher without filling the grid. Bigger tiles score more points. Grid full with no merges left? <strong>Game Over!</strong>',
+  'tuto.step_ice_title': 'Powers on tiles',
+  'tuto.step_ice_hint':
+    'In Battle &amp; Free modes, tiles can be hit by powers acting as debuffs. Here: <strong>Ice</strong> freezes a tile — it can\'t move or merge!',
+  'tuto.step_fire_v_title': 'Powers on the edges',
   'tuto.step_fire_v_hint':
-    'The sunburst tile carries fire-V. Swipe up or down to unleash it along its column!',
+    'Powers also load onto grid edges. They always fire from the glowing <strong>sunburst</strong> tile. Swipe ↑ or ↓ to trigger Fire&#8209;V!',
   'tuto.step_fire_v_wrong': 'Try swiping up or down.',
-  'tuto.step_enemy_title': 'Enemies',
+  'tuto.step_fire_v_aftermath_title': 'Grid Life (HP)',
+  'tuto.step_fire_v_aftermath_hint':
+    'Destroyed or lost tiles damage your grid HP. In Battle &amp; Free modes, if HP reaches 0 — <strong>Game Over!</strong>',
+  'tuto.step_enemy_title': 'Battle Mode — Enemies',
   'tuto.step_enemy_hint':
-    'Merge tiles to damage the enemy. Careful — it will contaminate one of your tiles!',
+    'Cute enemies contaminate your tiles or grid edges each turn. Fuse tiles to deal damage! Enemies may <strong>counter-attack</strong> with debuffs or special tile states.',
   'tuto.step_tips_title': "You're ready!",
-  'tuto.step_tips_hint': 'Find predictions, enemy info and more via the in-game Help button.',
+  'tuto.step_tips_hint':
+    'Use the <strong>Help (?)</strong> button in-game for details on powers, enemies, predictions, and more.',
+  'tuto.step_tips_sub':
+    'Save your progress anytime — and take on all <strong>30 Battle Mode challenges!</strong>',
 };

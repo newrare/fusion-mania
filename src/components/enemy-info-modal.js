@@ -28,6 +28,7 @@ export class EnemyInfoModal {
     this.#onClose = options.onClose;
 
     const { enemy } = options;
+    const formatProfile = p => p.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     const tileClass = `fm-t${enemy.level}`;
     const currentHp = Math.ceil(enemy.life.currentHp);
     const maxHp = enemy.life.maxHp;
@@ -65,7 +66,10 @@ export class EnemyInfoModal {
         <div class="fm-modal fm-enemy-info-modal">
           <div class="fm-modal-title">${enemy.name}</div>
           <div class="fm-ei-header">
-            <div class="fm-ei-level-badge ${tileClass}">${enemy.level}</div>
+            <div class="fm-ei-header-top">
+              <div class="fm-ei-level-badge ${tileClass}">Lv ${enemy.level}</div>
+              <span class="fm-ei-level-text">${formatProfile(enemy.profile)}</span>
+            </div>
             <div class="fm-ei-hp-row">
               <span class="fm-ei-hp-label">${i18n.t('game.hp')}</span>
               <div class="fm-ei-hp-bar-wrap">

@@ -5,6 +5,30 @@ import { audioManager } from '../managers/audio-manager.js';
 import { saveManager } from '../managers/save-manager.js';
 import { addBackground } from '../utils/background.js';
 
+/**
+ * @param {object} save
+ * @returns {boolean}
+ */
+function isSavePlayable(save) {
+  if (save.gridLife && save.gridLife.currentHp <= 0) return false;
+  const cells = save.grid?.cells;
+  if (!cells) return true;
+  for (let r = 0; r < cells.length; r++) {
+    for (let c = 0; c < cells[r].length; c++) {
+      if (!cells[r][c]) return true;
+    }
+  }
+  for (let r = 0; r < cells.length; r++) {
+    for (let c = 0; c < cells[r].length; c++) {
+      const val = cells[r][c]?.v;
+      if (val === undefined) continue;
+      if (c + 1 < cells[r].length && cells[r][c + 1]?.v === val) return true;
+      if (r + 1 < cells.length && cells[r + 1][c]?.v === val) return true;
+    }
+  }
+  return false;
+}
+
 export class TitleScene extends Phaser.Scene {
   /** @type {Phaser.GameObjects.DOMElement | null} */
   #titleOverlay = null;
@@ -96,7 +120,11 @@ export class TitleScene extends Phaser.Scene {
     this.#transitioned = true;
 
     // Try loading the most recent save (auto-save or latest manual slot)
-    const autoSave = saveManager.loadAutoSave();
+    let autoSave = saveManager.loadAutoSave();
+    if (autoSave && !isSavePlayable(autoSave)) {
+      saveManager.clearAutoSave();
+      autoSave = null;
+    }
     const slots = saveManager.getSlots().filter((s) => s != null);
 
     // Pick the most recent save across auto-save and manual slots
@@ -109,7 +137,11 @@ export class TitleScene extends Phaser.Scene {
     }
 
     if (bestSave) {
-      this.scene.start(SCENE_KEYS.GRID, { mode: bestSave.mode ?? 'classic', slotData: bestSave });
+      this.scene.start(SCENE_KEYS.GRID, {
+        mode: bestSave.mode ?? 'classic',
+        slotData: bestSave,
+        battleLevel: bestSave.battleLevel,
+      });
       return;
     }
 

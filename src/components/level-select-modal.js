@@ -126,7 +126,10 @@ export class LevelSelectModal {
       if (card) {
         e.stopPropagation();
         const idx = parseInt(card.dataset.level, 10);
-        if (!Number.isNaN(idx)) options.onSelect?.(idx);
+        if (!Number.isNaN(idx) && !card.classList.contains('fm-level-btn--loading')) {
+          card.classList.add('fm-level-btn--loading');
+          setTimeout(() => options.onSelect?.(idx), 500);
+        }
         return;
       }
       const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');

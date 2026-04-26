@@ -67,7 +67,7 @@ export class VictoryModal {
         <div class="fm-modal fm-victory">
           <div class="fm-victory-sunburst"></div>
           <div class="fm-modal-title fm-victory-title">${i18n.t('victory.title')}</div>
-          <div class="fm-victory-subtitle">${i18n.t('victory.subtitle')}</div>
+          <div class="fm-victory-subtitle">${isBattle ? i18n.t('victory.subtitle_battle', { level: (options.stats?.battleLevel ?? 0) + 1 }) : i18n.t('victory.subtitle')}</div>
           <div class="fm-score-label">${i18n.t('gameover.score')}</div>
           <div class="fm-gameover-score">${options.score}</div>
           <div class="fm-gameover-stats" id="fm-victory-stats">
@@ -293,7 +293,9 @@ export class VictoryModal {
     const title = overlay.querySelector('.fm-victory-title');
     if (title) title.textContent = i18n.t('victory.title');
     const subtitle = overlay.querySelector('.fm-victory-subtitle');
-    if (subtitle) subtitle.textContent = i18n.t('victory.subtitle');
+    if (subtitle) subtitle.textContent = this.#mode === 'battle'
+      ? i18n.t('victory.subtitle_battle', { level: (this.#stats.battleLevel ?? 0) + 1 })
+      : i18n.t('victory.subtitle');
     const statsEl = overlay.querySelector('#fm-victory-stats');
     if (statsEl) statsEl.innerHTML = this.#renderStats();
     const rankingEl = overlay.querySelector('#fm-victory-ranking');

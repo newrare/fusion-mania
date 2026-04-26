@@ -1133,9 +1133,9 @@ html, body {
   to   { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
-/* --- Victory confetti (fixed full-screen overlay) --- */
+/* --- Victory confetti (full-overlay) --- */
 .fm-victory-confetti {
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: hidden;
@@ -1569,6 +1569,33 @@ html, body {
   z-index: 10;
   white-space: nowrap;
   animation: fm-damage-float 1.8s ease-out forwards;
+}
+
+/* --- Heal popup (floats on the left side of the grid, blue) --- */
+@keyframes fm-heal-float {
+  0%   { opacity: 1; transform: translateY(0) scale(1.2); }
+  20%  { opacity: 1; transform: translateY(-6px) scale(1.05); }
+  75%  { opacity: 0.85; transform: translateY(-28px); }
+  100% { opacity: 0; transform: translateY(-44px); }
+}
+
+.fm-grid-heal {
+  position: absolute;
+  left: -8px;
+  font-family: 'Merkin', cursive, sans-serif;
+  font-weight: 900;
+  font-size: 1.1rem;
+  color: #44aaff;
+  text-shadow:
+    -1px -1px 0 rgba(255,255,255,0.9),
+     1px -1px 0 rgba(255,255,255,0.9),
+    -1px  1px 0 rgba(255,255,255,0.9),
+     1px  1px 0 rgba(255,255,255,0.9),
+     0 0 8px rgba(0,150,255,0.5);
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  animation: fm-heal-float 2s ease-out forwards;
 }
 
 /* --- Critical screen overlay (HP < 10%) — red vignette + heartbeat --- */
@@ -2099,6 +2126,19 @@ html, body {
   transform-origin: center;
 }
 
+/* ─── Spring pop-in reveal when contamination particles land on edge badge ─── */
+@keyframes fm-edge-power-appear {
+  0%   { transform: scale(0.1); opacity: 0.2; filter: brightness(3) drop-shadow(0 0 18px rgba(160,60,255,1)); }
+  45%  { transform: scale(1.35); opacity: 1;   filter: brightness(1.5) drop-shadow(0 0 10px rgba(160,60,255,0.7)); }
+  72%  { transform: scale(0.92);               filter: drop-shadow(0 0 5px rgba(90,0,180,0.4)); }
+  100% { transform: scale(1);                  filter: drop-shadow(0 0 0 rgba(0,0,0,0)); }
+}
+
+.fm-edge-power-appear {
+  animation: fm-edge-power-appear 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform-origin: center;
+}
+
 /* ─── Attack particles (tile → enemy) drawn on canvas — no DOM classes needed ─ */
 
 /* ─── Enemy info modal ─────────────────────────────────────────────────── */
@@ -2112,24 +2152,37 @@ html, body {
 
 .fm-ei-header {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fm-ei-header-top {
+  display: flex;
   align-items: center;
   gap: 10px;
 }
 
 /* Level badge reuses .fm-t* tile classes for colors — no hardcoded values */
 .fm-ei-level-badge {
-  width: 42px;
-  height: 42px;
+  padding: 4px 8px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 900;
   font-family: 'Merkin', cursive, sans-serif;
   border-width: 2px;
   border-style: solid;
   flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.fm-ei-level-text {
+  font-size: 0.85rem;
+  font-weight: 800;
+  font-family: 'Merkin', cursive, sans-serif;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .fm-ei-hp-row {
@@ -3042,33 +3095,72 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
   transform: scale(1.06);
 }
 
+/* --- Level button touch-load animation --- */
+.fm-level-btn--loading {
+  pointer-events: none;
+  transition: background-color 0.5s ease;
+  background-color: var(--fm-load-color) !important;
+}
+
+.fm-level-btn--loading.fm-level-btn--info    { --fm-load-color: rgba(59,130,246,0.55); }
+.fm-level-btn--loading.fm-level-btn--warning { --fm-load-color: rgba(245,158,11,0.55); }
+.fm-level-btn--loading.fm-level-btn--danger  { --fm-load-color: rgba(239,68,68,0.55); }
+
+/* --- Mode badge with level sub-label (battle mode) --- */
+.fm-mode-badge--with-label {
+  flex-direction: column;
+  font-size: 1.15rem;
+  line-height: 1;
+  gap: 1px;
+}
+
+.fm-mode-badge-level {
+  font-size: 0.5rem;
+  font-weight: 700;
+  opacity: 0.75;
+  line-height: 1;
+  letter-spacing: 0.03em;
+}
+
 /* --- Enemy Sequence Timeline --- */
 
 .fm-enemy-frise {
   position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   z-index: 2;
   pointer-events: none;
   user-select: none;
-  max-width: min(96vw, 480px);
-  width: max-content;
+}
+
+.fm-tl-viewport {
+  overflow: hidden;
 }
 
 .fm-tl-track {
   display: flex;
   align-items: center;
-  padding: 4px 6px;
+  padding: 4px 0;
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
 .fm-tl-node {
-  flex: 0 0 auto;
+  flex: 0 0 90px;
+  width: 90px;
   position: relative;
+  display: flex;
+  justify-content: center;
   transition: opacity 0.3s, transform 0.3s, filter 0.3s;
 }
 
 .fm-tl-connector {
-  flex: 0 0 22px;
+  flex: 0 0 18px;
   display: flex;
   align-items: center;
 }
@@ -3098,31 +3190,45 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
 
 .fm-tl-tile {
   border-radius: 7px;
-  padding: 3px 7px;
-  font-size: 0.72rem;
+  padding: 2px 4px;
+  font-size: 0.6rem;
   font-weight: 800;
   border: 1.5px solid;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
   font-family: 'Merkin', cursive, sans-serif;
   line-height: 1.2;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
 }
 
 .fm-tl-boss {
   border-radius: 7px;
-  padding: 3px 7px;
-  font-size: 0.72rem;
+  padding: 2px 4px;
+  font-size: 0.6rem;
   font-weight: 800;
   border: 1.5px solid;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
   font-family: 'Merkin', cursive, sans-serif;
   line-height: 1.2;
   display: flex;
   align-items: center;
-  gap: 3px;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  box-sizing: border-box;
   background: linear-gradient(135deg, #fff2ff, #ffd6f5);
   border-color: #d44db8;
   color: #9900aa;
   box-shadow: 0 0 8px rgba(212, 77, 184, 0.18);
+}
+
+.fm-tl-boss .fm-tl-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 [data-theme="chroma"] .fm-tl-boss {
@@ -3185,6 +3291,21 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
 }
 
 /* State: pending */
+
+/* Counter badge */
+.fm-tl-counter {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: rgba(180, 130, 240, 0.9);
+  font-family: 'Merkin', cursive, sans-serif;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+[data-theme="chroma"] .fm-tl-counter {
+  color: rgba(200, 180, 255, 0.7);
+}
 .fm-frise--pending {
   opacity: 0.5;
 }
@@ -3219,7 +3340,7 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
   left: 50%;
   transform: translateX(-50%);
   width: min(92vw, 420px);
-  padding: 0.65rem 0.9rem;
+  padding: 0.8rem 1.1rem 0.7rem;
   box-sizing: border-box;
   background: var(--fm-modal-bg, linear-gradient(160deg, #2a1050, #1a0a2e));
   border: 2px solid var(--fm-modal-border, rgba(200,140,255,.5));
@@ -3237,12 +3358,12 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
   font-size: 1rem;
   font-weight: 900;
   color: var(--fm-modal-title, #e8c0ff);
-  margin-bottom: 0.1rem;
+  margin-bottom: 0.35rem;
 }
 
 .fm-tuto-banner-hint {
   font-size: 0.78rem;
-  line-height: 1.35;
+  line-height: 1.5;
   color: rgba(255,255,255,0.82);
   min-height: 0.78rem;
 }
@@ -3251,7 +3372,7 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
   display: flex;
   justify-content: center;
   gap: 0.35rem;
-  margin-top: 0.4rem;
+  margin-top: 0.55rem;
 }
 
 .fm-tuto-dot {
@@ -3423,6 +3544,64 @@ body:has(.fm-modal-overlay:not(#fm-power-info-all-overlay)) .fm-enemy-area {
 @keyframes fm-tuto-grid-hurt {
   0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
   50%      { box-shadow: 0 0 30px 6px rgba(239, 68, 68, 0.55); }
+}
+
+/* Swipe-step direction arrow indicators. */
+.fm-tuto-dir-arrows {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+.fm-tuto-dir-arrow {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: background 0.25s, color 0.25s, transform 0.25s;
+}
+.fm-tuto-dir-arrow--done {
+  background: rgba(130, 240, 160, 0.22);
+  color: rgba(130, 240, 160, 0.9);
+  transform: scale(1.15);
+}
+
+/* Tips step: help button preview + label + sub-message. */
+.fm-tuto-help-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.3rem;
+}
+/* Inherits fm-mode-badge styles — only adds animation and disables interaction. */
+.fm-tuto-help-badge {
+  pointer-events: none;
+  animation: fm-tuto-help-pulse 1.8s ease-in-out infinite;
+}
+@keyframes fm-tuto-help-pulse {
+  0%, 100% { box-shadow: 0 3px 0 var(--fm-hud-shadow, rgba(10,4,30,0.8)), 0 4px 12px var(--fm-hud-glow, rgba(140,80,200,0.15)); }
+  50%      { box-shadow: 0 3px 0 var(--fm-hud-shadow, rgba(10,4,30,0.8)), 0 4px 20px rgba(200,140,255,0.55); }
+}
+.fm-tuto-help-label {
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.fm-tuto-banner-extra {
+  margin-top: 0.45rem;
+}
+.fm-tuto-banner-sub {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.45;
+  margin: 0;
+  text-align: center;
 }
 
 

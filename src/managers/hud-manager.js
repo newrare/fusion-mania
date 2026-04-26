@@ -136,7 +136,7 @@ export class HudManager {
    * - Bottom-LEFT: (ranking) + (modeIcon → history) + (! → pred)
    * - Bottom-RIGHT: (? → help) + (folder → sub-menu) + column[(replay) / (setting → settings)]
    * The "!" button is hidden by default; call setPredBtnVisible() to toggle it.
-   * @param {{ onHistoryOpen: () => void, onHelpOpen: () => void, onMenuOpen: () => void, onSettingsOpen: () => void, onRankingOpen: () => void, onReplayOpen: () => void, onPredOpen?: () => void }} callbacks
+   * @param {{ onHistoryOpen: () => void, onHelpOpen: () => void, onMenuOpen: () => void, onSettingsOpen: () => void, onRankingOpen: () => void, onReplayOpen: () => void, onPredOpen?: () => void, battleLevel?: number }} callbacks
    */
   createBottomBar({
     onHistoryOpen,
@@ -146,14 +146,19 @@ export class HudManager {
     onRankingOpen,
     onReplayOpen,
     onPredOpen,
+    battleLevel = -1,
   }) {
     const modeIcon = HudManager.#MODE_ICONS[this.#mode] ?? '🎮';
+    const levelLabel = battleLevel >= 0
+      ? `<span class="fm-mode-badge-level">L${battleLevel + 1}</span>`
+      : '';
+    const historyBtnClass = `fm-mode-badge fm-clickable${battleLevel >= 0 ? ' fm-mode-badge--with-label' : ''}`;
 
     // ── Bottom-LEFT: ranking + history + pred ──
     const leftHtml = `
       <div class="fm-help-bar">
         <button class="fm-mode-badge fm-clickable" id="fm-ranking-btn" aria-label="Ranking"><img src="/images/menu-ranking.svg" alt="Ranking" class="fm-hud-icon" /></button>
-        <button class="fm-mode-badge fm-clickable" id="fm-history-mode-btn" aria-label="History">${modeIcon}</button>
+        <button class="${historyBtnClass}" id="fm-history-mode-btn" aria-label="History">${modeIcon}${levelLabel}</button>
         <button class="fm-mode-badge fm-clickable fm-pred-btn" id="fm-pred-btn" aria-label="Predictions" style="display:none">!</button>
       </div>
     `;

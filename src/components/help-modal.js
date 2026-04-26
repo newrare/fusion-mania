@@ -226,7 +226,6 @@ export class HelpModal {
       <div class="fm-help-card">
         <p class="fm-help-p fm-help-tip">${i18n.t('help.powers_appear')}</p>
         <p class="fm-help-p fm-help-tip">${i18n.t('help.powers_activate')}</p>
-        <p class="fm-help-p fm-help-tip">${i18n.t('help.powers_conflict')}</p>
       </div>
     `;
 
@@ -293,10 +292,6 @@ export class HelpModal {
   }
 
   #renderEnemies() {
-    const levelBadges = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
-      .map((lvl) => `<div class="fm-help-enemy-badge fm-tile fm-t${lvl}">${lvl}</div>`)
-      .join('');
-
     /* Mini enemy illustration: transparent tile with colored border (fm-t32),
        liquid HP fill at ~60% + a face image, mimicking the actual enemy tile in-game. */
     const enemyIllustration = `
@@ -322,8 +317,6 @@ export class HelpModal {
         <p class="fm-help-p fm-help-tip">${i18n.t('help.enemies_powers')}</p>
         <p class="fm-help-p fm-help-tip">${i18n.t('help.enemies_defeat')}</p>
       </div>
-      <div class="fm-help-subsection-title">${i18n.t('help.enemies_levels')}</div>
-      <div class="fm-help-enemy-levels">${levelBadges}</div>
     `;
   }
 

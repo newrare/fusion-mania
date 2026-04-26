@@ -50,6 +50,7 @@ export const fr = {
   'ranking.rank': '#',
   'victory.title': 'Victoire !',
   'victory.subtitle': 'Vous avez atteint la tuile 2048 !',
+  'victory.subtitle_battle': 'Vous avez terminé le niveau {level} !',
   'victory.continue': 'Continuer',
   'victory.next_level': 'Niveau suivant',
   'gameover.title': 'Partie terminée',
@@ -192,12 +193,10 @@ export const fr = {
   'help.fusion_combo':
     'Plusieurs fusions rapides à la suite créent un combo pour des points bonus !',
   'help.powers_intro':
-    'Les pouvoirs sont des effets spéciaux qui se déclenchent quand une tuile ayant un pouvoir fusionne avec une autre tuile.',
+    "Les pouvoirs sont des effets spéciaux qui se déclenchent lorsque vous swiper vers un icôn de pouvoir chargé sur l'un des coté de la grille.",
   'help.powers_appear':
-    "Après quelques mouvements sur le mode Free, un pouvoir aléatoire est assigné à une tuile choisie au hasard. L'apparence de la tuile évolue pour montrer son pouvoir.",
-  'help.powers_activate': 'Quand une tuile ayant un pouvoir fusionne, son pouvoir se déclenche.',
-  'help.powers_conflict':
-    'Si deux tuiles avec des pouvoirs différents fusionnent, une fenêtre apparaît et vous choisissez votre pouvoir préféré.',
+    "Après quelques mouvements sur le mode Free, un pouvoir aléatoire est assigné à une tuile choisie au hasard. Un pouvoir peut aussi être chargé sur les bords de la grille. Dans ce cas une tuile prendra un aspect spécial pour déterminer depuis quel tuile le pouvoir se lancera.",
+  'help.powers_activate': 'Quand un swipe (glissement) est effectué vers un pouvoir chargé, son effet se déclenche.',
   'help.powers_cat_danger': 'Destructeurs',
   'help.powers_cat_warning': 'Potentiellement dangereux',
   'help.powers_cat_info': 'Perturbateurs',
@@ -216,7 +215,7 @@ export const fr = {
     'La tuile cible peut glisser hors des bords haut/bas pendant quelques mouvements.',
   'help.power_teleport_desc': 'Échange la tuile cible avec une autre tuile aléatoire.',
   'help.power_ice_desc':
-    'Gèle la tuile cible pendant quelques mouvements. Elle ne peut pas bouger mais peut fusionner.',
+    'Gèle la tuile cible pendant quelques mouvements. Elle ne peut plus bouger ni fusionner.',
   'help.power_wind_up_desc': 'Bloque le mouvement vers le bas pendant quelques mouvements.',
   'help.power_wind_down_desc': 'Bloque le mouvement vers le haut pendant quelques mouvements.',
   'help.power_wind_left_desc': 'Bloque le mouvement vers la droite pendant quelques mouvements.',
@@ -224,13 +223,13 @@ export const fr = {
   'help.power_ads_desc': 'Affiche une pub en plein écran pendant quelques secondes.',
   'help.predictions_title': 'Prédictions sur les bords',
   'help.predictions_desc':
-    'Les indicateurs "!" colorés sur chaque bord de la grille prédisent ce qui se passera si vous glissez dans cette direction.',
+    'Les indicateurs colorés sur chaque bord de la grille prédisent ce qui se passera si vous glissez dans cette direction.',
   'help.predictions_danger':
-    '"!" rouge — une ou plusieurs tuiles peuvent être perdues (feu, bombe, nucléaire, éclair).',
+    'Rouge — une ou plusieurs tuiles peuvent être perdues.',
   'help.predictions_warning':
-    '"!" jaune — un pouvoir potentiellement dangereux sera créé ou déclenché (téléport, expulsion, aveugle).',
+    'Jaune — un pouvoir potentiellement dangereux sera créé ou déclenché.',
   'help.predictions_info':
-    '"!" bleu — un pouvoir perturbateur se déclencherait (vent, glace, pub).',
+    'Bleu — un pouvoir est chargé mais globalement inoffensif.',
   'help.predictions_priority':
     'Si plusieurs pouvoirs se déclenchent, la couleur de plus haute sévérité est affichée.',
   'help.enemies_title': "Système d'ennemis",
@@ -238,8 +237,6 @@ export const fr = {
     'En mode Battle, les ennemis apparaissent après chaque phase classique. Ils contaminent alors vos tuiles avec des pouvoirs à chaque mouvement.',
   'help.enemies_spawn':
     "Un ennemi apparaît après quelques mouvements classiques si vous avez déjà atteint une tuile de valeur égale ou supérieure au niveau de l'ennemi.",
-  'help.enemies_levels':
-    "Ordre de niveaux d'apparition : 2 → 4 → 8 → 16 → 32 → 64 → 128 → 256 → 512 → 1024 → 2048 (boss).",
   'help.enemies_damage': 'Fusionnez des tuiles pour infliger des dégâts aux ennemis !',
   'help.enemies_powers':
     'Les ennemis de niveau supérieur ont accès à des pouvoirs plus destructeurs.',
@@ -279,20 +276,28 @@ export const fr = {
   'launcher.free': 'Free',
   'launcher.load': 'Charger une partie',
   'tuto.skip': 'Passer',
-  'tuto.play': 'Jouer !',
+  'tuto.play': 'Jouer en Mode Battle !',
   'tuto.step_swipe_title': 'Glissez pour déplacer',
-  'tuto.step_swipe_hint': 'Glissez dans une direction pour faire glisser la tuile.',
-  'tuto.step_fusion_title': 'Fusionnez deux tuiles',
-  'tuto.step_fusion_hint': 'Glissez à gauche ou à droite pour fusionner les deux 2 en un 4.',
-  'tuto.step_ice_title': 'Tuiles gelées',
-  'tuto.step_ice_hint': 'Glissez — la tuile gelée ne bouge pas et ne fusionne pas.',
-  'tuto.step_fire_v_title': 'Feu vertical',
+  'tuto.step_swipe_hint': 'Glissez dans les 4 directions pour continuer.',
+  'tuto.step_fusion_title': 'Fusionnez des tuiles',
+  'tuto.step_fusion_hint':
+    'Objectif : fusionner des tuiles de plus en plus grandes sans remplir la grille, et atteindre 2048 ou plus. Plus les tuiles sont grandes, plus le score augmente. Grille pleine sans fusion possible ? <strong>Game Over !</strong>',
+  'tuto.step_ice_title': 'Pouvoirs sur les tuiles',
+  'tuto.step_ice_hint':
+    'En modes Battle et Free, les tuiles peuvent être affectées par des pouvoirs qui agissent comme des malus. Ici : <strong>Ice</strong> gèle une tuile — elle ne peut plus bouger ni fusionner !',
+  'tuto.step_fire_v_title': 'Pouvoirs sur les bords',
   'tuto.step_fire_v_hint':
-    'La tuile au soleil porte le feu vertical. Glissez en haut ou en bas pour le déclencher sur sa colonne !',
+    'Les pouvoirs se chargent aussi sur les bords de la grille. Ils se déclenchent toujours depuis la tuile en surbrillance (<strong>sunburst</strong>). Glissez ↑ ou ↓ pour déclencher le Feu&#8209;V !',
   'tuto.step_fire_v_wrong': 'Essayez de glisser en haut ou en bas.',
-  'tuto.step_enemy_title': 'Les ennemis',
+  'tuto.step_fire_v_aftermath_title': 'Vie de la grille (PV)',
+  'tuto.step_fire_v_aftermath_hint':
+    'Les tuiles détruites ou perdues endommagent les PV de votre grille. En modes Battle et Free, si les PV tombent à 0 — <strong>Game Over !</strong>',
+  'tuto.step_enemy_title': 'Mode Battle — Ennemis',
   'tuto.step_enemy_hint':
-    "Fusionnez pour blesser l'ennemi. Attention — il va contaminer une de vos tuiles !",
+    'Des ennemis mignons contaminent vos tuiles ou les bords de la grille à chaque tour. Fusionnez pour infliger des dégâts ! Les ennemis peuvent <strong>contre-attaquer</strong> avec des malus ou des états spéciaux.',
   'tuto.step_tips_title': 'Vous êtes prêt !',
-  'tuto.step_tips_hint': 'Retrouvez prédictions, infos ennemis et plus via le bouton Aide en jeu.',
+  'tuto.step_tips_hint':
+    'Utilisez le bouton <strong>Aide (?)</strong> en jeu pour les détails sur les pouvoirs, ennemis, prédictions, et plus encore.',
+  'tuto.step_tips_sub':
+    'Sauvegardez votre progression à tout moment — et relevez les <strong>30 défis du Mode Battle !</strong>',
 };

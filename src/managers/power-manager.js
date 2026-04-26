@@ -401,10 +401,20 @@ export class PowerManager {
 
     const base = { type };
 
+    // Helper: if the targeted tile was consumed by a merge, redirect to the
+    // surviving merged tile — mirroring what resolveTargetAfterMerge does at
+    // runtime. Used by every target-based power prediction below.
+    const resolvedPos = (() => {
+      if (targetSurvived) return pos;
+      if (!targetId) return null;
+      const merge = sim.merges.find((m) => m.consumedId === targetId);
+      return merge ? { row: merge.row, col: merge.col } : null;
+    })();
+
     switch (type) {
       case POWER_TYPES.FIRE_H: {
-        if (!targetSurvived) return { ...base, severity: 'info', destroyedValues: [] };
-        const destroyed = this.#destroyedInRow(simGrid, pos.row, pos.col);
+        if (!resolvedPos) return { ...base, severity: 'info', destroyedValues: [] };
+        const destroyed = this.#destroyedInRow(simGrid, resolvedPos.row, resolvedPos.col);
         return {
           ...base,
           severity: destroyed.length > 0 ? 'danger' : 'info',
@@ -412,8 +422,8 @@ export class PowerManager {
         };
       }
       case POWER_TYPES.FIRE_V: {
-        if (!targetSurvived) return { ...base, severity: 'info', destroyedValues: [] };
-        const destroyed = this.#destroyedInCol(simGrid, pos.col, pos.row);
+        if (!resolvedPos) return { ...base, severity: 'info', destroyedValues: [] };
+        const destroyed = this.#destroyedInCol(simGrid, resolvedPos.col, resolvedPos.row);
         return {
           ...base,
           severity: destroyed.length > 0 ? 'danger' : 'info',
@@ -421,10 +431,10 @@ export class PowerManager {
         };
       }
       case POWER_TYPES.FIRE_X: {
-        if (!targetSurvived) return { ...base, severity: 'info', destroyedValues: [] };
+        if (!resolvedPos) return { ...base, severity: 'info', destroyedValues: [] };
         const destroyed = [
-          ...this.#destroyedInRow(simGrid, pos.row, pos.col),
-          ...this.#destroyedInCol(simGrid, pos.col, pos.row),
+          ...this.#destroyedInRow(simGrid, resolvedPos.row, resolvedPos.col),
+          ...this.#destroyedInCol(simGrid, resolvedPos.col, resolvedPos.row),
         ];
         return {
           ...base,
@@ -433,8 +443,8 @@ export class PowerManager {
         };
       }
       case POWER_TYPES.BOMB: {
-        if (!targetSurvived) return { ...base, severity: 'info', destroyedValues: [] };
-        const destroyed = this.#destroyedInBomb(simGrid, pos.row, pos.col);
+        if (!resolvedPos) return { ...base, severity: 'info', destroyedValues: [] };
+        const destroyed = this.#destroyedInBomb(simGrid, resolvedPos.row, resolvedPos.col);
         return {
           ...base,
           severity: destroyed.length > 0 ? 'danger' : 'info',
@@ -458,11 +468,11 @@ export class PowerManager {
         };
       }
       case POWER_TYPES.TELEPORT: {
-        const targetVal = targetSurvived ? simGrid[pos.row][pos.col]?.value : null;
-        const otherCount = this.#allValues(simGrid).length - (targetSurvived ? 1 : 0);
+        const targetVal = resolvedPos ? simGrid[resolvedPos.row][resolvedPos.col]?.value : null;
+        const otherCount = this.#allValues(simGrid).length - (resolvedPos ? 1 : 0);
         return {
           ...base,
-          severity: targetSurvived && otherCount > 0 ? 'warning' : 'info',
+          severity: resolvedPos && otherCount > 0 ? 'warning' : 'info',
           targetValue: targetVal ?? null,
         };
       }

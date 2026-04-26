@@ -238,7 +238,7 @@ export class SaveLoadModal {
 
     // ── Auto-save slot (always first row, displayed as slot 0) ──
     if (autoSave) {
-      const modeLabel = this.#modeLabel(autoSave.mode);
+      const modeLabel = this.#modeLabel(autoSave);
       const dateStr = this.#formatDate(autoSave.date, locale);
       const mainHtml = this.#buildMainCell(autoSave);
       html += `
@@ -278,7 +278,7 @@ export class SaveLoadModal {
         continue;
       }
 
-      const modeLabel = this.#modeLabel(s.mode);
+      const modeLabel = this.#modeLabel(s);
       const dateStr = this.#formatDate(s.date, locale);
       const mainHtml = this.#buildMainCell(s);
 
@@ -329,19 +329,22 @@ export class SaveLoadModal {
   }
 
   /**
-   * @param {string} mode
+   * @param {object} save
    * @returns {string}
    */
-  #modeLabel(mode) {
-    switch (mode) {
+  #modeLabel(save) {
+    switch (save.mode) {
       case 'classic':
         return i18n.t('ranking.classic');
-      case 'battle':
-        return i18n.t('ranking.battle');
+      case 'battle': {
+        const bl = save.battleLevel ?? save.battleManager?.battleLevel;
+        const suffix = bl != null && bl >= 0 ? ` L${bl + 1}` : '';
+        return i18n.t('ranking.battle') + suffix;
+      }
       case 'free':
         return i18n.t('ranking.free');
       default:
-        return mode;
+        return save.mode;
     }
   }
 

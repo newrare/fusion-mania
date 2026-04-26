@@ -419,6 +419,7 @@ export class GameScene extends Phaser.Scene {
       onRankingOpen: () => this.#openRanking(),
       onReplayOpen: () => this.#handleReplay(),
       onPredOpen: () => this.#openPredModal(),
+      battleLevel: this.#battleLevel,
     });
     this.#inputManager = new InputManager(this, {
       onDirection: (dir) => this.#executeMove(dir),
@@ -538,7 +539,7 @@ export class GameScene extends Phaser.Scene {
     this.#hudManager?.resetComboDisplay();
     this.#gm.startNewGame();
 
-    // Grid Life system (Free mode only)
+    // Grid Life system (Free and Battle modes)
     if (this.#mode === 'free') {
       this.#gridLife = new GridLife();
       this.#createLiquidOverlay();
@@ -551,6 +552,10 @@ export class GameScene extends Phaser.Scene {
         this.#battleLevel >= 0 ? this.#battleLevel : undefined,
       );
       this.#createEnemyFrise();
+      // Grid life is active from the very start of a battle game
+      this.#gridLife = new GridLife();
+      this.#createLiquidOverlay();
+      this.#updateLifeVisual();
     }
 
     this.#updateHUD();
@@ -832,7 +837,9 @@ export class GameScene extends Phaser.Scene {
 
     // Finalize history entry and auto-save
     this.#historyManager.finalizeTurn(this.#gm.grid.score);
-    this.#autoSave();
+    if (this.#gm.grid.canMove() && !this.#gridLife?.isDead) {
+      this.#autoSave();
+    }
 
     // ╔══════════════════════════════════════════════════════════╗
     // ║  ANIMATION PHASE — interruptible by next move           ║
@@ -955,7 +962,10 @@ export class GameScene extends Phaser.Scene {
         await this.#playEdgeContaminationAnimation(contamination.side);
       }
       // Render the badge that was deliberately skipped before the animation (Fix 3).
-      if (moveGen === this.#moveGen) this.#updatePowerVisuals();
+      if (moveGen === this.#moveGen) {
+        this.#updatePowerVisuals();
+        if (shouldAnimate) this.#applyEdgeBadgeReveal(contamination.side);
+      }
     }
 
     if (moveGen === this.#moveGen) this.#gm.animating = false;
@@ -1228,45 +1238,51 @@ export class GameScene extends Phaser.Scene {
 
     document.querySelector('#fm-enemy-frise')?.remove();
 
+    const formatProfile = p =>
+      p.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
     let track = '';
     for (let i = 0; i < seq.length; i++) {
-      const { level } = seq[i];
+      const { level, profile } = seq[i];
       const isBoss = i === seq.length - 1;
       const nodeClasses = `fm-tl-node fm-frise-item${isBoss ? ' fm-frise-boss' : ''}`;
+      const label = formatProfile(profile);
 
       if (isBoss) {
         track += `<div class="${nodeClasses}" data-idx="${i}">
-          <div class="fm-tl-boss"><span>🔥</span>${level}</div>
+          <div class="fm-tl-boss"><span>🔥</span><span class="fm-tl-label">${label}</span></div>
         </div>`;
       } else {
         track += `<div class="${nodeClasses}" data-idx="${i}">
-          <div class="fm-tl-tile fm-t${level}">${level}</div>
+          <div class="fm-tl-tile fm-t${level}">${label}</div>
         </div>`;
       }
 
       if (i < seq.length - 1) {
-        const isLastConnector = i === seq.length - 2;
-        if (isLastConnector) {
-          track += `<div class="fm-tl-connector"><span class="fm-tl-line"></span></div>`;
-        } else {
-          track += `<div class="fm-tl-connector">
-            <span class="fm-tl-line"></span>
-            <span class="fm-tl-arrow">▶</span>
-            <span class="fm-tl-line"></span>
-          </div>`;
-        }
+        track += `<div class="fm-tl-connector"><span class="fm-tl-line"></span></div>`;
       }
     }
 
     const el = document.createElement('div');
     el.className = 'fm-enemy-frise';
     el.id = 'fm-enemy-frise';
-    el.innerHTML = `<div class="fm-tl-track">${track}</div>`;
+    const viewport = document.createElement('div');
+    viewport.className = 'fm-tl-viewport';
+    viewport.innerHTML = `<div class="fm-tl-track">${track}</div>`;
+    if (seq.length > 3) {
+      // 3 nodes × 90px + 2 connectors × 18px = 306px
+      viewport.style.width = '306px';
+    }
+    const counter = document.createElement('div');
+    counter.className = 'fm-tl-counter';
+    counter.textContent = `0/${seq.length}`;
+    el.appendChild(viewport);
+    el.appendChild(counter);
     document.body.appendChild(el);
     this.#enemyFriseEl = el;
     // Defer positioning until grid is laid out
     requestAnimationFrame(() => this.#positionEnemyFrise());
-    this.#updateEnemyFrise();
+    this.#updateEnemyFrise(false);
   }
 
   /** Position the frise below the HUD + 15 px. */
@@ -1278,7 +1294,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Update timeline visual state: defeated / active / pending. */
-  #updateEnemyFrise() {
+  #updateEnemyFrise(animate = true) {
     if (!this.#enemyFriseEl || !this.#battleManager) return;
     const idx = this.#battleManager.nextLevelIndex;
     const defeated = this.#battleManager.defeatedEnemies;
@@ -1293,6 +1309,28 @@ export class GameScene extends Phaser.Scene {
         el.classList.add('fm-frise--pending');
       }
     });
+    const counter = this.#enemyFriseEl.querySelector('.fm-tl-counter');
+    if (counter) counter.textContent = `${defeated.length}/${items.length}`;
+    this.#slideFrise(idx, animate);
+  }
+
+  /**
+   * Slide the frise track to keep `focusIdx` visible (centered in the 3-item window).
+   * @param {number} focusIdx - Index of the current/next enemy to focus on
+   * @param {boolean} animate  - Whether to use CSS transition
+   */
+  #slideFrise(focusIdx, animate = true) {
+    const track = this.#enemyFriseEl?.querySelector('.fm-tl-track');
+    if (!track) return;
+    const total = this.#enemyFriseEl.querySelectorAll('.fm-frise-item').length;
+    if (total <= 3) return;
+    // SLOT = node width (90px) + connector width (18px)
+    const SLOT = 108;
+    const clampedFocus = Math.min(focusIdx, total - 1);
+    const windowStart = Math.max(0, Math.min(clampedFocus - 1, total - 3));
+    if (!animate) track.style.transition = 'none';
+    track.style.transform = `translateX(${-windowStart * SLOT}px)`;
+    if (!animate) requestAnimationFrame(() => { track.style.transition = ''; });
   }
 
   /**
@@ -1403,6 +1441,7 @@ export class GameScene extends Phaser.Scene {
             await this.#playEdgeContaminationAnimation(contamination.side);
             // Reveal the badge now that the animation has landed (Fix 3).
             this.#updatePowerVisuals();
+            this.#applyEdgeBadgeReveal(contamination.side);
           }
         }
       }
@@ -1422,10 +1461,6 @@ export class GameScene extends Phaser.Scene {
       this.#battlePowerManager.removePowerType(POWER_TYPES.ADS);
       delete enemy.powerStock[POWER_TYPES.ADS];
     }
-
-    // Create grid life overlay starting at 0% (will fill via CSS transition below)
-    this.#gridLife = new GridLife();
-    this.#createLiquidOverlay();
 
     // Render enemy (HP bar starts at 0% for fill animation)
     this.#renderEnemy(enemy);
@@ -1474,8 +1509,6 @@ export class GameScene extends Phaser.Scene {
       this.#battlePowerManager.removePowerType(POWER_TYPES.ADS);
       delete enemy.powerStock[POWER_TYPES.ADS];
     }
-    this.#gridLife = new GridLife();
-    this.#createLiquidOverlay();
     this.#renderEnemy(enemy);
     this.#positionEnemyArea();
     if (this.#enemyAreaEl) {
@@ -1595,25 +1628,10 @@ export class GameScene extends Phaser.Scene {
     bm.clearGridPowers(this.#gm.grid, this.#battlePowerManager);
     this.#gm.syncTileDom(null);
 
-    // Fade out the grid life liquid (non-blocking — runs while death animation plays)
-    this.#gridLife = null;
-    this.#criticalOverlay?.remove();
-    this.#criticalOverlay = null;
-    const dyingWave = this.#gridFillEl;
-    this.#gridFillEl = null;
-    const dyingLiquid = this.#liquidEl;
-    this.#liquidEl = null;
-    if (dyingLiquid) {
-      dyingLiquid.classList.add('fm-grid-life-liquid--out');
-      const removeDying = () => {
-        dyingWave?.remove();
-        if (dyingLiquid.isConnected) dyingLiquid.remove();
-      };
-      dyingLiquid.addEventListener('transitionend', removeDying, { once: true });
-      setTimeout(removeDying, 700);
+    // Heal grid life back to 100% (show blue +N popup and animate liquid rising)
+    if (this.#gridLife) {
+      this.#onGridLifeHeal(this.#gridLife.maxHp - this.#gridLife.currentHp);
     }
-
-    // Hide HP box in HUD — removed (HP no longer shown in battle HUD)
 
     // Death animation: gray out, move to graveyard
     await this.#playEnemyDeathAnimation(dead);
@@ -1664,14 +1682,9 @@ export class GameScene extends Phaser.Scene {
 
     bm.clearGridPowers(this.#gm.grid, this.#battlePowerManager);
     this.#gm.syncTileDom(null);
-    this.#gridLife = null;
-    this.#criticalOverlay?.remove();
-    this.#criticalOverlay = null;
-    this.#gridFillEl?.remove();
-    this.#gridFillEl = null;
-    if (this.#liquidEl) {
-      this.#liquidEl.remove();
-      this.#liquidEl = null;
+    // Heal grid life back to 100% instantly
+    if (this.#gridLife) {
+      this.#onGridLifeHeal(this.#gridLife.maxHp - this.#gridLife.currentHp);
     }
     this.#enemyInfoModal?.destroy();
     this.#enemyInfoModal = null;
@@ -1846,10 +1859,22 @@ export class GameScene extends Phaser.Scene {
    * @param {'top'|'bottom'|'left'|'right'} side
    */
   async #playEdgeContaminationAnimation(side) {
-    if (!this.#gm.gridEl) return;
-    const badge = this.#gm.gridEl.querySelector(`.fm-edge-power[data-side="${side}"]`);
-    if (!badge) return;
-    await this.#playContaminationTo(badge, 'fm-edge-hit-contaminate');
+    if (!this.#gm.gridEl || !this.#enemyAreaEl) return;
+    const r = this.#gm.gridEl.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const pt = { top: { x: cx, y: r.top }, bottom: { x: cx, y: r.bottom }, left: { x: r.left, y: cy }, right: { x: r.right, y: cy } }[side];
+    if (!pt) return;
+    await this.#playContaminationTo(pt, null);
+  }
+
+  /** Apply the reveal pop-in animation to the edge badge that just appeared. */
+  #applyEdgeBadgeReveal(side) {
+    const badge = this.#gm.gridEl?.querySelector(`.fm-edge-power[data-side="${side}"]`);
+    const dot = badge?.querySelector('.fm-power-dot');
+    if (!dot) return;
+    dot.classList.add('fm-edge-power-appear');
+    dot.addEventListener('animationend', () => dot.classList.remove('fm-edge-power-appear'), { once: true });
   }
 
   /**
@@ -1859,16 +1884,22 @@ export class GameScene extends Phaser.Scene {
    * @param {HTMLElement} targetEl
    * @param {string} hitClass — CSS class toggled for the impact pulse.
    */
-  async #playContaminationTo(targetEl, hitClass) {
+  async #playContaminationTo(target, hitClass) {
     if (!this.#enemyAreaEl) return;
 
     const enemyRect = this.#enemyAreaEl.getBoundingClientRect();
-    const targetRect = targetEl.getBoundingClientRect();
-
     const sx = enemyRect.left + enemyRect.width / 2;
     const sy = enemyRect.top + enemyRect.height / 2;
-    const ex = targetRect.left + targetRect.width / 2;
-    const ey = targetRect.top + targetRect.height / 2;
+
+    const targetEl = target instanceof HTMLElement ? target : null;
+    let ex, ey;
+    if (targetEl) {
+      const r = targetEl.getBoundingClientRect();
+      ex = r.left + r.width / 2;
+      ey = r.top + r.height / 2;
+    } else {
+      ({ x: ex, y: ey } = target);
+    }
 
     const COUNT = 4;
     const DURATION = 550;
@@ -1967,15 +1998,10 @@ export class GameScene extends Phaser.Scene {
 
     cvs.remove();
 
-    // Dark shadow pulse on the impact target
-    targetEl.classList.add(hitClass);
-    targetEl.addEventListener(
-      'animationend',
-      () => {
-        targetEl.classList.remove(hitClass);
-      },
-      { once: true },
-    );
+    if (targetEl && hitClass) {
+      targetEl.classList.add(hitClass);
+      targetEl.addEventListener('animationend', () => targetEl.classList.remove(hitClass), { once: true });
+    }
   }
 
   /**
@@ -2138,7 +2164,7 @@ export class GameScene extends Phaser.Scene {
       onResume: () => this.#destroyMenuModal(),
       onLoadGame: (slotData) => {
         this.#destroyMenuModal();
-        this.scene.restart({ mode: slotData.mode, slotData });
+        this.scene.restart({ mode: slotData.mode, slotData, battleLevel: slotData.battleLevel });
       },
       onSave: () => this.#handleSaveSlot(),
       onClose: () => this.#destroyMenuModal(),
@@ -2187,7 +2213,7 @@ export class GameScene extends Phaser.Scene {
       onLoadGame: (slotData) => {
         this.#levelSelectModal?.destroy();
         this.#levelSelectModal = null;
-        this.scene.restart({ mode: slotData.mode, slotData });
+        this.scene.restart({ mode: slotData.mode, slotData, battleLevel: slotData.battleLevel });
       },
       onCancel: () => {
         this.#levelSelectModal?.destroy();
@@ -2234,6 +2260,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.#mode === 'battle') {
+      if (this.#battleLevel >= 0) state.battleLevel = this.#battleLevel;
       if (this.#battleManager) state.battleManager = this.#battleManager.serialize();
       if (this.#gridLife) state.gridLife = this.#gridLife.serialize();
       if (this.#battlePowerManager) state.battlePowerManager = this.#battlePowerManager.serialize();
@@ -2380,7 +2407,7 @@ export class GameScene extends Phaser.Scene {
 
     // Battle mode: restore battle manager, power manager, grid life
     if (this.#mode === 'battle') {
-      const savedBL = data.battleManager?.battleLevel;
+      const savedBL = data.battleLevel ?? data.battleManager?.battleLevel;
       this.#battleLevel = savedBL != null && savedBL >= 0 ? savedBL : this.#battleLevel;
       this.#battleManager = new BattleManager(
         this.#battleLevel >= 0 ? this.#battleLevel : undefined,
@@ -2393,6 +2420,11 @@ export class GameScene extends Phaser.Scene {
       if (data.gridLife) {
         this.#gridLife = new GridLife();
         this.#gridLife.restore(data.gridLife);
+        this.#createLiquidOverlay();
+        this.#updateLifeVisual();
+      } else {
+        // No saved grid life (old save): initialize fresh at full HP
+        this.#gridLife = new GridLife();
         this.#createLiquidOverlay();
         this.#updateLifeVisual();
       }
@@ -3121,6 +3153,45 @@ export class GameScene extends Phaser.Scene {
 
     // Self-remove after animation
     popup.addEventListener('animationend', () => popup.remove());
+  }
+
+  /**
+   * Show a floating "+N" heal number on the left side of the grid (blue).
+   * @param {number} amount
+   */
+  #showHealPopup(amount) {
+    const gridEl = this.#gm.gridEl;
+    if (!gridEl || amount <= 0) return;
+
+    const popup = document.createElement('div');
+    popup.className = 'fm-grid-heal';
+    popup.textContent = `+${amount}`;
+
+    const pct = this.#gridLife?.percent ?? 1;
+    popup.style.bottom = `${(pct * 100).toFixed(0)}%`;
+
+    gridEl.appendChild(popup);
+    popup.addEventListener('animationend', () => popup.remove());
+  }
+
+  /**
+   * Heal the grid life by the given amount and update visuals.
+   * Used when an enemy is defeated (restores HP to 100%).
+   * @param {number} amount
+   */
+  #onGridLifeHeal(amount) {
+    if (!this.#gridLife || amount <= 0) return;
+
+    this.#gridLife.heal(amount);
+
+    // Remove critical overlay if present
+    this.#criticalOverlay?.remove();
+    this.#criticalOverlay = null;
+
+    // Show blue "+N" popup and animate liquid rising
+    this.#showHealPopup(amount);
+    this.#updateLifeVisual();
+    this.#updateHUD();
   }
 
   /** Phaser game loop — called every frame. Syncs dead-enemy DOM elements to their Matter.js body positions. */
