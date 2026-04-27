@@ -449,15 +449,8 @@ export class GameScene extends Phaser.Scene {
     // emitting 'shutdown', so re-registering each create() is safe.
     this.events.on('shutdown', () => this.shutdown());
 
-    // Cache CSS tile size for physics body sizing (read after container is in DOM)
-    this.events.once('create', () => {
-      this.#tileSizePx =
-        parseInt(
-          getComputedStyle(
-            document.getElementById('game-container') ?? document.body,
-          ).getPropertyValue('--fm-tile-size'),
-        ) || 64;
-    });
+    // Cache tile size from layout manager (authoritative value, always set before GameScene).
+    this.#tileSizePx = layout.grid.tileSize || 74;
 
     if (this.#pendingOpenLauncher) {
       this.#pendingOpenLauncher = false;
@@ -2030,13 +2023,24 @@ export class GameScene extends Phaser.Scene {
   async #playEnemyDeathAnimation(enemy) {
     if (!this.#enemyAreaEl) return;
     audioManager.playSfx('enemyDeath');
+
+    // Freeze any settled dynamic dead-enemy bodies so they don't jump when the
+    // world resumes — already-static bodies (restored from save) are left alone.
+    const M = Phaser.Physics.Matter.Matter;
+    for (const { body } of this.#deadEnemyBodies) {
+      if (!body.isStatic) M.Body.setStatic(body, true);
+    }
+
     // Wake the physics world for this animation; it will auto-pause once settled.
     this.matter.world.resume();
 
-    const tileSize = this.#tileSizePx;
     const tileClass = `fm-t${enemy.level}`;
+    // Use layout.grid.tileSize — the canonical tile size set by LayoutManager.
+    // This is always consistent with the live CSS tile size and avoids any
+    // getBoundingClientRect() discrepancies from transforms or ongoing animations.
+    const tileSize = layout.grid.tileSize || this.#tileSizePx;
 
-    // Find the tile wrapper to get its exact center position
+    // Read position from the live tile wrapper for accurate spawn coordinates.
     const tileWrap = this.#enemyAreaEl.querySelector('.fm-enemy-tile');
     const srcRect = (tileWrap ?? this.#enemyAreaEl).getBoundingClientRect();
     const cx = srcRect.left + srcRect.width / 2;
@@ -2076,7 +2080,6 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Initial impulse: random horizontal kick + spin
-    const M = Phaser.Physics.Matter.Matter;
     const vxDir = Math.random() > 0.5 ? 1 : -1;
     M.Body.setVelocity(body, {
       x: vxDir * Math.random(),
@@ -2084,7 +2087,7 @@ export class GameScene extends Phaser.Scene {
     });
     M.Body.setAngularVelocity(body, (Math.random() > 0.5 ? 1 : -1) * (0.05 + Math.random() * 0.1));
 
-    this.#deadEnemyBodies.push({ el: deadTile, body });
+    this.#deadEnemyBodies.push({ el: deadTile, body, half: tileSize / 2 });
     this.#scheduleMatterAutoPause();
 
     // Brief pause so the caller waits for the tile to visually separate from
@@ -2138,9 +2141,10 @@ export class GameScene extends Phaser.Scene {
     const JITTER = 0.8; // per-body random variation for natural feel
     const dx = direction === 'right' ? BASE : direction === 'left' ? -BASE : 0;
     const dy = direction === 'down' ? BASE : direction === 'up' ? -BASE : 0;
+    this.matter.world.resume();
     for (const { body } of this.#deadEnemyBodies) {
-      // Wake sleeping bodies first — setVelocity has no effect on sleeping bodies
-      // (enableSleeping is true in the Matter world config).
+      // Un-static settled bodies so the impulse has an effect
+      if (body.isStatic) M.Body.setStatic(body, false);
       if (body.isSleeping) M.Sleeping.set(body, false);
       const jx = (Math.random() - 0.5) * JITTER;
       const jy = (Math.random() - 0.5) * JITTER;
@@ -2149,6 +2153,7 @@ export class GameScene extends Phaser.Scene {
         y: body.velocity.y + dy + jy,
       });
     }
+    this.#scheduleMatterAutoPause();
   }
 
   // ─── MODALS ──────────────────────────────────────
@@ -2327,26 +2332,22 @@ export class GameScene extends Phaser.Scene {
    * @param {{ name: string, level: number }[]} enemies
    */
   #restoreDeadEnemyTiles(enemies) {
-    // Read the live CSS variable so tile size matches the actual rendered tiles,
-    // even when this runs before events.once('create') sets #tileSizePx.
-    const cssSize = parseInt(
-      getComputedStyle(document.getElementById('game-container') ?? document.body).getPropertyValue(
-        '--fm-tile-size',
-      ),
-      10,
-    );
-    const tileSize = cssSize || this.#tileSizePx || 64;
+    // layout.grid.tileSize is the authoritative value — same source used for
+    // live tiles and death animation tiles, guaranteeing identical sizing.
+    const tileSize = layout.grid.tileSize || this.#tileSizePx || 74;
     const W = window.innerWidth;
     const H = window.innerHeight;
     const gap = 6;
+    const M = Phaser.Physics.Matter.Matter;
 
     for (let i = 0; i < enemies.length; i++) {
       const { name, level } = enemies[i];
       const tileClass = `fm-t${level}`;
 
       // Centre tiles at the very bottom of the screen, spread side-by-side.
-      // The physics floor top edge sits at H, so body centre at H - tileSize/2
-      // places the tile bottom flush with the floor — perfectly flat.
+      // Body centre at H - tileSize/2 places the bottom edge flush with the floor (top at H).
+      // The chamfer radius rounds corners but does not affect the flat bottom side,
+      // so collision detection is correct with this positioning.
       const totalW = enemies.length * tileSize + (enemies.length - 1) * gap;
       const startX = (W - totalW) / 2 + tileSize / 2;
       const cx = startX + i * (tileSize + gap);
@@ -2354,9 +2355,12 @@ export class GameScene extends Phaser.Scene {
 
       const deadTile = document.createElement('div');
       deadTile.className = 'fm-dead-enemy';
-      deadTile.style.cssText = `position:fixed;width:${tileSize}px;height:${tileSize}px;pointer-events:none;transform-origin:center center;`;
-      deadTile.style.left = `${cx - tileSize / 2}px`;
-      deadTile.style.top = `${cy - tileSize / 2}px`;
+      // Use left:0;top:0 + transform — same convention as #playEnemyDeathAnimation
+      // so that update() can sync via transform without double-offset.
+      deadTile.style.cssText =
+        `position:fixed;left:0;top:0;width:${tileSize}px;height:${tileSize}px;` +
+        `pointer-events:none;transform-origin:center center;`;
+      deadTile.style.transform = `translate(${cx - tileSize / 2}px,${cy - tileSize / 2}px)`;
       deadTile.innerHTML = `
         <div class="fm-tile fm-dead-enemy-inner ${tileClass}">
           <span class="fm-dead-enemy-label">${name}</span>
@@ -2366,9 +2370,9 @@ export class GameScene extends Phaser.Scene {
         </div>`;
       document.body.appendChild(deadTile);
 
-      // Dynamic body with the same physics properties as a live dead-enemy tile,
-      // but zero initial velocity — already settled on the floor.
-      // Using dynamic (not static) so new enemies falling on top interact naturally.
+      // Create body as dynamic first so Matter.js initialises it fully,
+      // then immediately make it static — this ensures it's correctly registered
+      // in the broadphase and collides properly with new falling dynamic bodies.
       const body = this.matter.add.rectangle(cx, cy, tileSize, tileSize, {
         chamfer: { radius: 14 },
         restitution: 0.2,
@@ -2377,12 +2381,11 @@ export class GameScene extends Phaser.Scene {
         density: 0.002,
         label: 'dead-enemy',
       });
-      // Already settled — no initial velocity or spin
-      const M = Phaser.Physics.Matter.Matter;
-      M.Body.setVelocity(body, { x: 0, y: 0 });
-      M.Body.setAngularVelocity(body, 0);
+      M.Body.setStatic(body, true);
+      // Ensure position is correct after setStatic (setStatic zeros velocity + resets inertia)
+      M.Body.setPosition(body, { x: cx, y: cy });
 
-      this.#deadEnemyBodies.push({ el: deadTile, body });
+      this.#deadEnemyBodies.push({ el: deadTile, body, half: tileSize / 2 });
     }
   }
 
@@ -3224,8 +3227,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.#deadEnemyBodies.length === 0) return;
-    const half = this.#tileSizePx / 2;
-    for (const { el, body } of this.#deadEnemyBodies) {
+    for (const { el, body, half } of this.#deadEnemyBodies) {
       if (!el.isConnected) continue;
       /* Use transform instead of left/top to avoid triggering layout reflow
          every frame. translate + rotate is GPU-composited (no main-thread work). */

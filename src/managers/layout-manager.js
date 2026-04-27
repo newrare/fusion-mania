@@ -116,6 +116,9 @@ class LayoutManager {
       el.style.setProperty('--fm-grid-width', `${totalWidth}px`);
       el.style.setProperty('--fm-safe-width', `${Math.round(this.safe.width)}px`);
     }
+    // Mirror tile-size on body so DOM nodes appended outside #game-container
+    // (enemy area, dead tiles) can inherit the same computed value.
+    document.body.style.setProperty('--fm-tile-size', `${tileSize}px`);
 
     for (const cb of this.#listeners) cb();
   }
