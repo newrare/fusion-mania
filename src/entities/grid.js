@@ -185,11 +185,20 @@ export class Grid {
 
           // Track blind participation before clearing state
           const mergeInvolvedBlind = tile.state === 'blind' || mergeTile.state === 'blind';
+          // Preserve ghost (expel) state across fusions
+          const ghostInfo =
+            (tile.state === 'ghost-h' || tile.state === 'ghost-v')
+              ? { state: tile.state, turns: tile.stateTurns }
+              : (mergeTile.state === 'ghost-h' || mergeTile.state === 'ghost-v')
+                ? { state: mergeTile.state, turns: mergeTile.stateTurns }
+                : null;
           mergeTile.value *= 2;
           mergeTile.merged = true;
           // Reset to normal state after fusion — no stacking of special states
           mergeTile.clearState();
           mergeTile.targeted = false;
+          // Restore ghost state so expel tiles keep their power after fusion
+          if (ghostInfo) mergeTile.applyState(ghostInfo.state, ghostInfo.turns);
           // If either participant was blind the survivor is now visible; give it
           // a cooldown of 2 so that a blind power firing on the same turn (after
           // tickMove decrements it once) still sees cooldown > 0 and skips it.

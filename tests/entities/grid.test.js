@@ -240,6 +240,45 @@ describe('Grid', () => {
       expect(result.merges.length).toBe(1);
     });
 
+    it('ghost-v state is preserved on the merged tile after fusion', () => {
+      const ghost = new Tile(4, 2, 1);
+      ghost.applyState('ghost-v', 5);
+      grid.cells[2][1] = ghost;
+      grid.cells[0][1] = new Tile(4, 0, 1);
+      const result = grid.move('up');
+      const merged = result.merges[0].tile;
+      expect(merged.value).toBe(8);
+      expect(merged.state).toBe('ghost-v');
+      expect(merged.stateTurns).toBe(5);
+    });
+
+    it('ghost-h state is preserved on the merged tile after fusion', () => {
+      const ghost = new Tile(4, 1, 2);
+      ghost.applyState('ghost-h', 3);
+      grid.cells[1][2] = ghost;
+      grid.cells[1][0] = new Tile(4, 1, 0);
+      const result = grid.move('left');
+      const merged = result.merges[0].tile;
+      expect(merged.value).toBe(8);
+      expect(merged.state).toBe('ghost-h');
+      expect(merged.stateTurns).toBe(3);
+    });
+
+    it('ghost state is preserved when the stationary tile has it', () => {
+      const blocker = new Tile(8, 0, 1);
+      grid.cells[0][1] = blocker; // blocker prevents ghost from exiting
+      const ghost = new Tile(4, 1, 1);
+      ghost.applyState('ghost-v', 4);
+      grid.cells[1][1] = ghost;
+      const normal = new Tile(4, 2, 1);
+      grid.cells[2][1] = normal;
+      const result = grid.move('up');
+      const merged = result.merges[0].tile;
+      expect(merged.value).toBe(8);
+      expect(merged.state).toBe('ghost-v');
+      expect(merged.stateTurns).toBe(4);
+    });
+
     it('ghost-v does NOT exit on left/right moves (only vertical)', () => {
       const tile = new Tile(2, 1, 1);
       tile.applyState('ghost-v', 5);

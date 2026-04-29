@@ -247,6 +247,19 @@ export class HudManager {
   // ─── HUD UPDATES ──────────────────────────────
 
   /**
+   * Adjust font-size on a score-value element so the number never overflows.
+   * @param {HTMLElement} el
+   */
+  static #fitScoreFont(el) {
+    const len = el.textContent.length;
+    if (len <= 4)      el.style.fontSize = '';
+    else if (len === 5) el.style.fontSize = '1.05rem';
+    else if (len === 6) el.style.fontSize = '0.9rem';
+    else if (len === 7) el.style.fontSize = '0.78rem';
+    else                el.style.fontSize = '0.68rem';
+  }
+
+  /**
    * Refresh all stat values in the HUD.
    * @param {{ score: number, moves: number, fusions: number, maxTile: number, prevBestScore: number }} stats
    * @returns {{ newBest: boolean }} Whether the player just beat their previous best
@@ -262,11 +275,15 @@ export class HudManager {
     const maxTileEl = el.querySelector('#fm-max-tile');
     const bestMaxTileEl = el.querySelector('#fm-best-max-tile');
 
-    if (scoreEl) scoreEl.textContent = String(score);
+    if (scoreEl) {
+      scoreEl.textContent = String(score);
+      HudManager.#fitScoreFont(scoreEl);
+    }
     if (movesEl) movesEl.textContent = String(moves);
     if (bestEl) {
       const best = Math.max(saveManager.getBestScore(this.#mode), score);
       bestEl.textContent = String(best);
+      HudManager.#fitScoreFont(bestEl);
     }
     if (fusionsEl) fusionsEl.textContent = String(fusions);
     if (maxTileEl) maxTileEl.textContent = String(maxTile);
