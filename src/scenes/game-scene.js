@@ -389,6 +389,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.#gm = new GridManager();
+    this.#gm.fastMode = this.#mode === 'fast';
     addBackground(this);
     layout.drawDebugSafeZone(this);
     this.#hudManager = new HudManager(this, this.#mode);
@@ -2227,6 +2228,11 @@ export class GameScene extends Phaser.Scene {
         this.#levelSelectModal = null;
         this.scene.restart({ mode: 'classic' });
       },
+      onFast: () => {
+        this.#levelSelectModal?.destroy();
+        this.#levelSelectModal = null;
+        this.scene.restart({ mode: 'fast' });
+      },
       onFree: () => {
         this.#levelSelectModal?.destroy();
         this.#levelSelectModal = null;
@@ -2549,6 +2555,8 @@ export class GameScene extends Phaser.Scene {
   #showVictoryModal() {
     audioManager.playSfx('victory');
     const isBattle = this.#mode === 'battle';
+    const isFast = this.#mode === 'fast';
+    const endsOnVictory = isBattle || isFast;
 
     // Build stats (same structure as game over)
     const extra = {
@@ -2565,28 +2573,31 @@ export class GameScene extends Phaser.Scene {
       if (this.#battleLevel >= 0) extra.battleLevel = this.#battleLevel;
     }
 
-    // In battle mode, victory ends the game — save score
-    if (isBattle) {
+    // In battle/fast mode, victory ends the game — save score
+    if (endsOnVictory) {
       this.#gameOver = true;
       this.#endCombo();
-      extra.won = true;
-      if (this.#battleLevel >= 0) {
-        // Level difficulty bonus (always applied)
-        let levelPct = BATTLE.LEVEL_BONUS_EASY;
-        if (this.#battleLevel >= BATTLE.TIER_HARD.start) levelPct = BATTLE.LEVEL_BONUS_HARD;
-        else if (this.#battleLevel >= BATTLE.TIER_NORMAL.start)
-          levelPct = BATTLE.LEVEL_BONUS_NORMAL;
-        const levelBonus = Math.round(this.#gm.grid.score * levelPct);
-        this.#gm.grid.score += levelBonus;
-        extra.levelBonus = levelBonus;
-        // Additional victory bonus
-        let victoryPct = BATTLE.VICTORY_BONUS_EASY;
-        if (this.#battleLevel >= BATTLE.TIER_HARD.start) victoryPct = BATTLE.VICTORY_BONUS_HARD;
-        else if (this.#battleLevel >= BATTLE.TIER_NORMAL.start)
-          victoryPct = BATTLE.VICTORY_BONUS_NORMAL;
-        const victoryBonus = Math.round(this.#gm.grid.score * victoryPct);
-        this.#gm.grid.score += victoryBonus;
-        extra.victoryBonus = victoryBonus;
+      if (isFast) extra.won = true;
+      if (isBattle) {
+        extra.won = true;
+        if (this.#battleLevel >= 0) {
+          // Level difficulty bonus (always applied)
+          let levelPct = BATTLE.LEVEL_BONUS_EASY;
+          if (this.#battleLevel >= BATTLE.TIER_HARD.start) levelPct = BATTLE.LEVEL_BONUS_HARD;
+          else if (this.#battleLevel >= BATTLE.TIER_NORMAL.start)
+            levelPct = BATTLE.LEVEL_BONUS_NORMAL;
+          const levelBonus = Math.round(this.#gm.grid.score * levelPct);
+          this.#gm.grid.score += levelBonus;
+          extra.levelBonus = levelBonus;
+          // Additional victory bonus
+          let victoryPct = BATTLE.VICTORY_BONUS_EASY;
+          if (this.#battleLevel >= BATTLE.TIER_HARD.start) victoryPct = BATTLE.VICTORY_BONUS_HARD;
+          else if (this.#battleLevel >= BATTLE.TIER_NORMAL.start)
+            victoryPct = BATTLE.VICTORY_BONUS_NORMAL;
+          const victoryBonus = Math.round(this.#gm.grid.score * victoryPct);
+          this.#gm.grid.score += victoryBonus;
+          extra.victoryBonus = victoryBonus;
+        }
       }
       const rankingMode = this.#battleLevel >= 0 ? `battle_L${this.#battleLevel}` : this.#mode;
       saveManager.addRanking(rankingMode, this.#gm.grid.score, extra);
@@ -2594,7 +2605,7 @@ export class GameScene extends Phaser.Scene {
       saveManager.clearAutoSave();
     }
 
-    const provisionalEntry = isBattle
+    const provisionalEntry = endsOnVictory
       ? null
       : {
           score: this.#gm.grid.score,
@@ -2613,7 +2624,7 @@ export class GameScene extends Phaser.Scene {
       mode: this.#mode,
       stats: extra,
       provisionalEntry,
-      onContinue: isBattle
+      onContinue: endsOnVictory
         ? undefined
         : () => {
             this.#victoryModal?.destroy();

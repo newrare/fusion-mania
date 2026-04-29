@@ -38,6 +38,7 @@ export class LevelSelectModal {
    * @param {{
    *   onSelect?: (levelIndex: number) => void,
    *   onClassic?: () => void,
+   *   onFast?: () => void,
    *   onFree?: () => void,
    *   onLoadGame?: (slotData: object) => void,
    *   onCancel?: () => void,
@@ -78,6 +79,7 @@ export class LevelSelectModal {
     let quickPlayHtml = `
       <div class="fm-launcher-quick">
         <button class="fm-btn fm-launcher-mode-btn" data-action="classic"><span class="fm-btn-mode-icon">🎲</span>${i18n.t('launcher.classic')}</button>
+        <button class="fm-btn fm-launcher-mode-btn" data-action="fast"><span class="fm-btn-mode-icon">⚡</span>${i18n.t('launcher.fast')}</button>
         <button class="fm-btn fm-launcher-mode-btn" data-action="free"><span class="fm-btn-mode-icon">✨</span>${i18n.t('launcher.free')}</button>
       </div>`;
 
@@ -138,6 +140,9 @@ export class LevelSelectModal {
         switch (btn.dataset.action) {
           case 'classic':
             options.onClassic?.();
+            return;
+          case 'fast':
+            options.onFast?.();
             return;
           case 'free':
             options.onFree?.();

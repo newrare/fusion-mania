@@ -343,6 +343,8 @@ export class SaveLoadModal {
       }
       case 'free':
         return i18n.t('ranking.free');
+      case 'fast':
+        return i18n.t('ranking.fast');
       default:
         return save.mode;
     }

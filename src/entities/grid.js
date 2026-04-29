@@ -136,6 +136,35 @@ export class Grid {
   }
 
   /**
+   * Spawn a tile whose value adapts to the current grid state (Fast mode).
+   * Picks the two lowest distinct tile values present on the grid with
+   * the same 90/10 weighting as the classic spawn. Falls back to standard
+   * SPAWN_VALUES when fewer than 2 distinct values exist.
+   * @returns {Tile | null} The spawned tile, or null if grid is full.
+   */
+  spawnTileFast() {
+    const empty = this.getEmptyCells();
+    if (empty.length === 0) return null;
+
+    const values = new Set();
+    for (const row of this.cells) {
+      for (const tile of row) {
+        if (tile) values.add(tile.value);
+      }
+    }
+    const sorted = [...values].sort((a, b) => a - b);
+    const spawnVals = sorted.length >= 2 ? [sorted[0], sorted[1]] : SPAWN_VALUES;
+    const spawnWts = SPAWN_WEIGHTS;
+
+    const idx = Math.floor(Math.random() * empty.length);
+    const { row, col } = empty[idx];
+    const value = weightedPick(spawnVals, spawnWts);
+    const tile = new Tile(value, row, col);
+    this.cells[row][col] = tile;
+    return tile;
+  }
+
+  /**
    * Move all tiles in a direction. Returns move result for animations.
    * @param {'up' | 'down' | 'left' | 'right'} direction
    * @returns {{

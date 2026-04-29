@@ -83,6 +83,41 @@ describe('Grid', () => {
     });
   });
 
+  describe('spawnTileFast', () => {
+    it('spawns a tile with one of the two lowest values on the grid', () => {
+      grid.cells[0][0] = new Tile(32, 0, 0);
+      grid.cells[0][1] = new Tile(64, 0, 1);
+      grid.cells[0][2] = new Tile(128, 0, 2);
+      grid.cells[0][3] = new Tile(512, 0, 3);
+      const tile = grid.spawnTileFast();
+      expect(tile).not.toBeNull();
+      expect([32, 64]).toContain(tile.value);
+    });
+
+    it('falls back to SPAWN_VALUES when only one distinct value exists', () => {
+      grid.cells[0][0] = new Tile(8, 0, 0);
+      grid.cells[0][1] = new Tile(8, 0, 1);
+      const tile = grid.spawnTileFast();
+      expect(tile).not.toBeNull();
+      expect([2, 4]).toContain(tile.value);
+    });
+
+    it('falls back to SPAWN_VALUES on an empty grid', () => {
+      const tile = grid.spawnTileFast();
+      expect(tile).not.toBeNull();
+      expect([2, 4]).toContain(tile.value);
+    });
+
+    it('returns null when grid is full', () => {
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          grid.cells[r][c] = new Tile(16, r, c);
+        }
+      }
+      expect(grid.spawnTileFast()).toBeNull();
+    });
+  });
+
   describe('move', () => {
     it('slides tiles to the left', () => {
       grid.cells[0][3] = new Tile(2, 0, 3);

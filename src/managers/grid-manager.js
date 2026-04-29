@@ -38,6 +38,9 @@ export class GridManager {
   /** @type {number} Current wind turns for dedup */
   #currentWindTurns = -1;
 
+  /** @type {boolean} When true, use adaptive spawn values (Fast mode) */
+  #fastMode = false;
+
   constructor() {
     this.#grid = new Grid();
   }
@@ -66,6 +69,11 @@ export class GridManager {
   /** @returns {Map<string, HTMLElement>} */
   get tileElements() {
     return this.#tileElements;
+  }
+
+  /** @param {boolean} val */
+  set fastMode(val) {
+    this.#fastMode = val;
   }
 
   // ─── Grid container ──────────────────────────────
@@ -213,7 +221,7 @@ export class GridManager {
     const moveNumber = this.#grid.moves;
 
     // Spawn new tile in grid data before animations
-    const newTile = this.#grid.spawnTile();
+    const newTile = this.#fastMode ? this.#grid.spawnTileFast() : this.#grid.spawnTile();
 
     // Phase 1 — slide + expel-to-edge (run concurrently, same duration)
     this.#animator.slideExpelledToEdge(result.expelled, direction, layout.grid.tileSize);
@@ -614,7 +622,7 @@ export class GridManager {
    * @returns {Tile | null}
    */
   spawnAndRender() {
-    const tile = this.#grid.spawnTile();
+    const tile = this.#fastMode ? this.#grid.spawnTileFast() : this.#grid.spawnTile();
     if (!tile) return null;
     this.#animator.createTileElement(
       tile,

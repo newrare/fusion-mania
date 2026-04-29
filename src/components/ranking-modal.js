@@ -43,6 +43,7 @@ export class RankingModal {
           <div class="fm-ranking-tabs">
             <button class="fm-ranking-tab fm-ranking-tab--active fm-clickable" data-tab="battle">${i18n.t('ranking.battle')}</button>
             <button class="fm-ranking-tab fm-clickable" data-tab="free">${i18n.t('ranking.free')}</button>
+            <button class="fm-ranking-tab fm-clickable" data-tab="fast">${i18n.t('ranking.fast')}</button>
             <button class="fm-ranking-tab fm-clickable" data-tab="classic">${i18n.t('ranking.classic')}</button>
           </div>
           <div class="fm-ranking-table-wrap" id="fm-ranking-table-wrap"></div>
@@ -85,7 +86,7 @@ export class RankingModal {
     });
 
     /** @type {string[]} Tab order for keyboard navigation */
-    const tabOrder = ['battle', 'free', 'classic'];
+    const tabOrder = ['battle', 'free', 'fast', 'classic'];
 
     this.#keyHandler = (event) => {
       switch (event.code) {

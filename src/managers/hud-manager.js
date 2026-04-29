@@ -45,8 +45,8 @@ export class HudManager {
   /** @type {Function | null} */
   #unsubI18n = null;
 
-  /** @type {{ classic: string, battle: string, free: string }} */
-  static #MODE_ICONS = { classic: '🎲', battle: '⚔️', free: '✨' };
+  /** @type {{ classic: string, battle: string, free: string, fast: string }} */
+  static #MODE_ICONS = { classic: '🎲', battle: '⚔️', free: '✨', fast: '⚡' };
 
   /**
    * @param {Phaser.Scene} scene
